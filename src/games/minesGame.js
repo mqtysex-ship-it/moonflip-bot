@@ -224,11 +224,66 @@ export function render5x5Board(
     return { embed, components: [replayRow], files: [cardAttachment] };
   }
 
-  // Active Game Embed & 25-Button 5x5 Grid
+  // Curiosity Peek / Exploration Mode (Post-Cashout Interactive Board)
+  if (state.peekMode) {
+    const cardAttachment = buildMinesAttachment(state, null, false, true, false, true);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x2ecc71)
+      .setTitle(`💰  MINES — CASHED OUT +${currentWin.toLocaleString()} 🪙 (${state.multiplier.toFixed(2)}x)!`)
+      .setImage('attachment://mines_result.png')
+      .setDescription(
+        `${prefixNotice}🎉 **CASHED OUT!** You locked in **+${currentWin.toLocaleString()} 🪙** *(Net Profit: **+${netProfit.toLocaleString()} 🪙**)* at **${state.multiplier.toFixed(2)}x**!\n` +
+        `> 🔍 **Exploration Mode Active**: Click any \`❓\` to see what was hidden, or click any green **\`[ 🔄 Replay ]\`** tile to start a fresh game!\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🪙 **Wager**: \`${state.betAmount.toLocaleString()} 🪙\`   •   💣 **Bombs**: \`${state.bombs} / 25\`\n` +
+        `💎 **Gems Found**: \`${state.revealedIndices.size} / ${safeGemsTotal}\`   •   📈 **Final Mult**: \`${state.multiplier.toFixed(2)}x\`\n` +
+        `💰 **Payout Saved**: **\`+${currentWin.toLocaleString()} 🪙\`** (\`+${netProfit.toLocaleString()} 🪙\` profit)\n` +
+        `💳 **Wallet Balance**: **\`${balance.toLocaleString()} 🪙\`**\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+      )
+      .setFooter({
+        text: `${user.username} • Click [🔄 Replay] to play again or [❓] to explore hidden tiles`,
+        iconURL: user.displayAvatarURL() || undefined,
+      })
+      .setTimestamp();
+
+    const rows = [];
+    for (let r = 0; r < 5; r++) {
+      const row = new ActionRowBuilder();
+      for (let c = 0; c < 5; c++) {
+        const idx = r * 5 + c;
+        const btn = new ButtonBuilder().setCustomId(`m5_tile_${idx}`);
+
+        if (state.revealedIndices.has(idx)) {
+          btn
+            .setLabel('🔄 Replay')
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(false);
+        } else if (state.peekRevealed?.has(idx)) {
+          if (state.bombIndices.has(idx)) {
+            btn.setLabel('💣 Bomb').setStyle(ButtonStyle.Danger).setDisabled(true);
+          } else {
+            btn.setLabel('💎 Gem').setStyle(ButtonStyle.Primary).setDisabled(true);
+          }
+        } else {
+          btn.setLabel('❓').setStyle(ButtonStyle.Secondary);
+        }
+        row.addComponents(btn);
+      }
+      rows.push(row);
+    }
+
+    return { embed, components: rows, files: [cardAttachment] };
+  }
+
+  // Active Game Embed & 25-Button 5x5 Grid (Live Graphic Card on Every Turn!)
   const canCashout = state.revealedIndices.size > 0;
   const instructionLine = canCashout
     ? `> 🟢 **CASH OUT READY**: Click **any green \`[💰 ${state.multiplier.toFixed(2)}x]\` tile** on the grid to Cash Out **+${currentWin.toLocaleString()} 🪙** *(+${netProfit.toLocaleString()} 🪙 profit)*, or click \`❓\` for **${nextMult.toFixed(2)}x**!`
     : `> Click any \`❓\` tile on the **5x5 grid (25 tiles)** to uncover a gem (**${nextMult.toFixed(2)}x**). Once uncovered, click any green gem tile anytime to **Cash Out**!`;
+
+  const activeCardAttachment = buildMinesAttachment(state, null, false, false, false, false);
 
   const embed = new EmbedBuilder()
     .setColor(color)
@@ -237,6 +292,7 @@ export function render5x5Board(
         ? `💎  5x5 MINES — ${state.multiplier.toFixed(2)}x ACTIVE (+${currentWin.toLocaleString()} 🪙)`
         : '💣  5x5 MINES — HIGH-STAKES GRID'
     )
+    .setImage('attachment://mines_result.png')
     .setDescription(
       `${prefixNotice}${instructionLine}\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -275,7 +331,7 @@ export function render5x5Board(
     rows.push(row);
   }
 
-  return { embed, components: rows, files: [] };
+  return { embed, components: rows, files: [activeCardAttachment] };
 }
 
 /**
@@ -335,6 +391,8 @@ export async function start5x5Mines(interaction, betAmount = 100, bombs = DEFAUL
       lastRevealAt: 0,
       lastRevealedTile: -1,
       createdAt: Date.now(),
+      peekMode: false,
+      peekRevealed: new Set(),
     };
 
     activeMinesGames.set(userId, gameState);
@@ -422,9 +480,19 @@ export async function handle5x5MinesInteraction(interaction) {
 
       const winAmount = Math.floor(state.betAmount * state.multiplier);
       addTokens(userId, winAmount, true);
-      activeMinesGames.delete(userId);
 
-      const { embed, components, files } = render5x5Board(state, interaction.user, true, true, true);
+      // Enter interactive exploration / curiosity peek mode
+      state.cashedOut = true;
+      state.peekMode = true;
+      state.peekRevealed = new Set();
+
+      const { embed, components, files } = render5x5Board(
+        state,
+        interaction.user,
+        false,
+        true,
+        true
+      );
       return interaction.update({ embeds: [embed], components, files: files || [], content: null });
     };
 
@@ -437,7 +505,40 @@ export async function handle5x5MinesInteraction(interaction) {
     if (id.startsWith('m5_tile_')) {
       const tileIdx = parseInt(id.replace('m5_tile_', ''), 10);
 
-      // If clicking an already-revealed green gem tile:
+      // Exploration / Peek Mode handling (post-cashout)
+      if (state.peekMode) {
+        // If clicking a green [ 🔄 Replay ] button:
+        if (state.revealedIndices.has(tileIdx)) {
+          activeMinesGames.delete(userId);
+          return start5x5Mines(interaction, state.betAmount, state.bombs);
+        }
+        // If clicking an already peeked button:
+        if (state.peekRevealed?.has(tileIdx)) {
+          return interaction.deferUpdate().catch(() => {});
+        }
+
+        // Peek this tile!
+        state.peekRevealed = state.peekRevealed || new Set();
+        state.peekRevealed.add(tileIdx);
+        const wasBomb = state.bombIndices.has(tileIdx);
+        const winVal = Math.floor(state.betAmount * state.multiplier);
+        const autoNotice = wasBomb
+          ? `💥 **Tile #${tileIdx + 1} was a BOMB!** You dodged this mine by cashing out earlier! (+${winVal.toLocaleString()} 🪙 secured)`
+          : `💎 **Tile #${tileIdx + 1} was a SAFE GEM!** Your intuition was spot-on!`;
+
+        const { embed, components, files } = render5x5Board(
+          state,
+          interaction.user,
+          false,
+          true,
+          true,
+          null,
+          autoNotice
+        );
+        return await interaction.update({ embeds: [embed], components, files: files || [], content: null });
+      }
+
+      // If clicking an already-revealed green gem tile during active play:
       if (state.revealedIndices.has(tileIdx)) {
         // Guard against accidental double-click within 450ms on the exact same tile just uncovered
         if (tileIdx === state.lastRevealedTile && Date.now() - state.lastRevealAt < 450) {

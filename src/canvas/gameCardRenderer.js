@@ -368,7 +368,14 @@ export function drawSlotSymbol(ctx, sym, cx, cy, size) {
 // 1. MINES GRAPHIC BOARD CARD (5x5)
 // ============================================================================
 
-export function renderMinesCard(state, explodedIdx = null, won = false, cashedOut = false) {
+export function renderMinesCard(
+  state,
+  explodedIdx = null,
+  won = false,
+  cashedOut = false,
+  gameOver = false,
+  peekMode = false
+) {
   const W = 540;
   const H = 615;
   const canvas = createCanvas(W, H);
@@ -384,7 +391,15 @@ export function renderMinesCard(state, explodedIdx = null, won = false, cashedOu
   ctx.fill();
 
   // Outer Neon Glow Rim
-  ctx.strokeStyle = won || cashedOut ? '#10b981' : explodedIdx !== null ? '#ef4444' : '#38bdf8';
+  const rimColor =
+    won || cashedOut
+      ? '#10b981'
+      : explodedIdx !== null
+      ? '#ef4444'
+      : peekMode
+      ? '#f59e0b'
+      : '#38bdf8';
+  ctx.strokeStyle = rimColor;
   ctx.lineWidth = 1.5;
   ctx.roundRect(1, 1, W - 2, H - 2, 20);
   ctx.stroke();
@@ -393,14 +408,23 @@ export function renderMinesCard(state, explodedIdx = null, won = false, cashedOu
   ctx.fillStyle = '#f8fafc';
   ctx.font = 'bold 20px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('5x5 MINES — REVEALED BOARD', W / 2, 38);
+
+  const headerTitle = peekMode
+    ? '5x5 MINES — EXPLORATION MODE'
+    : gameOver
+    ? '5x5 MINES — REVEALED BOARD'
+    : '5x5 MINES — HIGH-STAKES GRID';
+  ctx.fillText(headerTitle, W / 2, 38);
 
   // Subtitle / Status text
   let statusText = '';
   let statusColor = '#38bdf8';
   const currentWin = Math.floor(state.betAmount * state.multiplier);
 
-  if (cashedOut) {
+  if (peekMode) {
+    statusText = `CASHED OUT: +${currentWin.toLocaleString()} TOKENS (${state.multiplier.toFixed(2)}x) • TEST YOUR INTUITION`;
+    statusColor = '#fbbf24';
+  } else if (cashedOut) {
     statusText = `CASHED OUT: +${currentWin.toLocaleString()} TOKENS (${state.multiplier.toFixed(2)}x)`;
     statusColor = '#34d399';
   } else if (won) {
@@ -409,8 +433,12 @@ export function renderMinesCard(state, explodedIdx = null, won = false, cashedOu
   } else if (explodedIdx !== null) {
     statusText = `DETONATED! HIT BOMB ON TILE #${explodedIdx + 1} (-${state.betAmount.toLocaleString()} TOKENS)`;
     statusColor = '#f87171';
+  } else if (state.revealedIndices?.size > 0) {
+    statusText = `ACTIVE: ${state.multiplier.toFixed(2)}x (+${currentWin.toLocaleString()} TOKENS) • CASHOUT READY`;
+    statusColor = '#34d399';
   } else {
-    statusText = `${state.revealedIndices.size} GEMS FOUND • ${state.multiplier.toFixed(2)}x MULTIPLIER`;
+    statusText = `SELECT ANY TILE BELOW TO UNCOVER GEMS • BOMBS: ${state.bombs}/25`;
+    statusColor = '#38bdf8';
   }
 
   ctx.fillStyle = statusColor;
@@ -430,24 +458,32 @@ export function renderMinesCard(state, explodedIdx = null, won = false, cashedOu
       const y = startY + r * (tileSize + gap);
 
       const isExploded = idx === explodedIdx;
-      const isRevealedGem = state.revealedIndices.has(idx);
-      const isBomb = state.bombIndices.has(idx);
+      const isRevealedGem = state.revealedIndices?.has(idx);
+
+      // In peek mode: player can click to peek hidden tiles
+      const isPeekRevealed = peekMode && state.peekRevealed?.has(idx);
+      const isPeekBomb = isPeekRevealed && state.bombIndices?.has(idx);
+      const isPeekGem = isPeekRevealed && !state.bombIndices?.has(idx);
+
+      // In game over: reveal all bombs!
+      const showAllBombs = gameOver && !peekMode;
+      const isBomb = showAllBombs ? state.bombIndices?.has(idx) : false;
 
       ctx.save();
       ctx.beginPath();
       ctx.roundRect(x, y, tileSize, tileSize, 12);
 
-      if (isExploded) {
+      if (isExploded || isPeekBomb) {
         ctx.fillStyle = '#450a0a';
         ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 2.5;
         ctx.shadowColor = '#ef4444';
         ctx.shadowBlur = 12;
-      } else if (isRevealedGem) {
+      } else if (isRevealedGem || isPeekGem) {
         ctx.fillStyle = '#064e3b';
-        ctx.strokeStyle = '#10b981';
+        ctx.strokeStyle = isRevealedGem ? '#10b981' : '#38bdf8';
         ctx.lineWidth = 2;
-        ctx.shadowColor = '#10b981';
+        ctx.shadowColor = isRevealedGem ? '#10b981' : '#38bdf8';
         ctx.shadowBlur = 10;
       } else if (isBomb) {
         ctx.fillStyle = '#270e17';
@@ -466,9 +502,9 @@ export function renderMinesCard(state, explodedIdx = null, won = false, cashedOu
       const cx = x + tileSize / 2;
       const cy = y + tileSize / 2;
 
-      if (isExploded) {
+      if (isExploded || isPeekBomb) {
         drawExplosion(ctx, cx, cy, tileSize * 0.7);
-      } else if (isRevealedGem) {
+      } else if (isRevealedGem || isPeekGem) {
         drawGem(ctx, cx, cy, tileSize * 0.58);
       } else if (isBomb) {
         drawBomb(ctx, cx, cy, tileSize * 0.56);
@@ -484,12 +520,18 @@ export function renderMinesCard(state, explodedIdx = null, won = false, cashedOu
   ctx.font = '12px sans-serif';
   ctx.textAlign = 'left';
 
-  const legendItems = [
-    { label: 'Found Gem', draw: (ctx, x, y) => drawGem(ctx, x, y, 16), x: 30 },
-    { label: 'Detonated', draw: (ctx, x, y) => drawExplosion(ctx, x, y, 16), x: 155 },
-    { label: 'Hidden Bomb', draw: (ctx, x, y) => drawBomb(ctx, x, y, 16), x: 275 },
-    { label: 'Safe Unrevealed', draw: (ctx, x, y) => drawSafeDot(ctx, x, y, 16), x: 400 },
-  ];
+  const legendItems = gameOver || peekMode
+    ? [
+        { label: 'Found Gem', draw: (ctx, x, y) => drawGem(ctx, x, y, 16), x: 30 },
+        { label: 'Detonated', draw: (ctx, x, y) => drawExplosion(ctx, x, y, 16), x: 155 },
+        { label: 'Hidden Bomb', draw: (ctx, x, y) => drawBomb(ctx, x, y, 16), x: 275 },
+        { label: 'Safe Tile', draw: (ctx, x, y) => drawSafeDot(ctx, x, y, 16), x: 400 },
+      ]
+    : [
+        { label: 'Uncovered Gem', draw: (ctx, x, y) => drawGem(ctx, x, y, 16), x: 40 },
+        { label: 'Hidden Tile', draw: (ctx, x, y) => drawSafeDot(ctx, x, y, 16), x: 190 },
+        { label: `${state.bombs} Mines Active`, draw: (ctx, x, y) => drawBomb(ctx, x, y, 16), x: 340 },
+      ];
 
   legendItems.forEach((item) => {
     item.draw(ctx, item.x + 8, legendY - 4);
@@ -499,8 +541,15 @@ export function renderMinesCard(state, explodedIdx = null, won = false, cashedOu
   return canvas.toBuffer('image/png');
 }
 
-export function buildMinesAttachment(state, explodedIdx = null, won = false, cashedOut = false) {
-  const buf = renderMinesCard(state, explodedIdx, won, cashedOut);
+export function buildMinesAttachment(
+  state,
+  explodedIdx = null,
+  won = false,
+  cashedOut = false,
+  gameOver = false,
+  peekMode = false
+) {
+  const buf = renderMinesCard(state, explodedIdx, won, cashedOut, gameOver, peekMode);
   return new AttachmentBuilder(buf, { name: 'mines_result.png' });
 }
 
