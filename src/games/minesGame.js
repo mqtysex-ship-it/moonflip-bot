@@ -64,12 +64,12 @@ export async function showMinesSetupModal(interaction) {
 /**
  * Builds the 5x5 visual ASCII/Emoji board shown in the Embed when a round finishes
  * so the player sees every gem and bomb while having the Replay ActionRow below.
- * Exactly 34 visual monospace columns on every line for 100% perfect symmetry.
+ * Calibrated to Discord's exact font metrics (5 emojis = 11.47 cols + 22 ASCII = 33.47 cols -> 33 '═' border).
  */
 function buildRevealedGridAscii(state, explodedIdx = null) {
-  let out = `╔════════════════════════════════╗\n`;
-  out += `║   5x5 MINES - REVEALED BOARD   ║\n`;
-  out += `╠════════════════════════════════╣\n`;
+  let out = `╔═════════════════════════════════╗\n`;
+  out += `║   5x5 MINES - REVEALED BOARD    ║\n`;
+  out += `╠═════════════════════════════════╣\n`;
 
   for (let r = 0; r < 5; r++) {
     const cells = [];
@@ -88,7 +88,7 @@ function buildRevealedGridAscii(state, explodedIdx = null) {
     out += `║  ${cells.join('  ')}  ║\n`;
   }
 
-  out += `╚════════════════════════════════╝`;
+  out += `╚═════════════════════════════════╝`;
   return out;
 }
 

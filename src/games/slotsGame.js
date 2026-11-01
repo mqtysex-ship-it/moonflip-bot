@@ -62,54 +62,54 @@ export async function showSlotsModal(interaction) {
 
 /**
  * Renders a perfectly aligned 3-Drum Las Vegas Casino Slot Cabinet.
+ * Calibrated to Discord's exact font metrics:
+ * - Each reel cell has 6 ASCII chars + 1 Emoji (2.30 cols) + 6 ASCII chars = 14.30 cols.
+ * - Across 3 reels + 2 internal '║' dividers: 14.30 + 1 + 14.30 + 1 + 14.30 = 44.90 cols.
+ * - Symmetrical cabinet borders (14 + 1 + 15 + 1 + 14 = 45.00 cols) match the emoji rows to within 0.8 px!
  */
-function getSlotVisualWidth(str) {
-  let width = 0;
-  const normalized = str.replace(/7\uFE0F?\u20E3/g, 'XX').replace(/—/g, '-').replace(/★/g, '*');
-  for (const char of normalized) {
-    const code = char.codePointAt(0);
-    if ((code >= 0x1F300 && code <= 0x1FAFF) || code === 0x26AB || code === 0x26AA || code > 0xFFFF) {
-      width += 2;
-    } else {
-      width += 1;
-    }
-  }
-  return width;
+function sanitizeSlotAscii(str) {
+  return String(str || '')
+    .replace(/—/g, '-')
+    .replace(/★/g, '*')
+    .replace(/✖/g, 'X')
+    .replace(/•/g, '-')
+    .replace(/[\u00A0\u202F]/g, ' ')
+    .replace(/[^\x20-\x7E]/g, '')
+    .trim();
 }
 
 function padSlotCenter(str, width) {
-  const clean = String(str).replace(/—/g, '-').replace(/★/g, '*');
-  const curWidth = getSlotVisualWidth(clean);
-  if (curWidth >= width) return clean.slice(0, width);
-  const left = Math.floor((width - curWidth) / 2);
-  const right = width - curWidth - left;
+  const clean = sanitizeSlotAscii(str);
+  if (clean.length >= width) return clean.slice(0, width);
+  const left = Math.floor((width - clean.length) / 2);
+  const right = width - clean.length - left;
   return ' '.repeat(left) + clean + ' '.repeat(right);
 }
 
 function formatSlotSymbol(sym) {
   const isSeven = String(sym).includes('7');
-  if (isSeven) return '      7️⃣       ';
-  return `      ${sym}       `;
+  return isSeven ? '      7️⃣      ' : `      ${sym}      `;
 }
 
 function formatPaylineSymbol(sym, reelIndex) {
   const isSeven = String(sym).includes('7');
+  const icon = isSeven ? '7️⃣' : sym;
   if (reelIndex === 0) {
-    return isSeven ? '  ►►   7️⃣      ' : `  ►►   ${sym}      `;
+    return `  >>  ${icon}      `;
   }
   if (reelIndex === 1) {
-    return isSeven ? '       7️⃣      ' : `       ${sym}      `;
+    return `      ${icon}      `;
   }
-  return isSeven ? '      7️⃣   ◄◄  ' : `      ${sym}   ◄◄  `;
+  return `      ${icon}  <<  `;
 }
 
-function formatReelBadge(badge) {
-  let clean = String(badge || '').trim().replace(/★/g, '*');
-  if (clean.length > 10) clean = clean.slice(0, 10);
-  const left = Math.floor((10 - clean.length) / 2);
-  const right = 10 - clean.length - left;
+function formatReelBadge(badge, innerWidth = 10) {
+  let clean = sanitizeSlotAscii(badge);
+  if (clean.length > innerWidth) clean = clean.slice(0, innerWidth);
+  const left = Math.floor((innerWidth - clean.length) / 2);
+  const right = innerWidth - clean.length - left;
   const inner = ' '.repeat(left) + clean + ' '.repeat(right);
-  return `  [${inner}] `;
+  return ` [${inner}] `;
 }
 
 function formatSlotCabinet(
@@ -120,26 +120,26 @@ function formatSlotCabinet(
   ledStatus = 'ALL 3 REELS WHIRRING AT FULL VELOCITY...',
   marqueeTitle = 'VEGAS GRAND CASINO SLOTS'
 ) {
-  const b1 = formatReelBadge(reelBadges[0]);
-  const b2 = formatReelBadge(reelBadges[1]);
-  const b3 = formatReelBadge(reelBadges[2]);
+  const b1 = formatReelBadge(reelBadges[0], 10); // 1 + 1 + 10 + 1 + 1 = 14 chars
+  const b2 = formatReelBadge(reelBadges[1], 11); // 1 + 1 + 11 + 1 + 1 = 15 chars
+  const b3 = formatReelBadge(reelBadges[2], 10); // 1 + 1 + 10 + 1 + 1 = 14 chars
 
   return [
-    `╔═══════════════╦═══════════════╦═══════════════╗`,
-    `║${padSlotCenter(marqueeTitle, 47)}║`,
-    `╠═══════════════╦═══════════════╦═══════════════╣`,
-    `║    REEL 01    ║    REEL 02    ║    REEL 03    ║`,
-    `╠═══════════════╬═══════════════╬═══════════════╣`,
+    `╔══════════════╦═══════════════╦══════════════╗`,
+    `║${padSlotCenter(marqueeTitle, 45)}║`,
+    `╠══════════════╦═══════════════╦══════════════╣`,
+    `║   REEL 01    ║    REEL 02    ║   REEL 03    ║`,
+    `╠══════════════╬═══════════════╬══════════════╣`,
     `║${formatSlotSymbol(r1[0])}║${formatSlotSymbol(r2[0])}║${formatSlotSymbol(r3[0])}║`,
-    `╠═══════════════╬═══════════════╬═══════════════╣`,
+    `╠══════════════╬═══════════════╬══════════════╣`,
     `║${formatPaylineSymbol(r1[1], 0)}║${formatPaylineSymbol(r2[1], 1)}║${formatPaylineSymbol(r3[1], 2)}║`,
-    `╠═══════════════╬═══════════════╬═══════════════╣`,
+    `╠══════════════╬═══════════════╬══════════════╣`,
     `║${formatSlotSymbol(r1[2])}║${formatSlotSymbol(r2[2])}║${formatSlotSymbol(r3[2])}║`,
-    `╠═══════════════╬═══════════════╬═══════════════╣`,
+    `╠══════════════╬═══════════════╬══════════════╣`,
     `║${b1}║${b2}║${b3}║`,
-    `╠═══════════════╩═══════════════╩═══════════════╣`,
-    `║${padSlotCenter(ledStatus, 47)}║`,
-    `╚═══════════════════════════════════════════════╝`,
+    `╠══════════════╩═══════════════╩══════════════╣`,
+    `║${padSlotCenter(ledStatus, 45)}║`,
+    `╚═════════════════════════════════════════════╝`,
   ].join('\n');
 }
 

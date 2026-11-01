@@ -141,14 +141,14 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
       .setDescription(
         `🎯 **Your Call**: \`${callBadge}\`   •   💵 **Wager**: \`${cleanBet.toLocaleString()} 🪙\`\n` +
         `\`\`\`asciidoc\n` +
-        `╔══════════════ 🪙 COINFLIP ARENA ══════════════╗\n` +
-        `║  AIR                     ▲ ▲                  ║\n` +
+        `╔═══════════════ COINFLIP ARENA ════════════════╗\n` +
+        `║  AIR                     ^ ^                  ║\n` +
         `║  100% ┤               ╭═══════╮               ║\n` +
-        `║   70% ┤            ⟳ 《  🪙 🦅  》 ⟲           ║\n` +
+        `║   70% ┤             <<  COIN   >>             ║\n` +
         `║   40% ┤               ╰═══════╯               ║\n` +
-        `║   15% ┤                  ┆ ┆                  ║\n` +
+        `║   15% ┤                  | |                  ║\n` +
         `║  FELT ┼──────────────── (░░░) ────────────────║\n` +
-        `║          🌪️ [ CLIMBING AT 1,200 RPM ]         ║\n` +
+        `║           * [ CLIMBING AT 1,200 RPM ] *       ║\n` +
         `╚═══════════════════════════════════════════════╝\n` +
         `\`\`\``
       )
@@ -189,14 +189,14 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
         .setDescription(
           `🎯 **Your Call**: \`${callBadge}\`   •   💵 **Wager**: \`${cleanBet.toLocaleString()} 🪙\`\n` +
           `\`\`\`asciidoc\n` +
-          `╔══════════════ ⚡ COINFLIP ARENA ══════════════╗\n` +
-          `║  AIR            ✦        ___        ✦         ║\n` +
-          `║  100% ┤          ━━━◖ 🪙 ┃ 🦅 ◗━━━   APEX!    ║\n` +
-          `║   40% ┤                  ▼ ▼                  ║\n` +
-          `║   15% ┤           ⚡ *CLINK-CLATTER!* ⚡      ║\n` +
-          `║       ┤               ─── ◖┃◗ ───             ║\n` +
+          `╔═══════════════ COINFLIP ARENA ════════════════╗\n` +
+          `║  AIR            *        ___        *         ║\n` +
+          `║  100% ┤          ───( HEAD|TAIL )───  APEX!   ║\n` +
+          `║   40% ┤                  v v                  ║\n` +
+          `║   15% ┤            * CLINK-CLATTER *          ║\n` +
+          `║       ┤               ───(|)───               ║\n` +
           `║  FELT ┼─────────── (( ═════════ )) ───────────║\n` +
-          `║           🔥 [ WOBBLING ON MILLED RIM ]       ║\n` +
+          `║           * [ WOBBLING ON MILLED RIM ] *      ║\n` +
           `╚═══════════════════════════════════════════════╝\n` +
           `\`\`\``
         )
@@ -228,15 +228,22 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
       : `❌ **YOU LOST -${cleanBet.toLocaleString()} 🪙!** *(Landed on **${outcome.toUpperCase()}**)*`;
 
     const boxStatusLine = won
-      ? `★ VICTORY! +${payout.toLocaleString()} TOKENS CREDITED ★`
-      : `✖ DEFEAT! LOST -${cleanBet.toLocaleString()} TOKENS ✖`;
+      ? `* VICTORY! +${payout.toLocaleString()} TOKENS CREDITED *`
+      : `X DEFEAT! LOST -${cleanBet.toLocaleString()} TOKENS X`;
 
     const padCenter = (str, w) => {
-      const len = str.length;
-      if (len >= w) return str.slice(0, w);
+      const clean = String(str)
+        .replace(/[\u00A0\u202F]/g, ' ')
+        .replace(/—/g, '-')
+        .replace(/★/g, '*')
+        .replace(/✖/g, 'X');
+      const len = clean.length;
+      if (len >= w) return clean.slice(0, w);
       const l = Math.floor((w - len) / 2);
-      return ' '.repeat(l) + str + ' '.repeat(w - len - l);
+      return ' '.repeat(l) + clean + ' '.repeat(w - len - l);
     };
+
+    const faceLabel = outcome === 'heads' ? '  HEADS   ' : '  TAILS   ';
 
     const finalEmbed = new EmbedBuilder()
       .setColor(color)
@@ -251,10 +258,10 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
         `╔═══════════════════════════════════════════════╗\n` +
         `║${padCenter(`COIN LANDED ON: ${outcome.toUpperCase()}`, 47)}║\n` +
         `╠═══════════════════════════════════════════════╣\n` +
-        `║                  ╭─────────╮                  ║\n` +
-        `║               ✦ ╭┤  ${emblemIcon} ${coinEmoji}  ├╮ ✦               ║\n` +
-        `║                 ╰┤  ${outcome.toUpperCase().padEnd(5, ' ')}  ├╯                 ║\n` +
-        `║                  ╰─────────╯                  ║\n` +
+        `║                  ╭──────────╮                 ║\n` +
+        `║               *  ┤  ${emblemIcon} ${coinEmoji}  ├  *              ║\n` +
+        `║                  │${faceLabel}│                 ║\n` +
+        `║                  ╰──────────╯                 ║\n` +
         `╠═══════════════════════════════════════════════╣\n` +
         `║${padCenter(boxStatusLine, 47)}║\n` +
         `╚═══════════════════════════════════════════════╝\n` +

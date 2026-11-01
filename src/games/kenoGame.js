@@ -238,41 +238,46 @@ function formatPaytableLadder(pickCount, riskMode, highlightHits = null) {
 }
 
 /**
- * Visual monospace column width counter for Discord font metrics.
+ * Sanitizes any header/status string inside Keno's '║ ... ║' box to pure 7-bit ASCII
+ * so Dingbats/Emojis/Non-breaking spaces never shift the right border.
  */
-function getKenoVisualWidth(str) {
-  let width = 0;
-  const clean = String(str).replace(/—/g, '-').replace(/★/g, '*').replace(/✖/g, 'x');
-  for (const char of clean) {
-    const code = char.codePointAt(0);
-    if ((code >= 0x1F300 && code <= 0x1FAFF) || code === 0x26AB || code === 0x26AA || code > 0xFFFF) {
-      width += 2;
-    } else {
-      width += 1;
-    }
-  }
-  return width;
+function sanitizeKenoAscii(str) {
+  return String(str || '')
+    .replace(/🪙/g, 'TOKENS')
+    .replace(/🚀/g, '>>')
+    .replace(/⚠️/g, '!!')
+    .replace(/—/g, '-')
+    .replace(/★/g, '*')
+    .replace(/✖/g, 'X')
+    .replace(/▲/g, '^')
+    .replace(/•/g, '-')
+    .replace(/│/g, '|')
+    .replace(/[\u00A0\u202F]/g, ' ')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function padKenoCenter(str, targetWidth) {
-  const clean = String(str).replace(/—/g, '-').replace(/★/g, '*').replace(/✖/g, 'x');
-  const curWidth = getKenoVisualWidth(clean);
-  if (curWidth >= targetWidth) return clean.slice(0, targetWidth);
-  const left = Math.floor((targetWidth - curWidth) / 2);
-  const right = targetWidth - curWidth - left;
+  const clean = sanitizeKenoAscii(str);
+  if (clean.length >= targetWidth) return clean.slice(0, targetWidth);
+  const left = Math.floor((targetWidth - clean.length) / 2);
+  const right = targetWidth - clean.length - left;
   return ' '.repeat(left) + clean + ' '.repeat(right);
 }
 
 /**
  * Builds the 4x5 ASCII Keno Cabinet enclosed in a fully symmetrical box.
- * Exactly 46 visual monospace columns on every line.
+ * Calibrated to Discord's exact font metrics:
+ * - 5 cells of [01🟡] (5 * 6.294 = 31.47 cols) + 4 gaps of 2 spaces (8 cols) + 3 spaces on left & right (6 cols) = 45.47 cols.
+ * - 45 '═' border matches 45.47 cols to within 0.47 char (4 px) with 100% symmetric left/right padding.
  */
 function buildKenoCabinetAscii(playerPicksSet, drawnSlice, bannerTitle, tubeStatusLine) {
   const drawnSet = new Set(drawnSlice);
   const rows = [];
-  rows.push('╔════════════════════════════════════════════╗');
-  rows.push(`║${padKenoCenter(bannerTitle, 44)}║`);
-  rows.push('╠════════════════════════════════════════════╣');
+  rows.push('╔═════════════════════════════════════════════╗');
+  rows.push(`║${padKenoCenter(bannerTitle, 45)}║`);
+  rows.push('╠═════════════════════════════════════════════╣');
 
   for (let r = 0; r < 4; r++) {
     const cells = [];
@@ -295,9 +300,9 @@ function buildKenoCabinetAscii(playerPicksSet, drawnSlice, bannerTitle, tubeStat
     rows.push(`║   ${cells.join('  ')}   ║`);
   }
 
-  rows.push('╠════════════════════════════════════════════╣');
-  rows.push(`║${padKenoCenter(tubeStatusLine, 44)}║`);
-  rows.push('╚════════════════════════════════════════════╝');
+  rows.push('╠═════════════════════════════════════════════╣');
+  rows.push(`║${padKenoCenter(tubeStatusLine, 45)}║`);
+  rows.push('╚═════════════════════════════════════════════╝');
   return rows.join('\n');
 }
 
