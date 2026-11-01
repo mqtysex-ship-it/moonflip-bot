@@ -120,26 +120,26 @@ function formatSlotCabinet(
   ledStatus = 'ALL 3 REELS WHIRRING AT FULL VELOCITY...',
   marqueeTitle = 'VEGAS GRAND CASINO SLOTS'
 ) {
-  const b1 = formatReelBadge(reelBadges[0], 10); // 1 + 1 + 10 + 1 + 1 = 14 chars
-  const b2 = formatReelBadge(reelBadges[1], 11); // 1 + 1 + 11 + 1 + 1 = 15 chars
-  const b3 = formatReelBadge(reelBadges[2], 10); // 1 + 1 + 10 + 1 + 1 = 14 chars
+  const b1 = formatReelBadge(reelBadges[0], 10);
+  const b2 = formatReelBadge(reelBadges[1], 10);
+  const b3 = formatReelBadge(reelBadges[2], 10);
 
   return [
-    `╔══════════════╦═══════════════╦══════════════╗`,
-    `║${padSlotCenter(marqueeTitle, 45)}║`,
-    `╠══════════════╦═══════════════╦══════════════╣`,
-    `║   REEL 01    ║    REEL 02    ║   REEL 03    ║`,
-    `╠══════════════╬═══════════════╬══════════════╣`,
+    `╔══════════════╦══════════════╦══════════════╗`,
+    `║${padSlotCenter(marqueeTitle, 44)}║`,
+    `╠══════════════╦══════════════╦══════════════╣`,
+    `║   REEL 01    ║   REEL 02    ║   REEL 03    ║`,
+    `╠══════════════╬══════════════╬══════════════╣`,
     `║${formatSlotSymbol(r1[0])}║${formatSlotSymbol(r2[0])}║${formatSlotSymbol(r3[0])}║`,
-    `╠══════════════╬═══════════════╬══════════════╣`,
+    `╠══════════════╬══════════════╬══════════════╣`,
     `║${formatPaylineSymbol(r1[1], 0)}║${formatPaylineSymbol(r2[1], 1)}║${formatPaylineSymbol(r3[1], 2)}║`,
-    `╠══════════════╬═══════════════╬══════════════╣`,
+    `╠══════════════╬══════════════╬══════════════╣`,
     `║${formatSlotSymbol(r1[2])}║${formatSlotSymbol(r2[2])}║${formatSlotSymbol(r3[2])}║`,
-    `╠══════════════╬═══════════════╬══════════════╣`,
+    `╠══════════════╬══════════════╬══════════════╣`,
     `║${b1}║${b2}║${b3}║`,
-    `╠══════════════╩═══════════════╩══════════════╣`,
-    `║${padSlotCenter(ledStatus, 45)}║`,
-    `╚═════════════════════════════════════════════╝`,
+    `╠══════════════╩══════════════╩══════════════╣`,
+    `║${padSlotCenter(ledStatus, 44)}║`,
+    `╚════════════════════════════════════════════╝`,
   ].join('\n');
 }
 
