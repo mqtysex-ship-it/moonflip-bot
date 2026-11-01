@@ -10,6 +10,7 @@ import {
 } from 'discord.js';
 import { flipCoin } from './rng.js';
 import { getBalance, deductTokens, addTokens } from './economy.js';
+import { buildCoinflipAttachment } from '../canvas/gameCardRenderer.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -245,6 +246,8 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
 
     const faceLabel = outcome === 'heads' ? '  HEADS   ' : '  TAILS   ';
 
+    const coinflipAttachment = buildCoinflipAttachment(normalizedChoice, outcome, won, cleanBet, payout);
+
     const finalEmbed = new EmbedBuilder()
       .setColor(color)
       .setTitle(
@@ -252,20 +255,9 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
           ? `🎉  YOU WON +${payout.toLocaleString()} 🪙! — LANDED ${outcome.toUpperCase()} ${coinEmoji}`
           : `💀  YOU LOST -${cleanBet.toLocaleString()} 🪙 — LANDED ${outcome.toUpperCase()} ${coinEmoji}`
       )
+      .setImage('attachment://coinflip_result.png')
       .setDescription(
-        `${statusBanner}\n` +
-        `\`\`\`asciidoc\n` +
-        `╔═══════════════════════════════════════════════╗\n` +
-        `║${padCenter(`COIN LANDED ON: ${outcome.toUpperCase()}`, 47)}║\n` +
-        `╠═══════════════════════════════════════════════╣\n` +
-        `║                  ╭──────────╮                 ║\n` +
-        `║               *  ┤  ${emblemIcon} ${coinEmoji}  ├  *              ║\n` +
-        `║                  │${faceLabel}│                 ║\n` +
-        `║                  ╰──────────╯                 ║\n` +
-        `╠═══════════════════════════════════════════════╣\n` +
-        `║${padCenter(boxStatusLine, 47)}║\n` +
-        `╚═══════════════════════════════════════════════╝\n` +
-        `\`\`\`\n` +
+        `${statusBanner}\n\n` +
         `🎯 **Your Call**: \`${normalizedChoice.toUpperCase()}\`  •  🪙 **Landed**: \`${outcome.toUpperCase()}\`  •  🔥 **Streak**: \`${streakBadge}\`\n` +
         `💵 **Wager**: \`${cleanBet.toLocaleString()} 🪙\`  •  💰 **Payout**: \`${won ? `+${payout.toLocaleString()} 🪙 (1.92x)` : '0 🪙'}\`\n` +
         `💳 **Wallet Balance**: \`${prevBalance.toLocaleString()} 🪙\` ➔ **\`${newBalance.toLocaleString()} 🪙\`** *(${profit >= 0 ? `+${profit.toLocaleString()}` : profit.toLocaleString()} 🪙)*\n` +
@@ -321,7 +313,7 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
     const controlRow = new ActionRowBuilder().addComponents(safeButtons);
 
     return await interaction
-      .editReply({ embeds: [finalEmbed], components: [controlRow] })
+      .editReply({ embeds: [finalEmbed], components: [controlRow], files: [coinflipAttachment], attachments: [] })
       .catch(() => {});
   } catch (err) {
     if (err.code === 10062 || err.code === 40060) return;

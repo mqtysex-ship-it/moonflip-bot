@@ -10,6 +10,7 @@ import {
 } from 'discord.js';
 import { spinSlots, SLOT_SYMBOLS, secureRandomInt } from './rng.js';
 import { getBalance, deductTokens, addTokens } from './economy.js';
+import { buildSlotsAttachment } from '../canvas/gameCardRenderer.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -326,6 +327,15 @@ export async function playSlots(interaction, betAmount = 100) {
     recentSpins.unshift(`${result.multiplier.toFixed(1)}x`);
     if (recentSpins.length > 6) recentSpins.pop();
 
+    const finalAttachment = buildSlotsAttachment(
+      [r1_locked, r2_locked, r3_locked],
+      result.multiplier,
+      winAmount > 0,
+      result.matches === 3,
+      bannerHeader,
+      ledStatus
+    );
+
     const finalEmbed = new EmbedBuilder()
       .setColor(color)
       .setTitle(
@@ -335,11 +345,9 @@ export async function playSlots(interaction, betAmount = 100) {
           ? `🎉  WINNER! YOU WON +${winAmount.toLocaleString()} 🪙 (${result.multiplier}x)!`
           : `🎰  SLOTS — NO MATCH (-${cleanBet.toLocaleString()} 🪙)`
       )
+      .setImage('attachment://slots_result.png')
       .setDescription(
-        `${statusBanner}\n` +
-        `\`\`\`asciidoc\n` +
-        `${formatSlotCabinet(r1_locked, r2_locked, r3_locked, finalBadges, ledStatus, bannerHeader)}\n` +
-        `\`\`\`\n` +
+        `${statusBanner}\n\n` +
         `🎯 **Payline**: \`[ ${f1} ]  •  [ ${f2} ]  •  [ ${f3} ]\`  •  📈 **Multiplier**: \`${result.multiplier}x\`\n` +
         `💵 **Wager**: \`${cleanBet.toLocaleString()} 🪙\`  •  💰 **Payout**: \`${winAmount > 0 ? `+${winAmount.toLocaleString()} 🪙` : '0 🪙'}\`\n` +
         `💳 **Wallet Balance**: \`${prevBalance.toLocaleString()} 🪙\` ➔ **\`${newBalance.toLocaleString()} 🪙\`** *(${profit >= 0 ? `+${profit.toLocaleString()}` : profit.toLocaleString()} 🪙)*\n` +
@@ -402,7 +410,7 @@ export async function playSlots(interaction, betAmount = 100) {
     const controlRow = new ActionRowBuilder().addComponents(safeButtons);
 
     return await interaction
-      .editReply({ embeds: [finalEmbed], components: [controlRow] })
+      .editReply({ embeds: [finalEmbed], components: [controlRow], files: [finalAttachment], attachments: [] })
       .catch(() => {});
   } catch (err) {
     if (err.code === 10062 || err.code === 40060) return;

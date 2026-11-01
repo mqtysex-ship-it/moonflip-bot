@@ -10,6 +10,7 @@ import {
 } from 'discord.js';
 import { generateMinesBombs, calculateMinesMultiplier, secureRandomFloat, secureRandomInt } from './rng.js';
 import { getBalance, deductTokens, addTokens } from './economy.js';
+import { buildMinesAttachment } from '../canvas/gameCardRenderer.js';
 
 export const activeMinesGames = new Map();
 
@@ -137,11 +138,12 @@ export function render5x5Board(
       statusText = `💥 **BOOM!** Stepped on a bomb on tile **#${(explodedIdx ?? 0) + 1}**! Lost **-${state.betAmount.toLocaleString()} 🪙**.`;
     }
 
-    const revealedGrid = buildRevealedGridAscii(state, explodedIdx);
     const netDisplay =
       won || cashedOut
         ? `+${netProfit.toLocaleString()} 🪙`
         : `-${state.betAmount.toLocaleString()} 🪙`;
+
+    const cardAttachment = buildMinesAttachment(state, explodedIdx, won, cashedOut);
 
     const embed = new EmbedBuilder()
       .setColor(color)
@@ -152,10 +154,9 @@ export function render5x5Board(
           ? `👑  MINES — PERFECT CLEAR +${currentWin.toLocaleString()} 🪙!`
           : `💥  MINES — DETONATED (-${state.betAmount.toLocaleString()} 🪙)`
       )
+      .setImage('attachment://mines_result.png')
       .setDescription(
-        `${prefixNotice}${statusText}\n` +
-        `\`\`\`asciidoc\n${revealedGrid}\n\`\`\`\n` +
-        `🏷️ **Legend**: \`[💎 Found Gem]\`  \`[💥 Triggered]\`  \`[💣 Bomb]\`  \`[🔹 Safe]\`\n\n` +
+        `${prefixNotice}${statusText}\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `🪙 **Wager**: \`${state.betAmount.toLocaleString()} 🪙\`   •   💣 **Bombs**: \`${state.bombs} / 25\`\n` +
         `💎 **Gems Found**: \`${state.revealedIndices.size} / ${safeGemsTotal}\`   •   📈 **Final Mult**: \`${(won || cashedOut ? state.multiplier : 0).toFixed(2)}x\`\n` +
@@ -220,7 +221,7 @@ export function render5x5Board(
 
     const replayRow = new ActionRowBuilder().addComponents(safeButtons);
 
-    return { embed, components: [replayRow] };
+    return { embed, components: [replayRow], files: [cardAttachment] };
   }
 
   // Active Game Embed & 25-Button 5x5 Grid
@@ -274,7 +275,7 @@ export function render5x5Board(
     rows.push(row);
   }
 
-  return { embed, components: rows };
+  return { embed, components: rows, files: [] };
 }
 
 /**
@@ -338,7 +339,7 @@ export async function start5x5Mines(interaction, betAmount = 100, bombs = DEFAUL
 
     activeMinesGames.set(userId, gameState);
 
-    const { embed, components } = render5x5Board(
+    const { embed, components, files } = render5x5Board(
       gameState,
       interaction.user,
       false,
@@ -352,14 +353,15 @@ export async function start5x5Mines(interaction, betAmount = 100, bombs = DEFAUL
       interaction.isButton() && interaction.message?.flags?.has(MessageFlags.Ephemeral);
 
     if (isEphemeralCard && !interaction.replied && !interaction.deferred) {
-      return await interaction.update({ embeds: [embed], components, content: null });
+      return await interaction.update({ embeds: [embed], components, files: files || [], attachments: [], content: null });
     }
     if (interaction.replied || interaction.deferred) {
-      return await interaction.editReply({ embeds: [embed], components, content: null });
+      return await interaction.editReply({ embeds: [embed], components, files: files || [], attachments: [], content: null });
     }
     return await interaction.reply({
       embeds: [embed],
       components,
+      files: files || [],
       flags: MessageFlags.Ephemeral,
     });
   } finally {
@@ -422,8 +424,8 @@ export async function handle5x5MinesInteraction(interaction) {
       addTokens(userId, winAmount, true);
       activeMinesGames.delete(userId);
 
-      const { embed, components } = render5x5Board(state, interaction.user, true, true, true);
-      return interaction.update({ embeds: [embed], components, content: null });
+      const { embed, components, files } = render5x5Board(state, interaction.user, true, true, true);
+      return interaction.update({ embeds: [embed], components, files: files || [], content: null });
     };
 
     // Legacy Cashout Button support
@@ -482,7 +484,7 @@ export async function handle5x5MinesInteraction(interaction) {
       // Hit a Bomb?
       if (state.bombIndices.has(tileIdx)) {
         activeMinesGames.delete(userId);
-        const { embed, components } = render5x5Board(
+        const { embed, components, files } = render5x5Board(
           state,
           interaction.user,
           true,
@@ -490,7 +492,7 @@ export async function handle5x5MinesInteraction(interaction) {
           false,
           tileIdx
         );
-        return await interaction.update({ embeds: [embed], components, content: null });
+        return await interaction.update({ embeds: [embed], components, files: files || [], content: null });
       }
 
       // Safe Gem Uncovered!
@@ -510,13 +512,13 @@ export async function handle5x5MinesInteraction(interaction) {
         addTokens(userId, winAmount, true);
         activeMinesGames.delete(userId);
 
-        const { embed, components } = render5x5Board(state, interaction.user, true, true, false);
-        return await interaction.update({ embeds: [embed], components, content: null });
+        const { embed, components, files } = render5x5Board(state, interaction.user, true, true, false);
+        return await interaction.update({ embeds: [embed], components, files: files || [], content: null });
       }
 
       // Continue Safe Play (1 single interaction.update!)
-      const { embed, components } = render5x5Board(state, interaction.user, false, false, false);
-      return await interaction.update({ embeds: [embed], components, content: null });
+      const { embed, components, files } = render5x5Board(state, interaction.user, false, false, false);
+      return await interaction.update({ embeds: [embed], components, files: files || [], content: null });
     }
   } finally {
     processingMinesUsers.delete(userId);

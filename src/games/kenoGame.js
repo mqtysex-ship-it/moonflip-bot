@@ -10,6 +10,7 @@ import {
 } from 'discord.js';
 import { secureRandomInt, secureRandomFloat } from './rng.js';
 import { getBalance, deductTokens, addTokens } from './economy.js';
+import { buildKenoAttachment } from '../canvas/gameCardRenderer.js';
 
 const TOTAL_NUMBERS = 20;
 const DRAW_COUNT = 7;
@@ -902,12 +903,21 @@ export async function playModernKeno(
         ? `✨ **1x Win**`
         : `❄️ \`0x\``;
 
+    const kenoAttachment = buildKenoAttachment(
+      playerPicks,
+      drawnSet,
+      hitCount,
+      multiplier,
+      payout,
+      cleanBet
+    );
+
     const finalEmbed = new EmbedBuilder()
       .setColor(finalColor)
       .setTitle(finalTitle)
+      .setImage('attachment://keno_result.png')
       .setDescription(
-        `${resultHeader}\n` +
-        `\`\`\`asciidoc\n${finalCabinet}\n\`\`\`\n` +
+        `${resultHeader}\n\n` +
         (isProfitWin || isJackpot
           ? `💰 **Payout**: **\`+${payout.toLocaleString()} 🪙\`** \`(${multiplier.toFixed(2)}x)\`  •  🎯 **Hits**: \`${hitCount}/${pickCount}\`  •  ${streakBadge}\n`
           : isPush
@@ -930,7 +940,7 @@ export async function playModernKeno(
     const finalComponents = buildKenoComponents(session, drawnSequence, false);
 
     return await interaction
-      .editReply({ embeds: [finalEmbed], components: finalComponents })
+      .editReply({ embeds: [finalEmbed], components: finalComponents, files: [kenoAttachment], attachments: [] })
       .catch(() => {});
   } catch (err) {
     if (err.code === 10062 || err.code === 40060) return;
