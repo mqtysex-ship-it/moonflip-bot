@@ -1,0 +1,38 @@
+[
+  {
+    "id": "redemption",
+    "prefix": "redemption",
+    "title": "Prize Redemption & KYC",
+    "color": "#2ecc71",
+    "emoji": "🎁",
+    "buttonStyle": "Success",
+    "instructions": "Please state your requested prize (Crypto: USDT/LTC/BTC or Digital Gift Card), wallet address or email, and confirmation that you are 18+."
+  },
+  {
+    "id": "wallet",
+    "prefix": "wallet",
+    "title": "Tokens & Wallet Inquiries",
+    "color": "#3498db",
+    "emoji": "💳",
+    "buttonStyle": "Primary",
+    "instructions": "Please describe your token question, deposit issue, or wallet discrepancy. Include receipt IDs or screenshots if applicable."
+  },
+  {
+    "id": "bug",
+    "prefix": "bug",
+    "title": "Bug & Glitch Reports",
+    "color": "#e67e22",
+    "emoji": "🐛",
+    "buttonStyle": "Secondary",
+    "instructions": "Describe the bug encountered, affected game or command (Mines, Crash, etc.), steps to reproduce, and attach screenshots."
+  },
+  {
+    "id": "general",
+    "prefix": "support",
+    "title": "General Support & Staff Help",
+    "color": "#9b59b6",
+    "emoji": "🛡️",
+    "buttonStyle": "Secondary",
+    "instructions": "Please explain how our staff can assist you today. If reporting another user, provide their username and evidence."
+  }
+]

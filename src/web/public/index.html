@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en" class="dark" data-theme="gold">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moonflip OS — Bot Command & Management Center</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN for live analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            accent: {
+              DEFAULT: 'var(--accent-color)',
+              hover: 'var(--accent-hover)',
+              light: 'var(--accent-light)',
+              glow: 'var(--accent-glow)',
+            },
+            surface: {
+              bg: 'var(--bg-color)',
+              card: 'var(--card-color)',
+              border: 'var(--border-color)',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    
+    :root[data-theme="gold"] {
+      --accent-color: #f1c40f;
+      --accent-hover: #e2b607;
+      --accent-light: rgba(241, 196, 15, 0.12);
+      --accent-glow: rgba(241, 196, 15, 0.35);
+      --bg-color: #07090e;
+      --card-color: #0f1420;
+      --border-color: rgba(241, 196, 15, 0.18);
+    }
+    :root[data-theme="violet"] {
+      --accent-color: #a855f7;
+      --accent-hover: #9333ea;
+      --accent-light: rgba(168, 85, 247, 0.12);
+      --accent-glow: rgba(168, 85, 247, 0.35);
+      --bg-color: #090514;
+      --card-color: #120b22;
+      --border-color: rgba(168, 85, 247, 0.18);
+    }
+    :root[data-theme="emerald"] {
+      --accent-color: #10b981;
+      --accent-hover: #059669;
+      --accent-light: rgba(16, 185, 129, 0.12);
+      --accent-glow: rgba(16, 185, 129, 0.35);
+      --bg-color: #040d08;
+      --card-color: #0b1a13;
+      --border-color: rgba(16, 185, 129, 0.18);
+    }
+    :root[data-theme="azure"] {
+      --accent-color: #06b6d4;
+      --accent-hover: #0891b2;
+      --accent-light: rgba(6, 182, 212, 0.12);
+      --accent-glow: rgba(6, 182, 212, 0.35);
+      --bg-color: #040914;
+      --card-color: #091325;
+      --border-color: rgba(6, 182, 212, 0.18);
+    }
+    :root[data-theme="ruby"] {
+      --accent-color: #f43f5e;
+      --accent-hover: #e11d48;
+      --accent-light: rgba(244, 63, 94, 0.12);
+      --accent-glow: rgba(244, 63, 94, 0.35);
+      --bg-color: #0f0408;
+      --card-color: #1d0911;
+      --border-color: rgba(244, 63, 94, 0.18);
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-color);
+      transition: background-color 0.3s ease;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Ambient Background Mesh */
+    .ambient-glow {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 1400px;
+      height: 450px;
+      background: radial-gradient(circle at 50% 0%, var(--accent-glow) 0%, transparent 70%);
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 0;
+      transition: background 0.4s ease;
+    }
+
+    .glass-panel {
+      background: var(--card-color);
+      border: 1px solid var(--border-color);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+      transition: border-color 0.3s ease, background 0.3s ease;
+    }
+
+    .interactive-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .interactive-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px var(--accent-glow);
+      border-color: var(--accent-color);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col antialiased selection:bg-accent selection:text-black relative">
+
+  <div class="ambient-glow"></div>
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-50 bg-surface-bg/85 backdrop-blur-xl border-b border-surface-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand & Bot Status -->
+      <div class="flex items-center space-x-4">
+        <div class="relative">
+          <img id="bot-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Bot Avatar" class="w-10 h-10 rounded-full border-2 border-accent shadow-md">
+          <span id="bot-status-dot" class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-surface-bg rounded-full shadow-sm animate-pulse"></span>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span id="bot-name" class="font-extrabold text-base tracking-wide text-white">Moonflip Core</span>
+            <span class="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase rounded bg-accent-light text-accent border border-accent/30 font-mono">v2.0 • Active</span>
+          </div>
+          <p id="guild-status" class="text-xs text-slate-400">Loading guild connection...</p>
+        </div>
+      </div>
+
+      <!-- Controls: Theme Picker & Sync -->
+      <div class="flex items-center space-x-3">
+        
+        <!-- Live Ping & Uptime Pill -->
+        <div class="hidden sm:flex items-center space-x-2.5 text-xs bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-accent"></i>
+            <span class="text-slate-400">Ping:</span>
+            <span id="bot-ping" class="font-mono text-accent font-bold">-- ms</span>
+          </div>
+          <span class="text-slate-700">|</span>
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
+            <span class="text-slate-400">Uptime:</span>
+            <span id="bot-uptime" class="font-mono text-white font-semibold">0h 0m</span>
+          </div>
+        </div>
+
+        <!-- Luxury Theme Palette Switcher -->
+        <div class="relative">
+          <select id="theme-selector" onchange="changeTheme(this.value)" class="bg-slate-900/90 text-xs font-semibold px-3 py-1.5 rounded-xl border border-surface-border text-accent focus:outline-none cursor-pointer">
+            <option value="gold">🟡 Imperial Gold</option>
+            <option value="violet">🟣 Cyberpunk Violet</option>
+            <option value="emerald">🟢 Neon Emerald</option>
+            <option value="azure">🔵 Sapphire Azure</option>
+            <option value="ruby">🔴 Crimson Ruby</option>
+          </select>
+        </div>
+
+        <!-- Sync Button -->
+        <button id="btn-manual-refresh" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold border border-slate-700">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          <span class="hidden md:inline">Sync</span>
+        </button>
+
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <div class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+
+    <!-- NAVIGATION TABS -->
+    <nav class="flex space-x-2 overflow-x-auto pb-4 mb-6 border-b border-slate-800/80 no-scrollbar">
+      <button class="nav-tab active flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition" data-tab="overview">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+        <span>Overview & Analytics</span>
+      </button>
+      <button class="nav-tab flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition text-slate-400 hover:text-white" data-tab="tickets">
+        <i data-lucide="ticket" class="w-4 h-4 text-emerald-400"></i>
+        <span>Ticket Studio</span>
+        <span id="tab-tickets-badge" class="ml-1 px-1.5 py-0.2 text-xs rounded-full bg-emerald-500/20 text-emerald-400 font-mono">0</span>
+      </button>
+      <button class="nav-tab flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition text-slate-400 hover:text-white" data-tab="settings">
+        <i data-lucide="settings" class="w-4 h-4 text-accent"></i>
+        <span>Bot & Server Config</span>
+      </button>
+      <button class="nav-tab flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition text-slate-400 hover:text-white" data-tab="roles">
+        <i data-lucide="shield-check" class="w-4 h-4 text-amber-400"></i>
+        <span>Roles & Security</span>
+      </button>
+      <button class="nav-tab flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition text-slate-400 hover:text-white" data-tab="economy">
+        <i data-lucide="coins" class="w-4 h-4 text-yellow-400"></i>
+        <span>Economy & Wallets</span>
+      </button>
+      <button class="nav-tab flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition text-slate-400 hover:text-white" data-tab="embed-studio">
+        <i data-lucide="palette" class="w-4 h-4 text-cyan-400"></i>
+        <span>Embed Studio</span>
+      </button>
+      <button class="nav-tab flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition text-slate-400 hover:text-white" data-tab="casino">
+        <i data-lucide="gamepad-2" class="w-4 h-4 text-purple-400"></i>
+        <span>Casino Modules</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: OVERVIEW & ANALYTICS -->
+    <div id="tab-overview" class="tab-content space-y-6">
+      
+      <!-- Key Performance Indicators -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div class="glass-panel p-5 rounded-2xl relative overflow-hidden interactive-card">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs uppercase tracking-wider font-semibold text-slate-400">Server Members</p>
+              <h3 id="stat-members" class="text-2xl font-extrabold text-white mt-1">--</h3>
+              <p id="stat-guild-name" class="text-xs text-accent mt-0.5 font-medium">Moonflip Community</p>
+            </div>
+            <div class="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <i data-lucide="users" class="w-5 h-5"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-panel p-5 rounded-2xl relative overflow-hidden interactive-card">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs uppercase tracking-wider font-semibold text-slate-400">Total Tokens Circulating</p>
+              <h3 id="stat-tokens" class="text-2xl font-extrabold text-accent mt-1 font-mono">-- 🪙</h3>
+              <p id="stat-players-count" class="text-xs text-slate-400 mt-0.5">Across registered players</p>
+            </div>
+            <div class="p-3 rounded-xl bg-accent-light text-accent border border-accent/20">
+              <i data-lucide="wallet" class="w-5 h-5"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-panel p-5 rounded-2xl relative overflow-hidden interactive-card">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs uppercase tracking-wider font-semibold text-slate-400">Support Tickets</p>
+              <h3 id="stat-active-tickets" class="text-2xl font-extrabold text-emerald-400 mt-1 font-mono">--</h3>
+              <p id="stat-total-tickets" class="text-xs text-slate-400 mt-0.5">Active rooms open</p>
+            </div>
+            <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <i data-lucide="life-buoy" class="w-5 h-5"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-panel p-5 rounded-2xl relative overflow-hidden interactive-card">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs uppercase tracking-wider font-semibold text-slate-400">Hierarchy & Perms</p>
+              <h3 id="stat-security" class="text-2xl font-extrabold text-emerald-400 mt-1 flex items-center gap-1.5">
+                <span>LOCKED</span>
+                <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">Anti-tamper protection active</p>
+            </div>
+            <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <i data-lucide="shield" class="w-5 h-5"></i>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live Analytics Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <div class="glass-panel p-6 rounded-2xl border border-surface-border">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="bar-chart-2" class="w-4 h-4 text-accent"></i>
+                <span>Wealth Distribution</span>
+              </h3>
+              <p class="text-xs text-slate-400">Breakdown of member balances into token brackets</p>
+            </div>
+          </div>
+          <div class="h-60 relative flex items-center justify-center">
+            <canvas id="chart-wealth"></canvas>
+          </div>
+        </div>
+
+        <div class="glass-panel p-6 rounded-2xl border border-surface-border">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-4 h-4 text-purple-400"></i>
+                <span>Casino Game Activity</span>
+              </h3>
+              <p class="text-xs text-slate-400">Popularity and gameplay volume across modules</p>
+            </div>
+          </div>
+          <div class="h-60 relative flex items-center justify-center">
+            <canvas id="chart-games"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick Action Deployment Station -->
+      <div class="glass-panel p-6 rounded-2xl border border-surface-border">
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-5 h-5 text-accent"></i>
+              <span>One-Click Server Deployment Station</span>
+            </h2>
+            <p class="text-xs text-slate-400">Instantly deploy or re-generate official server channels, panels, and policies</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-emerald-500/40 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-2 text-emerald-400 font-semibold text-sm mb-1">
+                <i data-lucide="ticket" class="w-4 h-4"></i>
+                <span>Ticket System</span>
+              </div>
+              <p class="text-xs text-slate-400 mb-3">Syncs departments and updates #🎫┃create-ticket with interactive buttons.</p>
+            </div>
+            <button onclick="triggerDeploy('tickets')" class="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+              <span>Deploy Ticket Panel</span>
+            </button>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-accent/40 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-2 text-accent font-semibold text-sm mb-1">
+                <i data-lucide="shield-check" class="w-4 h-4"></i>
+                <span>Auto-Harden Roles</span>
+              </div>
+              <p class="text-xs text-slate-400 mb-3">Audits and locks down dangerous permissions on all regular roles & @everyone.</p>
+            </div>
+            <button onclick="triggerHardenRoles()" class="w-full py-2 px-3 rounded-lg bg-accent text-black font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+              <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+              <span>Lockdown Roles</span>
+            </button>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-purple-500/40 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-2 text-purple-400 font-semibold text-sm mb-1">
+                <i data-lucide="gamepad-2" class="w-4 h-4"></i>
+                <span>Casino Modules</span>
+              </div>
+              <p class="text-xs text-slate-400 mb-3">Refreshes embeds for Mines, Keno, Slots, Coinflip, and Blackjack.</p>
+            </div>
+            <button onclick="triggerDeploy('games')" class="w-full py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+              <i data-lucide="play" class="w-3.5 h-3.5"></i>
+              <span>Deploy Game Panels</span>
+            </button>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-blue-500/40 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center space-x-2 text-blue-400 font-semibold text-sm mb-1">
+                <i data-lucide="book-open" class="w-4 h-4"></i>
+                <span>Rules & Verification</span>
+              </div>
+              <p class="text-xs text-slate-400 mb-3">Syncs KYC prize rules in #📜┃rules and gateway in #⚡┃verify-here.</p>
+            </div>
+            <button onclick="triggerDeploy('rules')" class="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i>
+              <span>Deploy Rules & Verify</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Live Bot Console Logs -->
+      <div class="glass-panel p-5 rounded-2xl border border-surface-border">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="terminal" class="w-4 h-4 text-accent"></i>
+            <h3 class="text-sm font-bold text-white">Live Event Stream & Console Stream</h3>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">Live WebSocket</span>
+        </div>
+        <div id="logs-container" class="bg-[#05070c] rounded-xl p-3 font-mono text-xs text-slate-300 h-44 overflow-y-auto space-y-1 border border-slate-900">
+          <div class="text-slate-500">Connecting to live console stream...</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: TICKET STUDIO -->
+    <div id="tab-tickets" class="tab-content hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i data-lucide="ticket" class="w-5 h-5 text-emerald-400"></i>
+            <span>Ticket Studio & Department Manager</span>
+          </h2>
+          <p class="text-xs text-slate-400">Manage active support channels and fully customize ticket categories & instructions</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openAddDeptModal()" class="py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition flex items-center gap-1.5 border border-slate-700">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+            <span>Add Department</span>
+          </button>
+          <button onclick="triggerDeploy('tickets')" class="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            <span>Deploy to Discord</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Tickets Table -->
+      <div class="glass-panel rounded-2xl overflow-hidden border border-surface-border">
+        <div class="p-4 bg-slate-900/60 border-b border-slate-800/80 flex justify-between items-center">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i data-lucide="inbox" class="w-4 h-4 text-accent"></i>
+            <span>Live Member Tickets</span>
+          </h3>
+          <span id="active-tickets-counter" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono border border-emerald-500/20">0 Open</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-900/80 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="px-5 py-3">Ticket ID</th>
+                <th class="px-5 py-3">Member</th>
+                <th class="px-5 py-3">Department</th>
+                <th class="px-5 py-3">Discord Room</th>
+                <th class="px-5 py-3">Status</th>
+                <th class="px-5 py-3">Opened</th>
+                <th class="px-5 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tickets-table-body" class="divide-y divide-slate-800/60 font-sans">
+              <tr>
+                <td colspan="7" class="px-5 py-8 text-center text-slate-500">Loading tickets...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Dynamic Departments Customizer -->
+      <div class="glass-panel p-6 rounded-2xl border border-surface-border">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-accent"></i>
+              <span>Configured Departments (Live in Discord)</span>
+            </h3>
+            <p class="text-xs text-slate-400">Edit titles, emojis, colors, and instructions for each button on the ticket embed</p>
+          </div>
+          <button onclick="saveDepartmentsFromGrid()" class="py-1.5 px-3 rounded-lg bg-accent text-black font-bold text-xs transition flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i>
+            <span>Save Departments</span>
+          </button>
+        </div>
+
+        <div id="departments-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 3: BOT & SERVER CONFIG -->
+    <div id="tab-settings" class="tab-content hidden space-y-6">
+      
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i data-lucide="settings" class="w-5 h-5 text-accent"></i>
+            <span>Bot Configuration & Economy Parameters</span>
+          </h2>
+          <p class="text-xs text-slate-400">Tune bot activity presence, token rewards, leveling speeds, and casino parameters</p>
+        </div>
+        <button onclick="saveAllSettings()" class="py-2.5 px-4 rounded-xl bg-accent text-black font-extrabold text-sm transition flex items-center gap-2 shadow-lg shadow-accent/20">
+          <i data-lucide="save" class="w-4 h-4"></i>
+          <span>Save & Apply Settings</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Bot Presence & Status -->
+        <div class="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+            <i data-lucide="bot" class="w-4 h-4 text-accent"></i>
+            <span>Discord Presence & Activity</span>
+          </h3>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Activity Text</label>
+            <input id="setting-bot-activity" type="text" placeholder="🪙 Playing Moonflip Casino" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Activity Type</label>
+            <select id="setting-bot-acttype" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent">
+              <option value="Playing">Playing</option>
+              <option value="Streaming">Streaming</option>
+              <option value="Listening">Listening to</option>
+              <option value="Watching">Watching</option>
+              <option value="Custom">Custom Status</option>
+              <option value="Competing">Competing in</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Status Mode</label>
+            <select id="setting-bot-status" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent">
+              <option value="online">Online (Green)</option>
+              <option value="idle">Idle (Amber)</option>
+              <option value="dnd">Do Not Disturb (Red)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Currency Symbol & Name</label>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="setting-currency-symbol" type="text" placeholder="🪙" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent text-center font-mono">
+              <input id="setting-currency-name" type="text" placeholder="Tokens" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent">
+            </div>
+          </div>
+        </div>
+
+        <!-- Economy & Rewards Tuning -->
+        <div class="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+            <i data-lucide="gift" class="w-4 h-4 text-emerald-400"></i>
+            <span>Rewards & Leveling System</span>
+          </h3>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Daily Reward Amount (🪙)</label>
+            <input id="setting-eco-daily" type="number" placeholder="500" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Daily Cooldown (Hours)</label>
+            <input id="setting-eco-cooldown" type="number" placeholder="24" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Test Deposit Credit</label>
+            <input id="setting-eco-deposit" type="number" placeholder="1000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Chat XP Per Message (Min / Max)</label>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="setting-xp-min" type="number" placeholder="15" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent">
+              <input id="setting-xp-max" type="number" placeholder="25" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent">
+            </div>
+          </div>
+        </div>
+
+        <!-- Casino Modules RTP & Edge -->
+        <div class="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-2">
+            <i data-lucide="percent" class="w-4 h-4 text-purple-400"></i>
+            <span>Casino Probabilities & RTP</span>
+          </h3>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Mines Return to Player (RTP %)</label>
+            <input id="setting-rtp-mines" type="number" placeholder="97" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Keno Return to Player (RTP %)</label>
+            <input id="setting-rtp-keno" type="number" placeholder="95" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Continuous Crash House Edge (%)</label>
+            <input id="setting-edge-crash" type="number" placeholder="3" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Vegas Slots RTP (%)</label>
+            <input id="setting-rtp-slots" type="number" placeholder="96" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-accent">
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- TAB 4: ROLES & SECURITY -->
+    <div id="tab-roles" class="tab-content hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-5 h-5 text-amber-400"></i>
+            <span>Role Hierarchy & Permission Security Audit</span>
+          </h2>
+          <p class="text-xs text-slate-400">Visual inspection of all roles. Edit role colors, hoist, and enforce anti-tamper permissions</p>
+        </div>
+        <button onclick="triggerHardenRoles()" class="py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-amber-600/20">
+          <i data-lucide="lock" class="w-4 h-4"></i>
+          <span>Enforce Anti-Tamper Lockdown</span>
+        </button>
+      </div>
+
+      <!-- Security Status Banner -->
+      <div id="roles-audit-banner" class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+            <i data-lucide="shield-check" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white">All Roles Hardened & Verified</h4>
+            <p class="text-xs text-slate-400">No regular member roles or @everyone have ManageRoles, ManageChannels, or MentionEveryone.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Roles Table Card -->
+      <div class="glass-panel rounded-2xl overflow-hidden border border-surface-border">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-900/80 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="px-5 py-3">Position</th>
+                <th class="px-5 py-3">Role Name</th>
+                <th class="px-5 py-3">Color Badge</th>
+                <th class="px-5 py-3">Members</th>
+                <th class="px-5 py-3">Permissions & Security Flags</th>
+                <th class="px-5 py-3">Separated (Hoist)</th>
+                <th class="px-5 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="roles-table-body" class="divide-y divide-slate-800/60 font-sans">
+              <tr>
+                <td colspan="7" class="px-5 py-8 text-center text-slate-500">Loading roles hierarchy...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 5: ECONOMY -->
+    <div id="tab-economy" class="tab-content hidden space-y-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left: Modify Player Balance Card -->
+        <div class="glass-panel p-6 rounded-2xl border border-surface-border flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2 mb-1">
+              <i data-lucide="sliders" class="w-4 h-4 text-accent"></i>
+              <span>Player Balance Override</span>
+            </h3>
+            <p class="text-xs text-slate-400 mb-4">Directly modify any member's token wallet</p>
+
+            <form id="form-balance" onsubmit="handleBalanceSubmit(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Discord User ID</label>
+                <input id="input-eco-userid" type="text" placeholder="e.g. 996534058362339512" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-accent font-mono" required>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Action Type</label>
+                <select id="select-eco-action" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent">
+                  <option value="add">Deposit / Add Tokens (+)</option>
+                  <option value="set">Set Exact Balance (=)</option>
+                  <option value="deduct">Deduct Tokens (-)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Amount (🪙)</label>
+                <input id="input-eco-amount" type="number" min="0" placeholder="1000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-accent font-mono" required>
+                <div class="flex gap-1.5 mt-2">
+                  <button type="button" onclick="setAmountQuick(500)" class="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300">+500</button>
+                  <button type="button" onclick="setAmountQuick(1000)" class="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300">+1,000</button>
+                  <button type="button" onclick="setAmountQuick(5000)" class="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300">+5,000</button>
+                  <button type="button" onclick="setAmountQuick(50000)" class="px-2 py-1 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300">+50k</button>
+                </div>
+              </div>
+
+              <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-accent text-black font-extrabold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-accent/20">
+                <i data-lucide="check" class="w-4 h-4"></i>
+                <span>Execute Balance Update</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Right: Leaderboard Table -->
+        <div class="lg:col-span-2 glass-panel rounded-2xl overflow-hidden border border-surface-border">
+          <div class="p-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="trophy" class="w-4 h-4 text-accent"></i>
+              <span>Registered Player Accounts</span>
+            </h3>
+            <span id="player-count-badge" class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">0 Players</span>
+          </div>
+
+          <div class="overflow-x-auto max-h-[460px]">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="bg-slate-900/50 text-xs font-semibold uppercase text-slate-400 sticky top-0">
+                <tr>
+                  <th class="px-4 py-3">Rank</th>
+                  <th class="px-4 py-3">User ID</th>
+                  <th class="px-4 py-3 text-right">Balance</th>
+                  <th class="px-4 py-3 text-right">Games Played</th>
+                  <th class="px-4 py-3 text-right">Total Bet</th>
+                  <th class="px-4 py-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="players-table-body" class="divide-y divide-slate-800/60 font-sans">
+                <tr>
+                  <td colspan="6" class="px-4 py-8 text-center text-slate-500">Loading economy accounts...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- TAB 6: ADVANCED EMBED STUDIO -->
+    <div id="tab-embed-studio" class="tab-content hidden space-y-6">
+      
+      <div>
+        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+          <i data-lucide="palette" class="w-5 h-5 text-cyan-400"></i>
+          <span>Discord Rich Embed Studio</span>
+        </h2>
+        <p class="text-xs text-slate-400">Design complex Discord announcements with custom fields, author badges, banners, and icons</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left 7 cols: Interactive Form -->
+        <div class="lg:col-span-7 glass-panel p-6 rounded-2xl border border-surface-border space-y-5">
+          
+          <!-- Channel & Pings -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Target Channel</label>
+              <select id="studio-channel" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 font-mono">
+                <option value="">Loading channels...</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Mention Ping</label>
+              <select id="studio-ping" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500">
+                <option value="none">None</option>
+                <option value="here">@here</option>
+                <option value="everyone">@everyone</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Author Info -->
+          <div class="p-3.5 rounded-xl bg-slate-900/50 border border-slate-800 space-y-2">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Author Header (Optional)</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input id="studio-author-name" oninput="updateStudioPreview()" type="text" placeholder="Author Name" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500">
+              <input id="studio-author-icon" oninput="updateStudioPreview()" type="url" placeholder="Author Icon URL (https://...)" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+            </div>
+          </div>
+
+          <!-- Title & URL -->
+          <div class="space-y-2">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Embed Title</label>
+                <input id="studio-title" oninput="updateStudioPreview()" type="text" placeholder="🎉 Community Super Drop" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Border Color</label>
+                <div class="flex items-center space-x-2">
+                  <input id="studio-color" oninput="updateStudioPreview()" type="color" value="#f1c40f" class="w-9 h-9 rounded-lg bg-transparent cursor-pointer border border-slate-700">
+                  <span id="studio-color-label" class="text-xs font-mono text-slate-400">#F1C40F</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Title URL (Optional Hyperlink)</label>
+              <input id="studio-title-url" oninput="updateStudioPreview()" type="url" placeholder="https://..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Description (Markdown Supported)</label>
+            <textarea id="studio-desc" oninput="updateStudioPreview()" rows="4" placeholder="> Format your text using Discord markdown (bold, quotes, bullet points, headers)&#10;&#10;✦ Feature point 1&#10;✦ Feature point 2" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"></textarea>
+          </div>
+
+          <!-- Dynamic Embed Fields -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Embed Fields (Columns / Grid)</span>
+              <button type="button" onclick="addStudioField()" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 font-semibold flex items-center gap-1 border border-slate-700">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>Add Field</span>
+              </button>
+            </div>
+            <div id="studio-fields-container" class="space-y-2">
+              <!-- Dynamically added fields -->
+            </div>
+          </div>
+
+          <!-- Image & Thumbnail URLs -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Thumbnail URL (Top Right)</label>
+              <input id="studio-thumbnail" oninput="updateStudioPreview()" type="url" placeholder="https://..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Large Banner Image URL</label>
+              <input id="studio-image" oninput="updateStudioPreview()" type="url" placeholder="https://..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+            </div>
+          </div>
+
+          <!-- Footer & Timestamp -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Footer Text</label>
+              <input id="studio-footer-text" oninput="updateStudioPreview()" type="text" placeholder="Moonflip Official • 24/7 Operations" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Footer Icon URL</label>
+              <input id="studio-footer-icon" oninput="updateStudioPreview()" type="url" placeholder="https://..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+            </div>
+          </div>
+
+          <button onclick="dispatchAdvancedEmbed()" class="w-full py-3 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/25">
+            <i data-lucide="send" class="w-4 h-4"></i>
+            <span>Publish Embed to Discord Channel</span>
+          </button>
+
+        </div>
+
+        <!-- Right 5 cols: Live Discord Renderer -->
+        <div class="lg:col-span-5 glass-panel p-6 rounded-2xl border border-surface-border flex flex-col justify-between sticky top-24">
+          <div>
+            <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+              <span class="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-1.5">
+                <i data-lucide="monitor" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Discord Client Simulator</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono font-bold">1:1 Mock</span>
+            </div>
+
+            <!-- Discord Mock Bubble -->
+            <div class="bg-[#313338] p-4 rounded-2xl text-slate-200 font-sans shadow-2xl">
+              <div class="flex items-start space-x-3 mb-2.5">
+                <img id="mock-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" class="w-10 h-10 rounded-full mt-0.5">
+                <div>
+                  <div class="flex items-center space-x-1.5">
+                    <span class="font-bold text-white text-sm">Antigravity Bot</span>
+                    <span class="px-1 py-0.5 rounded bg-[#5865f2] text-[9px] font-extrabold text-white uppercase tracking-wider">BOT</span>
+                    <span class="text-[11px] text-slate-400">Today at 1:25 AM</span>
+                  </div>
+                  <div id="mock-mention-text" class="text-xs text-blue-400 font-medium hidden"></div>
+                </div>
+              </div>
+
+              <!-- The Embed Card Mock -->
+              <div id="mock-embed-card" class="border-l-[4px] border-amber-400 bg-[#2b2d31] p-3.5 rounded-r-xl space-y-2.5 relative overflow-hidden">
+                
+                <!-- Author Header -->
+                <div id="mock-author-row" class="flex items-center space-x-2 hidden">
+                  <img id="mock-author-icon" src="" class="w-5 h-5 rounded-full">
+                  <span id="mock-author-name" class="text-xs font-bold text-white"></span>
+                </div>
+
+                <!-- Title & Thumbnail layout -->
+                <div class="flex justify-between items-start gap-2">
+                  <div>
+                    <h4 id="mock-title" class="font-bold text-base text-white">Announcement Title</h4>
+                  </div>
+                  <img id="mock-thumbnail" src="" class="w-16 h-16 rounded-lg object-cover hidden border border-white/10">
+                </div>
+
+                <!-- Description -->
+                <p id="mock-desc" class="text-xs text-slate-300 whitespace-pre-line leading-relaxed">Embed description will dynamically appear here...</p>
+
+                <!-- Custom Fields Grid -->
+                <div id="mock-fields-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 empty:hidden"></div>
+
+                <!-- Large Banner Image -->
+                <img id="mock-image" src="" class="w-full rounded-lg object-cover max-h-48 hidden border border-white/10">
+
+                <!-- Footer -->
+                <div id="mock-footer-row" class="pt-2 border-t border-white/5 flex items-center space-x-2 text-[11px] text-slate-400">
+                  <img id="mock-footer-icon" src="" class="w-4 h-4 rounded-full hidden">
+                  <span id="mock-footer-text">Moonflip Official • Today</span>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <p class="text-[11px] text-slate-500 mt-4 text-center">
+            Previews actual Discord mobile and desktop rendering with exact markdown formatting.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- TAB 7: CASINO GAMES -->
+    <div id="tab-casino" class="tab-content hidden space-y-6">
+      
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i data-lucide="gamepad-2" class="w-5 h-5 text-purple-400"></i>
+            <span>Casino Games & Automated Modules</span>
+          </h2>
+          <p class="text-xs text-slate-400">Real-time games powered by provably fair random seeds</p>
+        </div>
+        <button onclick="triggerDeploy('games')" class="py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-purple-600/20">
+          <i data-lucide="play" class="w-3.5 h-3.5"></i>
+          <span>Re-Deploy All 6 Game Panels</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        <!-- Game 1: Mines -->
+        <div class="glass-panel p-5 rounded-2xl border border-surface-border flex flex-col justify-between interactive-card">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-2xl">💣</span>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Online</span>
+            </div>
+            <h3 class="text-base font-bold text-white">5x5 Mines</h3>
+            <p class="text-xs text-slate-400 mt-1 mb-3">Interactive 25-tile diamond grid. Custom mine traps from 1 to 24 bombs with live cashouts.</p>
+          </div>
+          <div class="text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+            Channel: <code class="text-purple-400 font-mono font-semibold">#💣┃mines</code>
+          </div>
+        </div>
+
+        <!-- Game 2: Crash -->
+        <div class="glass-panel p-5 rounded-2xl border border-surface-border flex flex-col justify-between interactive-card">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-2xl">📈</span>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Continuous Loop</span>
+            </div>
+            <h3 class="text-base font-bold text-white">Continuous Crash</h3>
+            <p class="text-xs text-slate-400 mt-1 mb-3">Server-wide live crash rocket running on a non-stop timer with live multiplier climbing.</p>
+          </div>
+          <div class="text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+            Channel: <code class="text-purple-400 font-mono font-semibold">#📈┃crash</code>
+          </div>
+        </div>
+
+        <!-- Game 3: Keno -->
+        <div class="glass-panel p-5 rounded-2xl border border-surface-border flex flex-col justify-between interactive-card">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-2xl">🎲</span>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Online</span>
+            </div>
+            <h3 class="text-base font-bold text-white">20-Ball Keno</h3>
+            <p class="text-xs text-slate-400 mt-1 mb-3">Pick up to 10 lucky numbers from 1 to 20 with animated ball draws and dynamic payouts.</p>
+          </div>
+          <div class="text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+            Channel: <code class="text-purple-400 font-mono font-semibold">#🎲┃keno</code>
+          </div>
+        </div>
+
+        <!-- Game 4: Slots -->
+        <div class="glass-panel p-5 rounded-2xl border border-surface-border flex flex-col justify-between interactive-card">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-2xl">🎰</span>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Online</span>
+            </div>
+            <h3 class="text-base font-bold text-white">Vegas Slots</h3>
+            <p class="text-xs text-slate-400 mt-1 mb-3">Classic 3-reel spinning slots with multi-tier multiplier paytable and jackpot 777s.</p>
+          </div>
+          <div class="text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+            Channel: <code class="text-purple-400 font-mono font-semibold">#🎰┃slots</code>
+          </div>
+        </div>
+
+        <!-- Game 5: Coinflip -->
+        <div class="glass-panel p-5 rounded-2xl border border-surface-border flex flex-col justify-between interactive-card">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-2xl">🪙</span>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Online</span>
+            </div>
+            <h3 class="text-base font-bold text-white">Golden Coinflip</h3>
+            <p class="text-xs text-slate-400 mt-1 mb-3">50/50 fast coin flip with animated flip frame rendering and 1.95x payout multiplier.</p>
+          </div>
+          <div class="text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+            Channel: <code class="text-purple-400 font-mono font-semibold">#🪙┃coinflip</code>
+          </div>
+        </div>
+
+        <!-- Game 6: Blackjack -->
+        <div class="glass-panel p-5 rounded-2xl border border-surface-border flex flex-col justify-between interactive-card">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-2xl">🃏</span>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Online</span>
+            </div>
+            <h3 class="text-base font-bold text-white">Classic Blackjack</h3>
+            <p class="text-xs text-slate-400 mt-1 mb-3">Hit or Stand against dealer with automatic natural 21 blackjack checks and card embeds.</p>
+          </div>
+          <div class="text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80">
+            Channel: <code class="text-purple-400 font-mono font-semibold">#🃏┃blackjack</code>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- MODAL: EDIT ROLE -->
+  <div id="modal-role" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-md w-full border border-surface-border space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-4 h-4 text-accent"></i>
+          <span>Customize Server Role</span>
+        </h3>
+        <button onclick="closeRoleModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <input type="hidden" id="edit-role-id">
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Role Name</label>
+        <input id="edit-role-name" type="text" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Role Color</label>
+        <div class="flex items-center space-x-3">
+          <input id="edit-role-color" type="color" class="w-10 h-10 rounded-xl bg-transparent cursor-pointer border border-slate-700">
+          <input id="edit-role-color-hex" type="text" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-accent">
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-1">
+        <label class="flex items-center space-x-2 text-xs font-semibold text-slate-300 cursor-pointer">
+          <input id="edit-role-hoist" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-accent focus:ring-0">
+          <span>Display separately in member sidebar (Hoist)</span>
+        </label>
+        <label class="flex items-center space-x-2 text-xs font-semibold text-slate-300 cursor-pointer">
+          <input id="edit-role-mentionable" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-accent focus:ring-0">
+          <span>Allow anyone to @mention this role</span>
+        </label>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="closeRoleModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold">Cancel</button>
+        <button onclick="saveRoleEdit()" class="px-4 py-2 rounded-xl bg-accent text-black font-bold text-xs shadow-md">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT DEPARTMENT -->
+  <div id="modal-dept" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-lg w-full border border-surface-border space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="folder-plus" class="w-4 h-4 text-emerald-400"></i>
+          <span>Add Custom Ticket Department</span>
+        </h3>
+        <button onclick="closeDeptModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Unique Key (id)</label>
+          <input id="new-dept-id" type="text" placeholder="vip" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Emoji Icon</label>
+          <input id="new-dept-emoji" type="text" placeholder="👑" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-accent text-center">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Department Title</label>
+        <input id="new-dept-title" type="text" placeholder="VIP & High Roller Assistance" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Button Color</label>
+          <input id="new-dept-color" type="color" value="#8a2be2" class="w-full h-9 rounded-xl bg-transparent cursor-pointer border border-slate-700">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Button Style</label>
+          <select id="new-dept-style" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-accent">
+            <option value="Primary">Primary (Blurple)</option>
+            <option value="Success">Success (Green)</option>
+            <option value="Secondary">Secondary (Grey)</option>
+            <option value="Danger">Danger (Red)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">In-Room Instructions For Member</label>
+        <textarea id="new-dept-instructions" rows="2" placeholder="Please state your VIP tier, token request, or high roller partnership inquiry." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-accent"></textarea>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="closeDeptModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold">Cancel</button>
+        <button onclick="confirmAddDepartment()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md">Add Department</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- APPLICATION JAVASCRIPT -->
+  <script src="/app.js"></script>
+</body>
+</html>
