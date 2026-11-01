@@ -3,6 +3,9 @@ import {
   PermissionFlagsBits,
   EmbedBuilder,
   MessageFlags,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } from 'discord.js';
 import {
   getUser,
@@ -15,6 +18,7 @@ import {
 } from '../games/economy.js';
 import { getUserLevelData, LEVEL_TIERS } from '../games/levels.js';
 import { setupTicketPanel } from '../tickets/ticketSystem.js';
+import { createWebPlaySession, getPublicBaseUrl } from '../web/playApi.js';
 
 export function getSlashCommandDefinitions() {
   return [
@@ -101,6 +105,11 @@ export function getSlashCommandDefinitions() {
       .setName('ticket-panel')
       .setDescription('🎫 [STAFF] Deploy or refresh the 24/7 Moonflip Support & Ticket panel')
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
+    // 12. /play (Web Arena)
+    new SlashCommandBuilder()
+      .setName('play')
+      .setDescription('🎮 Launch the real-time Stake-style 5x5 Mines Web Arena in your browser'),
   ];
 }
 
@@ -452,5 +461,43 @@ export async function handleChatInputCommand(interaction) {
         content: `⚠️ Failed to deploy ticket panel: ${err.message}`,
       });
     }
+  }
+
+  // 10. /play (Web Arena)
+  if (commandName === 'play') {
+    const token = createWebPlaySession(interaction.user);
+    const baseUrl = getPublicBaseUrl(interaction);
+    const playUrl = `${baseUrl}/play?token=${token}`;
+
+    const embed = new EmbedBuilder()
+      .setColor(0x00f0ff)
+      .setTitle('🎮  MOONFLIP CASINO — WEB ARENA')
+      .setDescription(
+        `> **Real-Time Interactive 5x5 Mines Web Client**\n\n` +
+        `Click directly on the board with 3D tile flips, sound effects, particle cascades, and instant cashout synced with your Discord wallet!\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `👤 **Player**: <@${interaction.user.id}>\n` +
+        `🪙 **Current Wallet**: \`${getBalance(interaction.user.id).toLocaleString()} 🪙\`\n` +
+        `⚡ **Experience**: Stake.com / Rainbet style 5x5 Mines Arena\n` +
+        `🔒 **Session**: 60-minute cryptographically secured login token\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `👉 **Click the button below to launch the arena in your browser!**`
+      )
+      .setThumbnail('https://cdn-icons-png.flaticon.com/512/1055/1055687.png')
+      .setFooter({ text: 'Provably Fair • Instant Settlement • Moonflip Arena' })
+      .setTimestamp();
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setLabel('🚀 Launch Mines Arena')
+        .setStyle(ButtonStyle.Link)
+        .setURL(playUrl)
+    );
+
+    return interaction.reply({
+      embeds: [embed],
+      components: [row],
+      flags: MessageFlags.Ephemeral,
+    });
   }
 }

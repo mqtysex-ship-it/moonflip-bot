@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Moonflip — 5x5 Mines Web Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/play/style.css">
+</head>
+<body>
+  <!-- Ambient Cyber Background -->
+  <div class="cyber-glow cyber-glow-1"></div>
+  <div class="cyber-glow cyber-glow-2"></div>
+  <div class="cyber-grid-bg"></div>
+
+  <!-- Main Application Wrapper -->
+  <div class="arena-container">
+    
+    <!-- Top Navigation Header -->
+    <header class="arena-header">
+      <div class="header-left">
+        <a href="/" class="brand-logo">
+          <div class="logo-orb">
+            <span class="logo-icon">🌙</span>
+            <div class="logo-ring"></div>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">MOONFLIP</span>
+            <span class="brand-badge">WEB ARENA</span>
+          </div>
+        </a>
+      </div>
+
+      <!-- Live Multiplier History Ribbon -->
+      <div class="history-ribbon" id="historyRibbon">
+        <span class="history-label">RECENT:</span>
+        <div class="history-stream" id="historyStream">
+          <!-- Multiplier chips populated dynamically -->
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Sound Toggle -->
+        <button class="icon-btn" id="soundBtn" title="Toggle Sound FX">
+          <span id="soundIcon">🔊</span>
+        </button>
+
+        <!-- User Wallet Pill -->
+        <div class="wallet-pill" id="walletPill">
+          <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" class="user-avatar" id="userAvatar">
+          <div class="wallet-info">
+            <span class="user-name" id="userName">Guest</span>
+            <span class="wallet-balance" id="walletBalance">
+              <span class="coin-icon">🪙</span>
+              <span id="balanceNumber">1,000</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Game Split Layout -->
+    <main class="arena-stage">
+      
+      <!-- Left Sidebar: Betting Controls (Stake-Style) -->
+      <section class="controls-panel">
+        <div class="panel-header">
+          <span class="panel-title">🕹️ MANUAL BET</span>
+          <span class="provably-fair-pill" title="Cryptographically verified using HMAC-SHA256">
+            <span class="shield-dot"></span> Provably Fair
+          </span>
+        </div>
+
+        <!-- Bet Amount Input -->
+        <div class="form-group">
+          <div class="form-label-row">
+            <label for="wagerInput">Bet Amount</label>
+            <span class="currency-tag">Tokens (🪙)</span>
+          </div>
+          <div class="input-wrapper">
+            <span class="input-icon">🪙</span>
+            <input type="number" id="wagerInput" min="10" max="1000000" step="10" value="100">
+            <div class="input-quick-actions">
+              <button class="quick-chip-btn" id="btnHalf">½</button>
+              <button class="quick-chip-btn" id="btnDouble">2×</button>
+              <button class="quick-chip-btn" id="btnMax">MAX</button>
+            </div>
+          </div>
+          <div class="preset-chips-row">
+            <button class="preset-btn" data-val="100">100</button>
+            <button class="preset-btn" data-val="250">250</button>
+            <button class="preset-btn" data-val="500">500</button>
+            <button class="preset-btn" data-val="1000">1k</button>
+            <button class="preset-btn" data-val="5000">5k</button>
+          </div>
+        </div>
+
+        <!-- Mines Count Selector -->
+        <div class="form-group">
+          <div class="form-label-row">
+            <label for="bombsRange">Number of Mines</label>
+            <span class="bombs-display-badge" id="bombsDisplay">3 Mines</span>
+          </div>
+          <div class="range-wrapper">
+            <input type="range" id="bombsRange" min="1" max="24" value="3">
+          </div>
+          <div class="bombs-presets-row">
+            <button class="bomb-preset-btn" data-bombs="1">1</button>
+            <button class="bomb-preset-btn active" data-bombs="3">3</button>
+            <button class="bomb-preset-btn" data-bombs="5">5</button>
+            <button class="bomb-preset-btn" data-bombs="10">10</button>
+            <button class="bomb-preset-btn" data-bombs="15">15</button>
+            <button class="bomb-preset-btn" data-bombs="24">24</button>
+          </div>
+        </div>
+
+        <!-- Live Round Stats (Dynamic Multipliers & Profits) -->
+        <div class="stats-card">
+          <div class="stat-col">
+            <span class="stat-label">Gems Found</span>
+            <span class="stat-value highlight-cyan" id="statGemsFound">0 / 22</span>
+          </div>
+          <div class="stat-col">
+            <span class="stat-label">Current Mult</span>
+            <span class="stat-value" id="statCurrentMult">1.00×</span>
+          </div>
+          <div class="stat-col">
+            <span class="stat-label">Next Tile</span>
+            <span class="stat-value highlight-green" id="statNextMult">1.14×</span>
+          </div>
+        </div>
+
+        <!-- Big Main CTA Button (Bet / Cashout / Play Again) -->
+        <div class="cta-container">
+          <button class="btn-main-action btn-bet" id="mainActionButton">
+            <span class="action-title" id="actionBtnTitle">START GAME</span>
+            <span class="action-subtitle" id="actionBtnSub">BET 100 🪙</span>
+          </button>
+        </div>
+
+        <!-- Auto Cashout Notice / Safe Info -->
+        <div class="safety-footer">
+          <span>🔒 Instant Settlement • Discord Economy Synced</span>
+        </div>
+      </section>
+
+      <!-- Right Center Stage: 5x5 Mines Board -->
+      <section class="board-stage">
+        
+        <!-- Board Top Status Banner -->
+        <div class="board-banner" id="boardBanner">
+          <span class="banner-status-text" id="bannerText">Select your bet and click <strong>START GAME</strong> to begin!</span>
+        </div>
+
+        <!-- 5x5 Grid Board Container -->
+        <div class="grid-wrapper">
+          <canvas id="particleCanvas" class="particle-canvas"></canvas>
+          
+          <div class="mines-grid" id="minesGrid">
+            <!-- 25 Tiles populated dynamically by JavaScript -->
+          </div>
+
+          <!-- Victory / Cashout Pop Overlay -->
+          <div class="celebration-overlay" id="celebrationOverlay">
+            <div class="celebration-card" id="celebrationCard">
+              <div class="celebration-icon" id="celebrationIcon">🎉</div>
+              <h2 class="celebration-title" id="celebrationTitle">CASHED OUT!</h2>
+              <div class="celebration-mult" id="celebrationMult">1.85×</div>
+              <div class="celebration-profit" id="celebrationProfit">+340 🪙 PROFIT</div>
+              <p class="celebration-peek-note" id="celebrationNote">Click remaining tiles to explore where bombs were hiding, or click below for a fresh round!</p>
+              <button class="btn-celebration-action" id="btnPlayAgain">PLAY AGAIN</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile Quick Status Bar -->
+        <div class="mobile-profit-bar" id="mobileProfitBar">
+          <div class="mobile-profit-left">
+            <span class="mobile-profit-lbl">Current Win</span>
+            <span class="mobile-profit-val" id="mobileWinVal">0 🪙</span>
+          </div>
+          <div class="mobile-profit-right">
+            <span class="mobile-profit-lbl">Multiplier</span>
+            <span class="mobile-profit-mult" id="mobileMultVal">1.00×</span>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <script src="/play/app.js"></script>
+</body>
+</html>

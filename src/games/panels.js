@@ -64,7 +64,14 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
       new ButtonBuilder().setCustomId('eco_balance').setLabel('💰 Balance').setStyle(ButtonStyle.Secondary)
     );
 
-    await minesChan.send({ files: [minesGif], embeds: [embed], components: [row] });
+    const webRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('launch_web_arena')
+        .setLabel('🎮 Launch Web Arena (Real-time 3D Board)')
+        .setStyle(ButtonStyle.Success)
+    );
+
+    await minesChan.send({ files: [minesGif], embeds: [embed], components: [row, webRow] });
     console.log(`Deployed 5x5 Mines panel in #${minesChan.name}`);
   }
 

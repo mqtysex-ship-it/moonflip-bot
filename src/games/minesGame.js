@@ -221,7 +221,14 @@ export function render5x5Board(
 
     const replayRow = new ActionRowBuilder().addComponents(safeButtons);
 
-    return { embed, components: [replayRow], files: [cardAttachment] };
+    const webArenaRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('launch_web_arena')
+        .setLabel('🎮 Launch Web Arena (Real-time 3D Board)')
+        .setStyle(ButtonStyle.Success)
+    );
+
+    return { embed, components: [replayRow, webArenaRow], files: [cardAttachment] };
   }
 
   // Curiosity Peek / Exploration Mode (Post-Cashout Interactive Board)

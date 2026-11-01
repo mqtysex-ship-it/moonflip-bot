@@ -17,6 +17,7 @@ import {
 import { setupTicketPanel, loadDepartments, saveDepartments } from '../tickets/ticketSystem.js';
 import { deployGamePanels } from '../games/panels.js';
 import { getAnnouncementsBannerGif } from '../games/animator.js';
+import { setupPlayApi } from './playApi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,6 +61,14 @@ export function createWebServer() {
 
   app.use(express.json());
   app.use(express.static(path.join(__dirname, 'public')));
+
+  // Web Casino Arena route
+  app.get('/play', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/play/index.html'));
+  });
+
+  // Setup Web Arena Interactive API
+  setupPlayApi(app);
 
   // Helper to load ticket data
   function loadTicketsData() {
