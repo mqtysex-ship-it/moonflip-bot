@@ -695,7 +695,8 @@ export async function handleTicketInteraction(interaction) {
     });
   }
   } catch (err) {
-    console.error('[Ticket Interaction Fatal Error]', err);
+    if (err.code === 10062) return; // Interaction expired / unknown, safe to ignore
+    console.error('[Ticket Interaction Error]', err.message);
     const replyFn = interaction.replied || interaction.deferred ? 'editReply' : 'reply';
     return interaction[replyFn]({
       content: `⚠️ Failed to process ticket action: ${err.message}`,

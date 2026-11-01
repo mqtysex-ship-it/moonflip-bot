@@ -39,7 +39,7 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
         `1️⃣ Choose a quick-play preset below or click **⚙️ Custom Game** to set any wager & bomb count (1–24 mines).\n` +
         `2️⃣ Click any tile on the 5x5 grid to reveal either a 💎 **Gem** or 💣 **Bomb**.\n` +
         `3️⃣ Hit **💰 Cash Out** anytime to lock in your multiplied profits!\n\n` +
-        `*97% RTP • Provably Fair Seed • Full 5x5 Grid (25 Tiles)*`
+        `*94% RTP • Provably Fair Seed • Full 5x5 Grid (25 Tiles)*`
       )
       .setImage('attachment://moonflip_mines_preview.gif')
       .setFooter({ text: 'Moonflip Casino • Virtual Tokens Only' });
@@ -70,13 +70,13 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
       .setColor(0x9b59b6)
       .setTitle('🎲  MOONFLIP 20-BALL KENO LOTTERY')
       .setDescription(
-        `> Select your lucky numbers across the **Moonflip 20-Ball Lottery Board**! 7 winning balls are drawn each round for up to a **50.0x Mega Jackpot**.\n\n` +
+        `> Select your lucky numbers across the **Moonflip 20-Ball Lottery Board**! 7 winning balls are drawn each round for up to a **30.0x Mega Jackpot**.\n\n` +
         `### 🎯 Payout Multipliers (5-Pick Ticket):\n` +
-        `✦ **5/5 Hits**: **50.0x Mega Jackpot** 👑\n` +
-        `✦ **4/5 Hits**: **15.0x Payout** 💎\n` +
-        `✦ **3/5 Hits**: **4.0x Payout** 🥇\n` +
-        `✦ **2/5 Hits**: **1.8x Payout** 🥈\n` +
-        `✦ **1/5 Hits**: **0.5x Return** 🥉`
+        `✦ **5/5 Hits**: **30.0x Mega Jackpot** 👑\n` +
+        `✦ **4/5 Hits**: **5.5x Payout** 💎\n` +
+        `✦ **3/5 Hits**: **2.0x Payout** 🥇\n` +
+        `✦ **2/5 Hits**: **1.0x Push (Money Back)** 🥈\n\n` +
+        `*94% RTP • Provably Fair Machine Draw • Virtual Tokens Only*`
       )
       .setImage('attachment://moonflip_keno_preview.gif')
       .setFooter({ text: 'Moonflip Casino • Virtual Tokens Only' });
@@ -117,7 +117,7 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
       .setDescription(
         `> Pure 50/50 high-stakes duel! Watch the **gold coin snap off the thumb, climb to 100% apex altitude, spin end-over-end at 1,200 RPM**, wobble on its rim, and settle on the felt!\n\n` +
         `### 🪙 Game Highlights & Payouts:\n` +
-        `✦ **Winning Call**: **1.98x Instant Payout** *(2% House Edge)*\n` +
+        `✦ **Winning Call**: **1.92x Instant Payout** *(4% House Edge)*\n` +
         `✦ **5-Phase Flight Animation**: Launch ➔ Climb ➔ Apex Edge Glint ➔ Rim Wobble ➔ Settle\n` +
         `✦ **Hot Streak & 2x Double**: Track win streaks and double down in one click!`
       )

@@ -31,8 +31,9 @@ export function combinations(n, k) {
 
 /**
  * Calculates fair Mines game multiplier based on total tiles, bomb count, and gems uncovered.
+ * Uses 6% House Edge (94% RTP) to ensure House long-term profitability.
  */
-export function calculateMinesMultiplier(totalTiles, bombs, gemsRevealed, houseEdge = 0.03) {
+export function calculateMinesMultiplier(totalTiles, bombs, gemsRevealed, houseEdge = 0.06) {
   if (gemsRevealed <= 0) return 1.0;
   const prob = combinations(totalTiles - bombs, gemsRevealed) / combinations(totalTiles, gemsRevealed);
   const rawMult = (1 - houseEdge) / prob;
@@ -55,16 +56,17 @@ export function generateMinesBombs(totalTiles, bombCount) {
 
 /**
  * Generates a provably fair Crash multiplier.
- * Uses 98% Return to Player (2% house edge) with 1% instant crash at 1.00x.
+ * Uses 94% Return to Player (6% House Edge) with 3.5% instant crash at 1.00x-1.05x.
  */
 export function generateCrashMultiplier() {
   const rand = secureRandomFloat();
-  // 1.5% instant crash chance
-  if (rand < 0.015) {
-    return 1.0;
+  // 3.5% instant bust chance
+  if (rand < 0.035) {
+    const microBust = 1.0 + Math.floor(secureRandomFloat() * 5) / 100;
+    return microBust;
   }
-  // Formula: multiplier = 99 / (100 - rand * 100)
-  const e = 0.98;
+  // Formula: multiplier = e / (1 - rand)
+  const e = 0.94; // 94% RTP (6% House Edge)
   const mult = e / (1 - rand);
   return Math.max(1.0, Math.floor(mult * 100) / 100);
 }

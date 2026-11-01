@@ -730,6 +730,14 @@ export function startWebServer(port = 3000) {
     console.log(`[Web Dashboard] 🚀 Server running at http://localhost:${port}`);
   });
 
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`[Web Dashboard] Port ${port} is already in use by an active instance; dashboard running on active port.`);
+    } else {
+      console.error('[Web Dashboard Error]', err.message);
+    }
+  });
+
   return server;
 }
 

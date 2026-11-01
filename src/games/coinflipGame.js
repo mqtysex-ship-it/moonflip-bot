@@ -91,7 +91,7 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
 
     const outcome = flipCoin(); // 'heads' or 'tails'
     const won = normalizedChoice === outcome;
-    const winMultiplier = 1.98; // 2% house edge
+    const winMultiplier = 1.92; // 4% house edge (96% RTP)
     const payout = won ? Math.floor(betAmount * winMultiplier) : 0;
     const profit = payout - betAmount;
 
@@ -291,12 +291,12 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
         `╚═══════════════════════════════════════════════╝\n` +
         `\`\`\`\n` +
         `🎯 **Your Call**: \`${normalizedChoice.toUpperCase()}\`  •  🪙 **Landed**: \`${outcome.toUpperCase()}\`  •  🔥 **Streak**: \`${streakBadge}\`\n` +
-        `💵 **Wager**: \`${betAmount.toLocaleString()} 🪙\`  •  💰 **Payout**: \`${won ? `+${payout.toLocaleString()} 🪙 (1.98x)` : '0 🪙'}\`\n` +
+        `💵 **Wager**: \`${betAmount.toLocaleString()} 🪙\`  •  💰 **Payout**: \`${won ? `+${payout.toLocaleString()} 🪙 (1.92x)` : '0 🪙'}\`\n` +
         `💳 **Wallet Balance**: \`${prevBalance.toLocaleString()} 🪙\` ➔ **\`${newBalance.toLocaleString()} 🪙\`** *(${profit >= 0 ? `+${profit.toLocaleString()}` : profit.toLocaleString()} 🪙)*\n` +
         `📜 **Recent Flips**: ${formatFlipHistory()}`
       )
       .setFooter({
-        text: `${interaction.user.username} • Balance Updated Instantly • 1.98x Payout`,
+        text: `${interaction.user.username} • Balance Updated Instantly • 1.92x Payout (4% House Edge)`,
         iconURL: interaction.user.displayAvatarURL() || undefined,
       })
       .setTimestamp();
