@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Ensure .env is loaded quietly from the project root if token not already set
-if (!process.env.DISCORD_BOT_TOKEN) {
+if (!process.env.DISCORD_BOT_TOKEN && !process.env.DISCORD_TOKEN) {
   dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 }
 
@@ -29,9 +29,9 @@ let loginPromise = null;
  * Reuses existing connection across tool calls.
  */
 export async function getDiscordClient() {
-  const token = process.env.DISCORD_BOT_TOKEN;
+  const token = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
   if (!token) {
-    throw new Error('DISCORD_BOT_TOKEN is not configured in .env or environment variables.');
+    throw new Error('DISCORD_BOT_TOKEN (or DISCORD_TOKEN) is not configured in .env or environment variables.');
   }
 
   if (discordClient && discordClient.isReady()) {
