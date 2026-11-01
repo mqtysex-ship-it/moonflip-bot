@@ -228,7 +228,7 @@ export async function startBlackjack(interaction, betAmount = 100) {
     const userBalance = getBalance(userId);
 
     if (userBalance < cleanBet) {
-      const msg = `❌ **Insufficient balance!** You have **\`${userBalance.toLocaleString()} 🪙\`**, but Blackjack requires **\`${cleanBet.toLocaleString()} 🪙\`**.`;
+      const msg = `❌ **Insufficient balance!** You have **\`${userBalance.toLocaleString()} 🪙\`**, but Blackjack requires **\`${cleanBet.toLocaleString()} 🪙\`**.\n> 💡 *Tip: Use \`/daily\` to claim 500 free tokens or click **⚙️ Custom Game** to bet smaller amounts (min 10 🪙).*`;
       if (interaction.replied || interaction.deferred) {
         return await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
       }

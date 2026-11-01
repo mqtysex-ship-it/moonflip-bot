@@ -117,7 +117,7 @@ export async function playSlots(interaction, betAmount = 100) {
   const prevBalance = getBalance(userId);
 
   if (prevBalance < cleanBet) {
-    const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this spin requires **\`${cleanBet.toLocaleString()} 🪙\`**.`;
+    const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this spin requires **\`${cleanBet.toLocaleString()} 🪙\`**.\n> 💡 *Tip: Use \`/daily\` to claim 500 free tokens or click **⚙️ Custom Spin** to bet smaller amounts (min 10 🪙).*`;
     if (interaction.replied || interaction.deferred) {
       return interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
     }

@@ -86,7 +86,7 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
   const prevBalance = getBalance(userId);
 
   if (prevBalance < cleanBet) {
-    const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this flip requires **\`${cleanBet.toLocaleString()} 🪙\`**.`;
+    const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this flip requires **\`${cleanBet.toLocaleString()} 🪙\`**.\n> 💡 *Tip: Use \`/daily\` to claim 500 free tokens or click **⚙️ Custom Flip** to bet smaller amounts (min 10 🪙).*`;
     if (interaction.replied || interaction.deferred) {
       return interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
     }

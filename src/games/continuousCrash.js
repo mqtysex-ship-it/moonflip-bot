@@ -551,7 +551,7 @@ class ContinuousCrashEngine {
 
       const prevBalance = getBalance(userId);
       if (prevBalance < cleanAmount) {
-        const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this launch requires **\`${cleanAmount.toLocaleString()} 🪙\`**.`;
+        const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this launch requires **\`${cleanAmount.toLocaleString()} 🪙\`**.\n> 💡 *Tip: Use \`/daily\` to claim 500 free tokens or click **🚀 Bet Next Round** to bet custom amounts (min 10 🪙).*`;
         if (interaction.replied || interaction.deferred) {
           return await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
         }
