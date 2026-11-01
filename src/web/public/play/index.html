@@ -6,191 +6,306 @@
   <title>Moonflip — 5x5 Mines Web Arena</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/play/style.css">
 </head>
-<body>
-  <!-- Ambient Cyber Background -->
-  <div class="cyber-glow cyber-glow-1"></div>
-  <div class="cyber-glow cyber-glow-2"></div>
-  <div class="cyber-grid-bg"></div>
+<body class="casino-theme">
 
-  <!-- Main Application Wrapper -->
-  <div class="arena-container">
+  <!-- Top Global Navigation -->
+  <header class="casino-navbar">
+    <div class="nav-left">
+      <a href="/" class="casino-brand">
+        <div class="brand-crest">
+          <svg viewBox="0 0 36 36" fill="none" class="brand-svg">
+            <path d="M28.5 18C28.5 24.3513 23.3513 29.5 17 29.5C11.5309 29.5 6.94586 25.6883 5.75391 20.584C6.69975 20.854 7.69708 21 8.72727 21C14.4007 21 19 16.4007 19 10.7273C19 8.27376 18.1407 6.02102 16.7027 4.25098C23.3857 4.90807 28.5 10.8291 28.5 18Z" fill="url(#crestGrad)" />
+            <circle cx="10" cy="9" r="2.5" fill="#00f0ff" />
+            <defs>
+              <linearGradient id="crestGrad" x1="5.7" y1="4.2" x2="28.5" y2="29.5" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#00f0ff"/>
+                <stop offset="1" stop-color="#0072ff"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-meta">
+          <span class="brand-title">MOONFLIP</span>
+          <span class="brand-tag">ORIGINALS</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- Live Multiplier Ribbon (Stake-Style Ribbon) -->
+    <div class="nav-center">
+      <div class="multiplier-ribbon">
+        <div class="ribbon-stream" id="historyStream">
+          <!-- Dynamically populated chips -->
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <!-- Provably Fair Modal Trigger -->
+      <button class="nav-icon-btn" id="btnOpenFairness" title="Provably Fair Verification">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v4.7c0 4.67-3.13 8.96-7 10.08-3.87-1.12-7-5.41-7-10.08V6.3l7-3.12zM11 7v2h2V7h-2zm0 4v6h2v-6h-2z"/>
+        </svg>
+        <span class="btn-label-desktop">Fairness</span>
+      </button>
+
+      <!-- Audio Toggle -->
+      <button class="nav-icon-btn" id="soundBtn" title="Toggle Sound FX">
+        <svg id="soundSvgOn" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+        </svg>
+        <svg id="soundSvgOff" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:none;">
+          <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+        </svg>
+      </button>
+
+      <!-- Player Wallet Capsule -->
+      <div class="user-capsule" id="userCapsule">
+        <div class="avatar-ring">
+          <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" class="avatar-img" id="userAvatar">
+        </div>
+        <div class="user-details">
+          <span class="user-handle" id="userName">Guest</span>
+          <div class="balance-badge">
+            <span class="coin-glyph">🪙</span>
+            <span class="balance-digits" id="balanceNumber">1,000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Game Stage Chassis -->
+  <main class="casino-stage">
     
-    <!-- Top Navigation Header -->
-    <header class="arena-header">
-      <div class="header-left">
-        <a href="/" class="brand-logo">
-          <div class="logo-orb">
-            <span class="logo-icon">🌙</span>
-            <div class="logo-ring"></div>
-          </div>
-          <div class="brand-text">
-            <span class="brand-name">MOONFLIP</span>
-            <span class="brand-badge">WEB ARENA</span>
-          </div>
-        </a>
-      </div>
-
-      <!-- Live Multiplier History Ribbon -->
-      <div class="history-ribbon" id="historyRibbon">
-        <span class="history-label">RECENT:</span>
-        <div class="history-stream" id="historyStream">
-          <!-- Multiplier chips populated dynamically -->
-        </div>
-      </div>
-
-      <div class="header-right">
-        <!-- Sound Toggle -->
-        <button class="icon-btn" id="soundBtn" title="Toggle Sound FX">
-          <span id="soundIcon">🔊</span>
-        </button>
-
-        <!-- User Wallet Pill -->
-        <div class="wallet-pill" id="walletPill">
-          <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" class="user-avatar" id="userAvatar">
-          <div class="wallet-info">
-            <span class="user-name" id="userName">Guest</span>
-            <span class="wallet-balance" id="walletBalance">
-              <span class="coin-icon">🪙</span>
-              <span id="balanceNumber">1,000</span>
-            </span>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <!-- Main Game Split Layout -->
-    <main class="arena-stage">
+    <div class="game-chassis">
       
-      <!-- Left Sidebar: Betting Controls (Stake-Style) -->
-      <section class="controls-panel">
-        <div class="panel-header">
-          <span class="panel-title">🕹️ MANUAL BET</span>
-          <span class="provably-fair-pill" title="Cryptographically verified using HMAC-SHA256">
-            <span class="shield-dot"></span> Provably Fair
-          </span>
-        </div>
-
-        <!-- Bet Amount Input -->
-        <div class="form-group">
-          <div class="form-label-row">
-            <label for="wagerInput">Bet Amount</label>
-            <span class="currency-tag">Tokens (🪙)</span>
-          </div>
-          <div class="input-wrapper">
-            <span class="input-icon">🪙</span>
-            <input type="number" id="wagerInput" min="10" max="1000000" step="10" value="100">
-            <div class="input-quick-actions">
-              <button class="quick-chip-btn" id="btnHalf">½</button>
-              <button class="quick-chip-btn" id="btnDouble">2×</button>
-              <button class="quick-chip-btn" id="btnMax">MAX</button>
-            </div>
-          </div>
-          <div class="preset-chips-row">
-            <button class="preset-btn" data-val="100">100</button>
-            <button class="preset-btn" data-val="250">250</button>
-            <button class="preset-btn" data-val="500">500</button>
-            <button class="preset-btn" data-val="1000">1k</button>
-            <button class="preset-btn" data-val="5000">5k</button>
-          </div>
-        </div>
-
-        <!-- Mines Count Selector -->
-        <div class="form-group">
-          <div class="form-label-row">
-            <label for="bombsRange">Number of Mines</label>
-            <span class="bombs-display-badge" id="bombsDisplay">3 Mines</span>
-          </div>
-          <div class="range-wrapper">
-            <input type="range" id="bombsRange" min="1" max="24" value="3">
-          </div>
-          <div class="bombs-presets-row">
-            <button class="bomb-preset-btn" data-bombs="1">1</button>
-            <button class="bomb-preset-btn active" data-bombs="3">3</button>
-            <button class="bomb-preset-btn" data-bombs="5">5</button>
-            <button class="bomb-preset-btn" data-bombs="10">10</button>
-            <button class="bomb-preset-btn" data-bombs="15">15</button>
-            <button class="bomb-preset-btn" data-bombs="24">24</button>
-          </div>
-        </div>
-
-        <!-- Live Round Stats (Dynamic Multipliers & Profits) -->
-        <div class="stats-card">
-          <div class="stat-col">
-            <span class="stat-label">Gems Found</span>
-            <span class="stat-value highlight-cyan" id="statGemsFound">0 / 22</span>
-          </div>
-          <div class="stat-col">
-            <span class="stat-label">Current Mult</span>
-            <span class="stat-value" id="statCurrentMult">1.00×</span>
-          </div>
-          <div class="stat-col">
-            <span class="stat-label">Next Tile</span>
-            <span class="stat-value highlight-green" id="statNextMult">1.14×</span>
-          </div>
-        </div>
-
-        <!-- Big Main CTA Button (Bet / Cashout / Play Again) -->
-        <div class="cta-container">
-          <button class="btn-main-action btn-bet" id="mainActionButton">
-            <span class="action-title" id="actionBtnTitle">START GAME</span>
-            <span class="action-subtitle" id="actionBtnSub">BET 100 🪙</span>
-          </button>
-        </div>
-
-        <!-- Auto Cashout Notice / Safe Info -->
-        <div class="safety-footer">
-          <span>🔒 Instant Settlement • Discord Economy Synced</span>
-        </div>
-      </section>
-
-      <!-- Right Center Stage: 5x5 Mines Board -->
-      <section class="board-stage">
+      <!-- LEFT CONTROL DECK (The Betting Engine) -->
+      <aside class="control-deck">
         
-        <!-- Board Top Status Banner -->
-        <div class="board-banner" id="boardBanner">
-          <span class="banner-status-text" id="bannerText">Select your bet and click <strong>START GAME</strong> to begin!</span>
+        <!-- Game Mode Switcher -->
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="manual">Manual</button>
+          <button class="mode-tab" data-mode="auto" title="Auto Mode coming soon">Auto</button>
         </div>
 
-        <!-- 5x5 Grid Board Container -->
-        <div class="grid-wrapper">
-          <canvas id="particleCanvas" class="particle-canvas"></canvas>
+        <div class="deck-form">
           
-          <div class="mines-grid" id="minesGrid">
-            <!-- 25 Tiles populated dynamically by JavaScript -->
+          <!-- Bet Amount Section -->
+          <div class="deck-field">
+            <div class="field-header">
+              <label for="wagerInput">Bet Amount</label>
+              <span class="field-aux" id="maxBetNote">Balance: <strong id="auxBalance">1,000</strong></span>
+            </div>
+            
+            <div class="stake-input-group">
+              <span class="group-addon-left">🪙</span>
+              <input type="number" id="wagerInput" min="10" max="1000000" step="10" value="100" autocomplete="off" spellcheck="false">
+              <div class="group-addon-right">
+                <button type="button" class="btn-math" id="btnHalf">½</button>
+                <div class="addon-divider"></div>
+                <button type="button" class="btn-math" id="btnDouble">2×</button>
+                <div class="addon-divider"></div>
+                <button type="button" class="btn-math btn-max" id="btnMax">MAX</button>
+              </div>
+            </div>
+
+            <!-- Quick Chips Bar -->
+            <div class="quick-chips">
+              <button type="button" class="chip-btn" data-val="100">100</button>
+              <button type="button" class="chip-btn" data-val="250">250</button>
+              <button type="button" class="chip-btn" data-val="500">500</button>
+              <button type="button" class="chip-btn" data-val="1000">1k</button>
+              <button type="button" class="chip-btn" data-val="5000">5k</button>
+            </div>
           </div>
 
-          <!-- Victory / Cashout Pop Overlay -->
-          <div class="celebration-overlay" id="celebrationOverlay">
-            <div class="celebration-card" id="celebrationCard">
-              <div class="celebration-icon" id="celebrationIcon">🎉</div>
-              <h2 class="celebration-title" id="celebrationTitle">CASHED OUT!</h2>
-              <div class="celebration-mult" id="celebrationMult">1.85×</div>
-              <div class="celebration-profit" id="celebrationProfit">+340 🪙 PROFIT</div>
-              <p class="celebration-peek-note" id="celebrationNote">Click remaining tiles to explore where bombs were hiding, or click below for a fresh round!</p>
-              <button class="btn-celebration-action" id="btnPlayAgain">PLAY AGAIN</button>
+          <!-- Mines Selector -->
+          <div class="deck-field">
+            <div class="field-header">
+              <label for="minesCountSelect">Mines</label>
+              <span class="field-aux text-danger" id="auxMineCount">3 Mines</span>
+            </div>
+
+            <!-- Stake-style Segmented Selector -->
+            <div class="segmented-picker">
+              <select id="minesCountSelect" class="stake-select">
+                <option value="1">1 Mine</option>
+                <option value="2">2 Mines</option>
+                <option value="3" selected>3 Mines</option>
+                <option value="4">4 Mines</option>
+                <option value="5">5 Mines</option>
+                <option value="6">6 Mines</option>
+                <option value="7">7 Mines</option>
+                <option value="8">8 Mines</option>
+                <option value="9">9 Mines</option>
+                <option value="10">10 Mines</option>
+                <option value="15">15 Mines</option>
+                <option value="20">20 Mines</option>
+                <option value="24">24 Mines</option>
+              </select>
+              <div class="select-chevron">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Segmented Quick Pills -->
+            <div class="mines-pills">
+              <button type="button" class="mine-pill" data-bombs="1">1</button>
+              <button type="button" class="mine-pill active" data-bombs="3">3</button>
+              <button type="button" class="mine-pill" data-bombs="5">5</button>
+              <button type="button" class="mine-pill" data-bombs="10">10</button>
+              <button type="button" class="mine-pill" data-bombs="15">15</button>
+              <button type="button" class="mine-pill" data-bombs="24">24</button>
+            </div>
+          </div>
+
+          <!-- Dynamic Odds & Telemetry Box -->
+          <div class="telemetry-card">
+            <div class="telemetry-row">
+              <div class="tele-item">
+                <span class="tele-label">Mines</span>
+                <span class="tele-val text-danger" id="teleMines">3</span>
+              </div>
+              <div class="tele-item">
+                <span class="tele-label">Gems Left</span>
+                <span class="tele-val text-cyan" id="teleGemsLeft">22</span>
+              </div>
+              <div class="tele-item">
+                <span class="tele-label">Win Rate</span>
+                <span class="tele-val text-emerald" id="teleWinRate">88.0%</span>
+              </div>
+            </div>
+            <div class="telemetry-subrow">
+              <span class="tele-sub-label">Next Tile Mult:</span>
+              <span class="tele-sub-val" id="teleNextMult">1.14×</span>
+            </div>
+          </div>
+
+          <!-- PRIMARY ACTION BUTTON (The Legendary Green Bet / Cashout Button) -->
+          <div class="cta-wrapper">
+            <button class="btn-stake-cta btn-bet" id="mainActionButton">
+              <span class="cta-label" id="actionBtnTitle">Bet</span>
+              <span class="cta-sub" id="actionBtnSub">100 🪙</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Casing Footer Metadata -->
+        <div class="deck-footer">
+          <div class="fairness-badge" id="btnOpenFairness2">
+            <span class="pulsing-emerald-dot"></span>
+            <span>Provably Fair Verified</span>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- CENTER ARENA: THE 5x5 MINES MATRIX -->
+      <section class="arena-matrix-stage">
+        
+        <!-- Live Floating Status HUD -->
+        <div class="matrix-hud" id="matrixHud">
+          <div class="hud-left">
+            <span class="hud-badge" id="hudStateBadge">Ready</span>
+            <span class="hud-message" id="hudMessage">Set your wager and click <strong>Bet</strong> to start.</span>
+          </div>
+          <div class="hud-right" id="hudProfitBox" style="display:none;">
+            <div class="hud-stat">
+              <span class="hud-stat-lbl">Multiplier</span>
+              <span class="hud-stat-val text-cyan" id="hudMultVal">1.00×</span>
+            </div>
+            <div class="hud-stat">
+              <span class="hud-stat-lbl">Profit</span>
+              <span class="hud-stat-val text-emerald" id="hudProfitVal">+0 🪙</span>
             </div>
           </div>
         </div>
 
-        <!-- Mobile Quick Status Bar -->
-        <div class="mobile-profit-bar" id="mobileProfitBar">
-          <div class="mobile-profit-left">
-            <span class="mobile-profit-lbl">Current Win</span>
-            <span class="mobile-profit-val" id="mobileWinVal">0 🪙</span>
+        <!-- 5x5 Tiles Matrix Container with Hardware Accelerated Perspective -->
+        <div class="matrix-grid-frame">
+          <canvas id="particleCanvas" class="particle-canvas"></canvas>
+
+          <!-- 5x5 Tiles Grid -->
+          <div class="mines-grid" id="minesGrid">
+            <!-- 25 Precision 3D Physical Keys injected by JavaScript -->
           </div>
-          <div class="mobile-profit-right">
-            <span class="mobile-profit-lbl">Multiplier</span>
-            <span class="mobile-profit-mult" id="mobileMultVal">1.00×</span>
+
+          <!-- In-Game Big Win / Cashout Modal Overlay -->
+          <div class="victory-modal" id="victoryModal">
+            <div class="modal-card">
+              <div class="modal-gem-glow"></div>
+              <div class="modal-badge-wrapper">
+                <span class="modal-badge" id="modalBadge">ROUND COMPLETE</span>
+              </div>
+              <div class="modal-mult" id="modalMult">2.45×</div>
+              <div class="modal-payout-box">
+                <span class="modal-payout-label">TOTAL CASHOUT</span>
+                <span class="modal-payout-amount" id="modalWinAmount">+245 🪙</span>
+              </div>
+              <p class="modal-subtext" id="modalSubtext">Winnings credited to your Discord wallet.</p>
+              <div class="modal-actions">
+                <button type="button" class="btn-modal-primary" id="btnModalPlayAgain">PLAY AGAIN</button>
+                <button type="button" class="btn-modal-secondary" id="btnModalClose">PEEK BOARD</button>
+              </div>
+            </div>
           </div>
         </div>
 
       </section>
 
-    </main>
+    </div>
 
+  </main>
+
+  <!-- PROVABLY FAIR VERIFICATION MODAL -->
+  <div class="fairness-modal-backdrop" id="fairnessModal">
+    <div class="fairness-card">
+      <div class="fairness-header">
+        <div class="fairness-title-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="#00f0ff">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v4.7c0 4.67-3.13 8.96-7 10.08-3.87-1.12-7-5.41-7-10.08V6.3l7-3.12zM11 7v2h2V7h-2zm0 4v6h2v-6h-2z"/>
+          </svg>
+          <h3>Provably Fair Verification</h3>
+        </div>
+        <button class="btn-close-modal" id="btnCloseFairness">&times;</button>
+      </div>
+
+      <div class="fairness-body">
+        <p class="fairness-desc">
+          Moonflip uses a cryptographically verifiable random seed generator. The outcome of each round is determined before you click the first tile and cannot be altered by either the server or client.
+        </p>
+
+        <div class="fairness-input-block">
+          <label>Active Client Seed (Browser)</label>
+          <div class="fairness-field-copy">
+            <input type="text" id="clientSeedDisplay" readonly value="e9a4f8b2c1d7634e">
+          </div>
+        </div>
+
+        <div class="fairness-input-block">
+          <label>Server Seed Hash (SHA-256)</label>
+          <div class="fairness-field-copy">
+            <input type="text" id="serverSeedDisplay" readonly value="7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069">
+          </div>
+        </div>
+
+        <div class="fairness-input-block">
+          <label>Algorithm</label>
+          <span class="algorithm-tag">HMAC-SHA256 • Fisher-Yates Shuffle Matrix</span>
+        </div>
+      </div>
+
+      <div class="fairness-footer">
+        <button type="button" class="btn-modal-primary" id="btnDoneFairness">Close</button>
+      </div>
+    </div>
   </div>
 
   <script src="/play/app.js"></script>

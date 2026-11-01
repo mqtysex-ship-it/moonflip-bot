@@ -1,6 +1,6 @@
 /**
  * MOONFLIP CASINO — 5x5 MINES ARENA
- * High-performance Web Client & Audio Engine
+ * High-Precision Luxury Gaming Engine & Audio Synthesizer
  */
 
 (function () {
@@ -21,7 +21,7 @@
   const state = {
     authenticated: false,
     userId: null,
-    username: 'Guest Player',
+    username: 'Guest',
     balance: 1000,
     wager: 100,
     bombs: 3,
@@ -31,13 +31,12 @@
     currentMult: 1.0,
     currentWin: 0,
     revealedIndices: new Set(),
-    knownBombs: new Set(),
     isProcessing: false,
     soundEnabled: localStorage.getItem('moonflip_sound_muted') !== 'true',
   };
 
   // =========================================================================
-  // 2. WEB AUDIO SYNTHESIZER (No external assets required)
+  // 2. STUDIO-GRADE WEB AUDIO SYNTHESIZER
   // =========================================================================
 
   let audioCtx = null;
@@ -56,7 +55,7 @@
   }
 
   const Sound = {
-    // Gentle blip on tile hover / button click
+    // Mechanical key click
     click() {
       if (!state.soundEnabled) return;
       const ctx = getAudioContext();
@@ -64,37 +63,37 @@
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.04);
+      osc.frequency.setValueAtTime(1200, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.03);
       gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.04);
+      osc.stop(ctx.currentTime + 0.03);
     },
 
-    // Crystalline ascending chime on gem uncover
-    gem(count = 1) {
+    // Crystalline ascending gem chime
+    gem(streak = 1) {
       if (!state.soundEnabled) return;
       const ctx = getAudioContext();
       if (!ctx) return;
 
-      const pentatonic = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0];
-      const rootFreq = pentatonic[Math.min(count - 1, pentatonic.length - 1)];
+      const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0];
+      const freq = scale[Math.min(streak - 1, scale.length - 1)];
 
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(rootFreq, ctx.currentTime);
+      osc1.frequency.setValueAtTime(freq, ctx.currentTime);
 
       osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(rootFreq * 2, ctx.currentTime);
+      osc2.frequency.setValueAtTime(freq * 2, ctx.currentTime);
 
-      gain.gain.setValueAtTime(0.18, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
 
       osc1.connect(gain);
       osc2.connect(gain);
@@ -102,33 +101,33 @@
 
       osc1.start();
       osc2.start();
-      osc1.stop(ctx.currentTime + 0.45);
-      osc2.stop(ctx.currentTime + 0.45);
+      osc1.stop(ctx.currentTime + 0.5);
+      osc2.stop(ctx.currentTime + 0.5);
     },
 
-    // Low-pass distorted explosion boom
+    // Deep 808 cinematic mine detonation
     bomb() {
       if (!state.soundEnabled) return;
       const ctx = getAudioContext();
       if (!ctx) return;
 
       // Sub drop
-      const osc = ctx.createOscillator();
-      const oscGain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(140, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(20, ctx.currentTime + 0.5);
+      const sub = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(130, ctx.currentTime);
+      sub.frequency.exponentialRampToValueAtTime(25, ctx.currentTime + 0.6);
 
-      oscGain.gain.setValueAtTime(0.3, ctx.currentTime);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+      subGain.gain.setValueAtTime(0.4, ctx.currentTime);
+      subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
 
-      osc.connect(oscGain);
-      oscGain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.55);
+      sub.connect(subGain);
+      subGain.connect(ctx.destination);
+      sub.start();
+      sub.stop(ctx.currentTime + 0.6);
 
-      // Noise burst
-      const bufferSize = ctx.sampleRate * 0.4;
+      // Distorted noise blast
+      const bufferSize = ctx.sampleRate * 0.45;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
@@ -140,125 +139,140 @@
 
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(800, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.4);
+      filter.frequency.setValueAtTime(900, ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.45);
 
       const noiseGain = ctx.createGain();
       noiseGain.gain.setValueAtTime(0.35, ctx.currentTime);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
 
       noise.connect(filter);
       filter.connect(noiseGain);
       noiseGain.connect(ctx.destination);
-
       noise.start();
     },
 
-    // Victorious Cashout Fanfare & Coins
+    // Victorious Cashout Fanfare & Coin Cascade
     cashout() {
       if (!state.soundEnabled) return;
       const ctx = getAudioContext();
       if (!ctx) return;
 
-      const notes = [523.25, 659.25, 783.99, 1046.5];
-      notes.forEach((freq, idx) => {
+      const chord = [523.25, 659.25, 783.99, 1046.5];
+      chord.forEach((freq, i) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+
         gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.4);
+        gain.gain.setValueAtTime(0.18, ctx.currentTime + i * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.4);
 
         osc.connect(gain);
         gain.connect(ctx.destination);
 
-        osc.start(ctx.currentTime + idx * 0.08);
-        osc.stop(ctx.currentTime + idx * 0.08 + 0.45);
+        osc.start(ctx.currentTime + i * 0.08);
+        osc.stop(ctx.currentTime + i * 0.08 + 0.45);
       });
     },
   };
 
   // =========================================================================
-  // 3. VECTOR ASSETS (HD Gems & Mines)
+  // 3. BESPOKE 3D VECTOR GRAPHICS (Luxury Gems & Deadly Naval Mines)
   // =========================================================================
 
   const SVG_GEM = `
-    <svg class="gem-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg class="diamond-3d-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="gemGradTop" x1="50" y1="12" x2="50" y2="40" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#38bdf8"/>
-          <stop offset="100%" stop-color="#0284c7"/>
+        <radialGradient id="gemInnerGlow" cx="50%" cy="40%" r="50%">
+          <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.8"/>
+          <stop offset="60%" stop-color="#00b4d8" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#0077b6" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="facetCenter" x1="50" y1="42" x2="50" y2="88" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#00f0ff"/>
+          <stop offset="1" stop-color="#023e8a"/>
         </linearGradient>
-        <linearGradient id="gemGradCenter" x1="50" y1="40" x2="50" y2="88" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#00f0ff"/>
-          <stop offset="100%" stop-color="#0369a1"/>
+        <linearGradient id="facetLeft" x1="16" y1="42" x2="50" y2="88" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#0096c7"/>
+          <stop offset="1" stop-color="#03045e"/>
         </linearGradient>
-        <linearGradient id="gemFacetL" x1="20" y1="40" x2="50" y2="88" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#0ea5e9"/>
-          <stop offset="100%" stop-color="#075985"/>
+        <linearGradient id="facetRight" x1="84" y1="42" x2="50" y2="88" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#48cae4"/>
+          <stop offset="1" stop-color="#0077b6"/>
         </linearGradient>
-        <linearGradient id="gemFacetR" x1="80" y1="40" x2="50" y2="88" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#7dd3fc"/>
-          <stop offset="100%" stop-color="#0284c7"/>
+        <linearGradient id="facetCrown" x1="50" y1="16" x2="50" y2="42" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#caf0f8"/>
+          <stop offset="1" stop-color="#00b4d8"/>
         </linearGradient>
       </defs>
-      <!-- Center Bottom Point -->
-      <polygon points="50,88 32,42 68,42" fill="url(#gemGradCenter)" />
-      <!-- Left Wing -->
-      <polygon points="14,42 32,42 50,88" fill="url(#gemFacetL)" />
-      <!-- Right Wing -->
-      <polygon points="86,42 68,42 50,88" fill="url(#gemFacetR)" />
-      <!-- Top Crown Center -->
-      <polygon points="35,16 65,16 68,42 32,42" fill="url(#gemGradTop)" />
-      <!-- Top Crown Left -->
-      <polygon points="20,24 35,16 32,42 14,42" fill="#38bdf8" />
-      <!-- Top Crown Right -->
-      <polygon points="80,24 65,16 68,42 86,42" fill="#bae6fd" />
-      <!-- Specular Highlight Glint -->
-      <polygon points="38,20 48,18 42,32 35,28" fill="#ffffff" opacity="0.75" />
+      <!-- Ambient Glow Disk -->
+      <circle cx="50" cy="50" r="44" fill="url(#gemInnerGlow)"/>
+      <!-- Bottom Pavillion Center -->
+      <polygon points="50,88 32,42 68,42" fill="url(#facetCenter)"/>
+      <!-- Bottom Pavillion Left -->
+      <polygon points="14,42 32,42 50,88" fill="url(#facetLeft)"/>
+      <!-- Bottom Pavillion Right -->
+      <polygon points="86,42 68,42 50,88" fill="url(#facetRight)"/>
+      <!-- Top Crown Table -->
+      <polygon points="34,16 66,16 68,42 32,42" fill="url(#facetCrown)"/>
+      <!-- Top Crown Left Triangle -->
+      <polygon points="20,24 34,16 32,42 14,42" fill="#48cae4"/>
+      <!-- Top Crown Right Triangle -->
+      <polygon points="80,24 66,16 68,42 86,42" fill="#ade8f4"/>
+      <!-- Specular Shimmer Star -->
+      <polygon points="40,22 46,20 44,28 38,26" fill="#ffffff" opacity="0.9"/>
+      <circle cx="60" cy="30" r="1.5" fill="#ffffff" opacity="0.75"/>
     </svg>
   `;
 
-  const SVG_BOMB = `
-    <svg class="bomb-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  const SVG_MINE = `
+    <svg class="mine-3d-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <radialGradient id="bombBody" cx="45%" cy="40%" r="55%">
-          <stop offset="0%" stop-color="#2d3748"/>
-          <stop offset="60%" stop-color="#171923"/>
-          <stop offset="100%" stop-color="#08080a"/>
+        <radialGradient id="mineShell" cx="42%" cy="38%" r="60%">
+          <stop offset="0%" stop-color="#3d4952"/>
+          <stop offset="60%" stop-color="#1c242b"/>
+          <stop offset="100%" stop-color="#0a0e12"/>
         </radialGradient>
-        <linearGradient id="spikeGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#ef4444"/>
-          <stop offset="100%" stop-color="#7f1d1d"/>
+        <radialGradient id="sensorGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ff1f44"/>
+          <stop offset="70%" stop-color="#b91c1c"/>
+          <stop offset="100%" stop-color="#450a0a"/>
+        </radialGradient>
+        <linearGradient id="spikeMetal" x1="0" y1="0" x2="1" y2="1">
+          <stop stop-color="#ff3355"/>
+          <stop offset="1" stop-color="#450a0a"/>
         </linearGradient>
       </defs>
-      <!-- Spikes -->
-      <rect x="47" y="6" width="6" height="12" rx="2" fill="url(#spikeGrad)" />
-      <rect x="47" y="82" width="6" height="12" rx="2" fill="url(#spikeGrad)" />
-      <rect x="6" y="47" width="12" height="6" rx="2" fill="url(#spikeGrad)" />
-      <rect x="82" y="47" width="12" height="6" rx="2" fill="url(#spikeGrad)" />
-      <rect x="18" y="18" width="10" height="6" rx="2" transform="rotate(45 23 21)" fill="url(#spikeGrad)" />
-      <rect x="72" y="18" width="10" height="6" rx="2" transform="rotate(-45 77 21)" fill="url(#spikeGrad)" />
-      <rect x="18" y="76" width="10" height="6" rx="2" transform="rotate(-45 23 79)" fill="url(#spikeGrad)" />
-      <rect x="72" y="76" width="10" height="6" rx="2" transform="rotate(45 77 79)" fill="url(#spikeGrad)" />
-      <!-- Main Naval Mine Sphere -->
-      <circle cx="50" cy="50" r="32" fill="url(#bombBody)" stroke="#ef4444" stroke-width="1.5" />
-      <!-- Center Danger Ring -->
-      <circle cx="50" cy="50" r="14" fill="#7f1d1d" stroke="#ef4444" stroke-width="1.5" opacity="0.8" />
-      <!-- Skull / Exclamation Mark -->
-      <path d="M50 42v10M50 56v2" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+      <!-- Perimeter Contact Horns / Spikes -->
+      <rect x="47" y="6" width="6" height="14" rx="2" fill="url(#spikeMetal)"/>
+      <rect x="47" y="80" width="6" height="14" rx="2" fill="url(#spikeMetal)"/>
+      <rect x="6" y="47" width="14" height="6" rx="2" fill="url(#spikeMetal)"/>
+      <rect x="80" y="47" width="14" height="6" rx="2" fill="url(#spikeMetal)"/>
+      <rect x="18" y="18" width="10" height="6" rx="2" transform="rotate(45 23 21)" fill="url(#spikeMetal)"/>
+      <rect x="72" y="18" width="10" height="6" rx="2" transform="rotate(-45 77 21)" fill="url(#spikeMetal)"/>
+      <rect x="18" y="76" width="10" height="6" rx="2" transform="rotate(-45 23 79)" fill="url(#spikeMetal)"/>
+      <rect x="72" y="76" width="10" height="6" rx="2" transform="rotate(45 77 79)" fill="url(#spikeMetal)"/>
+      <!-- Heavy Cast Iron Sphere -->
+      <circle cx="50" cy="50" r="32" fill="url(#mineShell)" stroke="#2f3b45" stroke-width="2"/>
+      <!-- Rivet Rings -->
+      <circle cx="50" cy="50" r="28" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" stroke-dasharray="3 4"/>
+      <!-- Pulsing Red LED Detonator Center -->
+      <circle cx="50" cy="50" r="13" fill="url(#sensorGlow)" stroke="#ff1f44" stroke-width="1.5"/>
+      <!-- Skull / Hazard Crosshair -->
+      <path d="M50 43v14M43 50h14" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
     </svg>
   `;
 
   // =========================================================================
-  // 4. PARTICLE CANVAS ENGINE (Explosions, Confetti & Coins)
+  // 4. PARTICLE CANVAS ENGINE
   // =========================================================================
 
   const canvas = document.getElementById('particleCanvas');
   const pCtx = canvas.getContext('2d');
   let particles = [];
-  let animFrameId = null;
+  let animId = null;
 
   function resizeCanvas() {
     if (!canvas) return;
@@ -268,72 +282,70 @@
   }
   window.addEventListener('resize', resizeCanvas);
 
-  function spawnExplosion(x, y) {
+  function spawnMineBlast(x, y) {
     resizeCanvas();
-    const colors = ['#ef4444', '#f97316', '#fbbf24', '#ffffff', '#7f1d1d'];
-    for (let i = 0; i < 45; i++) {
+    const colors = ['#ff1f44', '#ff5964', '#f59e0b', '#ffffff', '#450a0a'];
+    for (let i = 0; i < 40; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 2 + Math.random() * 6;
       particles.push({
-        x,
-        y,
+        x, y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         radius: 3 + Math.random() * 4,
         color: colors[Math.floor(Math.random() * colors.length)],
         alpha: 1,
-        decay: 0.02 + Math.random() * 0.03,
-        gravity: 0.15,
+        decay: 0.02 + Math.random() * 0.025,
+        gravity: 0.12,
       });
     }
-    startParticleLoop();
+    startParticles();
   }
 
   function spawnGemSparks(x, y) {
     resizeCanvas();
     const colors = ['#00f0ff', '#38bdf8', '#00e701', '#ffffff'];
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 18; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 1.5 + Math.random() * 3.5;
+      const speed = 1.5 + Math.random() * 3;
       particles.push({
-        x,
-        y,
+        x, y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed - 1,
-        radius: 2 + Math.random() * 3,
+        radius: 2 + Math.random() * 2.5,
         color: colors[Math.floor(Math.random() * colors.length)],
         alpha: 1,
-        decay: 0.03 + Math.random() * 0.04,
-        gravity: 0.05,
+        decay: 0.03 + Math.random() * 0.03,
+        gravity: 0.04,
       });
     }
-    startParticleLoop();
+    startParticles();
   }
 
-  function spawnCashoutCelebration() {
+  function spawnCoinShower() {
     resizeCanvas();
-    const colors = ['#00e701', '#00f0ff', '#fbbf24', '#f59e0b', '#ffffff', '#a855f7'];
-    for (let i = 0; i < 90; i++) {
+    const colors = ['#00e701', '#00f0ff', '#f59e0b', '#fbbf24', '#ffffff'];
+    for (let i = 0; i < 85; i++) {
       particles.push({
         x: Math.random() * canvas.width,
-        y: canvas.height * 0.7,
+        y: canvas.height * 0.8,
         vx: (Math.random() - 0.5) * 8,
         vy: -6 - Math.random() * 8,
-        radius: 4 + Math.random() * 5,
+        radius: 4 + Math.random() * 4,
         color: colors[Math.floor(Math.random() * colors.length)],
         alpha: 1,
-        decay: 0.012 + Math.random() * 0.015,
-        gravity: 0.22,
+        decay: 0.012 + Math.random() * 0.014,
+        gravity: 0.2,
         rotation: Math.random() * 360,
-        rotSpeed: (Math.random() - 0.5) * 10,
+        rotSpeed: (Math.random() - 0.5) * 12,
         isConfetti: true,
       });
     }
-    startParticleLoop();
+    startParticles();
   }
 
-  function startParticleLoop() {
-    if (animFrameId) return;
+  function startParticles() {
+    if (animId) return;
     function loop() {
       pCtx.clearRect(0, 0, canvas.width, canvas.height);
       for (let i = particles.length - 1; i >= 0; i--) {
@@ -366,12 +378,12 @@
       }
 
       if (particles.length > 0) {
-        animFrameId = requestAnimationFrame(loop);
+        animId = requestAnimationFrame(loop);
       } else {
-        animFrameId = null;
+        animId = null;
       }
     }
-    animFrameId = requestAnimationFrame(loop);
+    animId = requestAnimationFrame(loop);
   }
 
   // =========================================================================
@@ -380,43 +392,53 @@
 
   const el = {
     balanceNumber: document.getElementById('balanceNumber'),
-    walletPill: document.getElementById('walletPill'),
+    auxBalance: document.getElementById('auxBalance'),
     userAvatar: document.getElementById('userAvatar'),
     userName: document.getElementById('userName'),
     historyStream: document.getElementById('historyStream'),
     soundBtn: document.getElementById('soundBtn'),
-    soundIcon: document.getElementById('soundIcon'),
+    soundSvgOn: document.getElementById('soundSvgOn'),
+    soundSvgOff: document.getElementById('soundSvgOff'),
     wagerInput: document.getElementById('wagerInput'),
-    bombsRange: document.getElementById('bombsRange'),
-    bombsDisplay: document.getElementById('bombsDisplay'),
-    bombPresetBtns: document.querySelectorAll('.bomb-preset-btn'),
-    presetChips: document.querySelectorAll('.preset-btn'),
     btnHalf: document.getElementById('btnHalf'),
     btnDouble: document.getElementById('btnDouble'),
     btnMax: document.getElementById('btnMax'),
-    statGemsFound: document.getElementById('statGemsFound'),
-    statCurrentMult: document.getElementById('statCurrentMult'),
-    statNextMult: document.getElementById('statNextMult'),
+    quickChips: document.querySelectorAll('.chip-btn'),
+    minesCountSelect: document.getElementById('minesCountSelect'),
+    auxMineCount: document.getElementById('auxMineCount'),
+    minePills: document.querySelectorAll('.mine-pill'),
+    teleMines: document.getElementById('teleMines'),
+    teleGemsLeft: document.getElementById('teleGemsLeft'),
+    teleWinRate: document.getElementById('teleWinRate'),
+    teleNextMult: document.getElementById('teleNextMult'),
     mainActionButton: document.getElementById('mainActionButton'),
     actionBtnTitle: document.getElementById('actionBtnTitle'),
     actionBtnSub: document.getElementById('actionBtnSub'),
     minesGrid: document.getElementById('minesGrid'),
-    boardBanner: document.getElementById('boardBanner'),
-    bannerText: document.getElementById('bannerText'),
-    celebrationOverlay: document.getElementById('celebrationOverlay'),
-    celebrationTitle: document.getElementById('celebrationTitle'),
-    celebrationMult: document.getElementById('celebrationMult'),
-    celebrationProfit: document.getElementById('celebrationProfit'),
-    btnPlayAgain: document.getElementById('btnPlayAgain'),
-    mobileWinVal: document.getElementById('mobileWinVal'),
-    mobileMultVal: document.getElementById('mobileMultVal'),
+    hudStateBadge: document.getElementById('hudStateBadge'),
+    hudMessage: document.getElementById('hudMessage'),
+    hudProfitBox: document.getElementById('hudProfitBox'),
+    hudMultVal: document.getElementById('hudMultVal'),
+    hudProfitVal: document.getElementById('hudProfitVal'),
+    victoryModal: document.getElementById('victoryModal'),
+    modalBadge: document.getElementById('modalBadge'),
+    modalMult: document.getElementById('modalMult'),
+    modalWinAmount: document.getElementById('modalWinAmount'),
+    modalSubtext: document.getElementById('modalSubtext'),
+    btnModalPlayAgain: document.getElementById('btnModalPlayAgain'),
+    btnModalClose: document.getElementById('btnModalClose'),
+    fairnessModal: document.getElementById('fairnessModal'),
+    btnOpenFairness: document.getElementById('btnOpenFairness'),
+    btnOpenFairness2: document.getElementById('btnOpenFairness2'),
+    btnCloseFairness: document.getElementById('btnCloseFairness'),
+    btnDoneFairness: document.getElementById('btnDoneFairness'),
   };
 
   // =========================================================================
-  // 6. UI UPDATE & PROBABILITY HELPERS
+  // 6. MATHEMATICAL TELEMETRY & ODDS
   // =========================================================================
 
-  function calculateTheoreticalMult(mines, revealed) {
+  function calculateMinesMultiplier(mines, revealed) {
     if (revealed === 0) return 1.0;
     const total = 25;
     const safeTotal = total - mines;
@@ -430,40 +452,37 @@
     return Math.max(1.01, Math.round(raw * 100) / 100);
   }
 
-  function updateBalanceDisplay(newBalance, animate = false) {
-    state.balance = newBalance;
-    if (el.balanceNumber) {
-      el.balanceNumber.textContent = Number(newBalance).toLocaleString();
-    }
-    if (animate && el.walletPill) {
-      el.walletPill.classList.remove('pulse');
-      void el.walletPill.offsetWidth; // trigger reflow
-      el.walletPill.classList.add('pulse');
+  function updateTelemetry() {
+    const total = 25;
+    const safeTotal = total - state.bombs;
+    const currentFound = state.revealedIndices.size;
+    const gemsLeft = safeTotal - currentFound;
+    const unrevealedTotal = total - currentFound;
+
+    el.teleMines.textContent = state.bombs;
+    el.teleGemsLeft.textContent = gemsLeft;
+
+    const winRate = unrevealedTotal > 0 ? (gemsLeft / unrevealedTotal) * 100 : 0;
+    el.teleWinRate.textContent = `${winRate.toFixed(1)}%`;
+
+    const nextMult = calculateMinesMultiplier(state.bombs, currentFound + 1);
+    el.teleNextMult.textContent = gemsLeft > 0 ? `${nextMult.toFixed(2)}×` : 'MAX';
+
+    if (!state.activeGame) {
+      el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()} 🪙`;
     }
   }
 
-  function updateLiveMultipliers() {
-    const safeTotal = 25 - state.bombs;
-    const count = state.revealedIndices.size;
-    el.statGemsFound.textContent = `${count} / ${safeTotal}`;
+  function updateBalanceDisplay(newBalance, animate = false) {
+    state.balance = newBalance;
+    const formatted = Number(newBalance).toLocaleString();
+    if (el.balanceNumber) el.balanceNumber.textContent = formatted;
+    if (el.auxBalance) el.auxBalance.textContent = formatted;
 
-    if (!state.activeGame) {
-      el.statCurrentMult.textContent = '1.00×';
-      const firstMult = calculateTheoreticalMult(state.bombs, 1);
-      el.statNextMult.textContent = `${firstMult.toFixed(2)}×`;
-      el.actionBtnSub.textContent = `BET ${Number(state.wager).toLocaleString()} 🪙`;
-    } else {
-      el.statCurrentMult.textContent = `${state.currentMult.toFixed(2)}×`;
-      const nextMult = calculateTheoreticalMult(state.bombs, count + 1);
-      el.statNextMult.textContent = count < safeTotal ? `${nextMult.toFixed(2)}×` : 'MAX';
-
-      // Update CTA button to CASHOUT state
-      el.mainActionButton.className = 'btn-main-action btn-cashout';
-      el.actionBtnTitle.textContent = 'CASH OUT';
-      el.actionBtnSub.textContent = `+${Number(state.currentWin).toLocaleString()} 🪙 (${state.currentMult.toFixed(2)}×)`;
-
-      el.mobileWinVal.textContent = `${Number(state.currentWin).toLocaleString()} 🪙`;
-      el.mobileMultVal.textContent = `${state.currentMult.toFixed(2)}×`;
+    if (animate && el.balanceNumber) {
+      el.balanceNumber.classList.remove('pulse');
+      void el.balanceNumber.offsetWidth;
+      el.balanceNumber.classList.add('pulse');
     }
   }
 
@@ -473,13 +492,16 @@
     history.forEach((item) => {
       const chip = document.createElement('div');
       const mult = Number(item.multiplier || 0);
-      chip.className = 'history-chip';
-      if (item.won && mult >= 3.0) {
-        chip.classList.add('big-win');
-      } else if (item.won && mult > 1.0) {
-        chip.classList.add('win');
+      chip.className = 'ribbon-chip';
+
+      if (!item.won || mult === 0) {
+        chip.classList.add('chip-loss');
+      } else if (mult >= 5.0) {
+        chip.classList.add('chip-gold');
+      } else if (mult >= 2.0) {
+        chip.classList.add('chip-cyan');
       } else {
-        chip.classList.add('loss');
+        chip.classList.add('chip-win');
       }
       chip.textContent = `${mult.toFixed(2)}×`;
       el.historyStream.appendChild(chip);
@@ -487,7 +509,7 @@
   }
 
   // =========================================================================
-  // 7. BOARD RENDERING & 3D TILE MANAGEMENT
+  // 7. BOARD RENDERING & 3D TILE INTERACTIONS
   // =========================================================================
 
   function buildGrid() {
@@ -500,9 +522,9 @@
       tile.innerHTML = `
         <div class="tile-inner">
           <div class="tile-front">
-            <div class="tile-front-dot"></div>
+            <div class="tile-front-marker"></div>
           </div>
-          <div class="tile-back" id="tile-back-${idx}"></div>
+          <div class="tile-back"></div>
         </div>
       `;
 
@@ -511,92 +533,82 @@
     }
   }
 
-  function getTileEl(idx) {
+  function getTile(idx) {
     return el.minesGrid.querySelector(`.tile[data-idx="${idx}"]`);
   }
 
-  function revealGemTile(idx, playFx = true) {
-    const tile = getTileEl(idx);
+  function revealGem(idx, playSound = true) {
+    const tile = getTile(idx);
     if (!tile) return;
 
     tile.classList.add('revealed', 'is-gem');
     const back = tile.querySelector('.tile-back');
     back.innerHTML = SVG_GEM;
 
-    if (playFx) {
+    if (playSound) {
       Sound.gem(state.revealedIndices.size);
       const rect = tile.getBoundingClientRect();
       const parentRect = canvas.getBoundingClientRect();
-      const x = rect.left - parentRect.left + rect.width / 2;
-      const y = rect.top - parentRect.top + rect.height / 2;
-      spawnGemSparks(x, y);
+      spawnGemSparks(rect.left - parentRect.left + rect.width / 2, rect.top - parentRect.top + rect.height / 2);
     }
   }
 
-  function revealBombTile(idx, isDetonated = false) {
-    const tile = getTileEl(idx);
+  function revealBomb(idx, isDetonated = false, isGhost = false) {
+    const tile = getTile(idx);
     if (!tile) return;
 
     tile.classList.add('revealed', 'is-bomb');
     if (isDetonated) tile.classList.add('detonated');
+    if (isGhost) tile.classList.add('ghost-mine');
 
     const back = tile.querySelector('.tile-back');
-    back.innerHTML = SVG_BOMB;
+    back.innerHTML = SVG_MINE;
 
     if (isDetonated) {
       Sound.bomb();
       const rect = tile.getBoundingClientRect();
       const parentRect = canvas.getBoundingClientRect();
-      const x = rect.left - parentRect.left + rect.width / 2;
-      const y = rect.top - parentRect.top + rect.height / 2;
-      spawnExplosion(x, y);
+      spawnMineBlast(rect.left - parentRect.left + rect.width / 2, rect.top - parentRect.top + rect.height / 2);
     }
   }
 
-  function revealPeekTile(idx, isBomb) {
-    const tile = getTileEl(idx);
+  function revealPeek(idx, isBomb) {
+    const tile = getTile(idx);
     if (!tile || tile.classList.contains('revealed')) return;
 
     tile.classList.add('revealed', 'peek-revealed');
     const back = tile.querySelector('.tile-back');
 
     if (isBomb) {
-      tile.classList.add('is-bomb');
-      back.innerHTML = SVG_BOMB;
-      Sound.click();
+      tile.classList.add('is-bomb', 'ghost-mine');
+      back.innerHTML = SVG_MINE;
     } else {
       tile.classList.add('is-gem');
       back.innerHTML = SVG_GEM;
-      Sound.click();
     }
+    Sound.click();
   }
 
   // =========================================================================
-  // 8. API REQUESTS & GAME ACTIONS
+  // 8. API CLIENT & ENGINE ACTIONS
   // =========================================================================
 
-  async function apiCall(endpoint, method = 'GET', data = null) {
+  async function api(endpoint, method = 'GET', data = null) {
     const headers = { 'Content-Type': 'application/json' };
-    if (playToken) {
-      headers['x-play-token'] = playToken;
-    }
+    if (playToken) headers['x-play-token'] = playToken;
 
     const opts = { method, headers };
-    if (data) {
-      opts.body = JSON.stringify({ ...data, token: playToken });
-    }
+    if (data) opts.body = JSON.stringify({ ...data, token: playToken });
 
     const res = await fetch(`${API_BASE}${endpoint}`, opts);
     const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.error || `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
     return json;
   }
 
-  async function initProfile() {
+  async function loadProfile() {
     try {
-      const data = await apiCall('/profile');
+      const data = await api('/profile');
       state.authenticated = data.authenticated;
       state.userId = data.userId;
       state.username = data.username || 'Guest';
@@ -614,21 +626,22 @@
         state.bombs = data.activeGame.bombs;
         state.currentMult = data.activeGame.multiplier;
         state.currentWin = data.activeGame.currentWin;
+
         el.wagerInput.value = state.wager;
-        el.bombsRange.value = state.bombs;
-        el.bombsDisplay.textContent = `${state.bombs} Mines`;
+        el.minesCountSelect.value = String(state.bombs);
+        syncBombPills(state.bombs);
 
         buildGrid();
         data.activeGame.revealed.forEach((idx) => {
           state.revealedIndices.add(idx);
-          revealGemTile(idx, false);
+          revealGem(idx, false);
         });
-        updateLiveMultipliers();
 
-        setBanner('Game restored! Click any unrevealed tile to continue or CASH OUT!', 'active');
+        enterActiveGameState();
+        setHud('Active', 'Game restored. Pick a tile or cash out your locked profit!', 'active');
       }
     } catch (err) {
-      console.warn('[Profile Init]', err.message);
+      console.warn('[Profile Error]', err.message);
     }
   }
 
@@ -638,16 +651,16 @@
     Sound.click();
 
     const wager = Math.max(10, Math.floor(Number(el.wagerInput.value)) || 100);
-    const bombs = Math.min(24, Math.max(1, Math.floor(Number(el.bombsRange.value)) || 3));
+    const bombs = Math.min(24, Math.max(1, Math.floor(Number(el.minesCountSelect.value)) || 3));
 
     if (state.balance < wager) {
-      setBanner(`⚠️ Insufficient balance! You have ${state.balance.toLocaleString()} tokens.`, 'lost');
+      setHud('Error', `Insufficient balance! You have ${state.balance.toLocaleString()} 🪙.`, 'lost');
       state.isProcessing = false;
       return;
     }
 
     try {
-      const res = await apiCall('/mines/start', 'POST', { wager, bombs });
+      const res = await api('/mines/start', 'POST', { wager, bombs });
       state.activeGame = true;
       state.cashedOut = false;
       state.peekMode = false;
@@ -656,19 +669,14 @@
       state.currentMult = res.multiplier;
       state.currentWin = res.currentWin;
       state.revealedIndices.clear();
-      state.knownBombs.clear();
 
       updateBalanceDisplay(res.balance);
       buildGrid();
-      updateLiveMultipliers();
+      enterActiveGameState();
 
-      // Disable inputs while in-game
-      el.wagerInput.disabled = true;
-      el.bombsRange.disabled = true;
-
-      setBanner('Round active! Pick a tile to find gems. Cash out anytime!', 'active');
+      setHud('Active', 'Round in progress. Uncover gems or Cash Out anytime!', 'active');
     } catch (err) {
-      setBanner(`⚠️ ${err.message}`, 'lost');
+      setHud('Error', err.message, 'lost');
     } finally {
       state.isProcessing = false;
     }
@@ -677,13 +685,13 @@
   async function handleTileClick(idx, tileEl) {
     if (state.isProcessing) return;
 
-    // A. Exploration / Peek Mode post-cashout
+    // Peek Mode
     if (state.peekMode) {
       if (tileEl.classList.contains('revealed')) return;
       state.isProcessing = true;
       try {
-        const res = await apiCall('/mines/peek', 'POST', { tileIdx: idx });
-        revealPeekTile(idx, res.isBomb);
+        const res = await api('/mines/peek', 'POST', { tileIdx: idx });
+        revealPeek(idx, res.isBomb);
       } catch (err) {
         console.error(err);
       } finally {
@@ -692,33 +700,32 @@
       return;
     }
 
-    // B. Active Round Tile Reveal
     if (!state.activeGame) return;
     if (state.revealedIndices.has(idx)) return;
 
     state.isProcessing = true;
 
     try {
-      const res = await apiCall('/mines/reveal', 'POST', { tileIdx: idx });
+      const res = await api('/mines/reveal', 'POST', { tileIdx: idx });
 
-      // Hit Bomb! Detonation!
+      // Hit Mine!
       if (res.hitBomb) {
         state.activeGame = false;
-        revealBombTile(idx, true);
+        revealBomb(idx, true, false);
         updateBalanceDisplay(res.balance);
 
-        // Wave reveal remaining bombs
+        // Ghost reveal other hidden mines
         if (Array.isArray(res.allBombs)) {
           res.allBombs.forEach((bIdx, i) => {
             if (bIdx !== idx) {
-              setTimeout(() => revealBombTile(bIdx, false), (i + 1) * 60);
+              setTimeout(() => revealBomb(bIdx, false, true), (i + 1) * 45);
             }
           });
         }
 
-        setBanner(`💥 BOMB DETONATED! Lost ${state.wager.toLocaleString()} tokens.`, 'lost');
+        setHud('Detonated', `Explosion! Lost ${state.wager.toLocaleString()} 🪙. Click Bet to play again.`, 'lost');
         resetToIdleState();
-        refreshHistory();
+        refreshProfileHistory();
         return;
       }
 
@@ -726,25 +733,30 @@
       state.revealedIndices.add(idx);
       state.currentMult = res.multiplier;
       state.currentWin = res.currentWin;
-      revealGemTile(idx, true);
-      updateLiveMultipliers();
+      revealGem(idx, true);
+      updateTelemetry();
 
-      // Perfect Clear Victory!
+      // Update CTA with live Cashout amount
+      el.actionBtnSub.textContent = `${Number(state.currentWin).toLocaleString()} 🪙`;
+      el.hudMultVal.textContent = `${state.currentMult.toFixed(2)}×`;
+      el.hudProfitVal.textContent = `+${Number(res.profit).toLocaleString()} 🪙`;
+
+      // Perfect Clear!
       if (res.won) {
         state.activeGame = false;
         updateBalanceDisplay(res.balance, true);
         Sound.cashout();
-        spawnCashoutCelebration();
-        showCelebration('PERFECT CLEAR!', res.multiplier, res.profit);
-        setBanner(`🏆 PERFECT CLEAR! Won ${res.winAmount.toLocaleString()} tokens (${res.multiplier.toFixed(2)}x)!`, 'won');
+        spawnCoinShower();
+        showVictory('PERFECT CLEAR!', res.multiplier, res.profit);
+        setHud('Perfect', `Cleared all safe gems! Won ${res.winAmount.toLocaleString()} 🪙!`, 'won');
         resetToIdleState();
-        refreshHistory();
+        refreshProfileHistory();
         return;
       }
 
-      setBanner(`💎 Gem found! Next tile: ${res.nextMultiplier.toFixed(2)}× or CASH OUT now!`, 'active');
+      setHud('Safe', `Gem uncovered! Next mult: ${res.nextMultiplier.toFixed(2)}×`, 'active');
     } catch (err) {
-      setBanner(`⚠️ ${err.message}`, 'lost');
+      setHud('Error', err.message, 'lost');
     } finally {
       state.isProcessing = false;
     }
@@ -756,157 +768,189 @@
     Sound.click();
 
     try {
-      const res = await apiCall('/mines/cashout', 'POST');
+      const res = await api('/mines/cashout', 'POST');
       state.activeGame = false;
       state.cashedOut = true;
       state.peekMode = true;
 
       updateBalanceDisplay(res.balance, true);
       Sound.cashout();
-      spawnCashoutCelebration();
+      spawnCoinShower();
 
-      showCelebration('CASHED OUT!', res.multiplier, res.profit);
-      setBanner(`🎉 CASHED OUT +${res.winAmount.toLocaleString()} 🪙 at ${res.multiplier.toFixed(2)}x! (Curiosity Peek Mode active)`, 'won');
+      showVictory('CASHED OUT', res.multiplier, res.profit);
+      setHud('Cashed Out', `Locked in +${res.winAmount.toLocaleString()} 🪙! (Peek remaining tiles)`, 'won');
 
-      // Enable Exploration peek
-      el.mainActionButton.className = 'btn-main-action btn-replay';
-      el.actionBtnTitle.textContent = 'PLAY AGAIN';
-      el.actionBtnSub.textContent = `BET ${Number(state.wager).toLocaleString()} 🪙`;
+      // Update CTA to Play Again
+      el.mainActionButton.className = 'btn-stake-cta btn-replay';
+      el.actionBtnTitle.textContent = 'Play Again';
+      el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()} 🪙`;
 
-      refreshHistory();
+      refreshProfileHistory();
     } catch (err) {
-      setBanner(`⚠️ ${err.message}`, 'lost');
+      setHud('Error', err.message, 'lost');
     } finally {
       state.isProcessing = false;
     }
   }
 
+  function enterActiveGameState() {
+    el.wagerInput.disabled = true;
+    el.minesCountSelect.disabled = true;
+
+    el.mainActionButton.className = 'btn-stake-cta btn-cashout';
+    el.actionBtnTitle.textContent = 'Cashout';
+    el.actionBtnSub.textContent = `${Number(state.currentWin).toLocaleString()} 🪙`;
+
+    el.hudProfitBox.style.display = 'flex';
+    el.hudMultVal.textContent = `${state.currentMult.toFixed(2)}×`;
+    el.hudProfitVal.textContent = `+${Math.max(0, state.currentWin - state.wager).toLocaleString()} 🪙`;
+    updateTelemetry();
+  }
+
   function resetToIdleState() {
     el.wagerInput.disabled = false;
-    el.bombsRange.disabled = false;
+    el.minesCountSelect.disabled = false;
 
-    el.mainActionButton.className = 'btn-main-action btn-bet';
-    el.actionBtnTitle.textContent = 'START GAME';
-    el.actionBtnSub.textContent = `BET ${Number(state.wager).toLocaleString()} 🪙`;
+    el.mainActionButton.className = 'btn-stake-cta btn-bet';
+    el.actionBtnTitle.textContent = 'Bet';
+    el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()} 🪙`;
 
-    el.statCurrentMult.textContent = '1.00×';
-    el.mobileWinVal.textContent = '0 🪙';
-    el.mobileMultVal.textContent = '1.00×';
+    el.hudProfitBox.style.display = 'none';
+    updateTelemetry();
   }
 
-  function setBanner(msg, type = 'normal') {
-    el.bannerText.innerHTML = msg;
-    el.boardBanner.className = 'board-banner';
-    if (type === 'active') el.boardBanner.classList.add('banner-active');
-    if (type === 'won') el.boardBanner.classList.add('banner-won');
-    if (type === 'lost') el.boardBanner.classList.add('banner-lost');
+  function setHud(badge, msg, type = 'ready') {
+    el.hudStateBadge.textContent = badge;
+    el.hudStateBadge.className = `hud-badge ${type}`;
+    el.hudMessage.innerHTML = msg;
   }
 
-  function showCelebration(title, multiplier, profit) {
-    el.celebrationTitle.textContent = title;
-    el.celebrationMult.textContent = `${Number(multiplier).toFixed(2)}×`;
-    el.celebrationProfit.textContent = `+${Number(profit).toLocaleString()} 🪙 PROFIT`;
-    el.celebrationOverlay.classList.add('active');
+  function showVictory(badge, mult, profit) {
+    el.modalBadge.textContent = badge;
+    el.modalMult.textContent = `${Number(mult).toFixed(2)}×`;
+    el.modalWinAmount.textContent = `+${Number(profit).toLocaleString()} 🪙`;
+    el.modalSubtext.textContent = 'Winnings credited to your Discord wallet.';
+    el.victoryModal.classList.add('active');
   }
 
-  function hideCelebration() {
-    el.celebrationOverlay.classList.remove('active');
+  function hideVictory() {
+    el.victoryModal.classList.remove('active');
   }
 
-  async function refreshHistory() {
+  async function refreshProfileHistory() {
     try {
-      const data = await apiCall('/profile');
+      const data = await api('/profile');
       if (data.history) renderHistoryStream(data.history);
     } catch {}
+  }
+
+  function syncBombPills(val) {
+    el.auxMineCount.textContent = `${val} ${val === 1 ? 'Mine' : 'Mines'}`;
+    el.minePills.forEach((p) => {
+      p.classList.toggle('active', Number(p.dataset.bombs) === val);
+    });
   }
 
   // =========================================================================
   // 9. EVENT LISTENERS
   // =========================================================================
 
-  // Main Action CTA: toggles Bet or Cashout
+  // CTA Click
   el.mainActionButton.addEventListener('click', () => {
     if (state.activeGame) {
       cashOut();
     } else {
-      hideCelebration();
+      hideVictory();
       startGame();
     }
   });
 
-  el.btnPlayAgain.addEventListener('click', () => {
-    hideCelebration();
+  el.btnModalPlayAgain.addEventListener('click', () => {
+    hideVictory();
     startGame();
   });
 
-  // Sound FX Toggle
+  el.btnModalClose.addEventListener('click', () => {
+    hideVictory();
+  });
+
+  // Sound Toggle
   el.soundBtn.addEventListener('click', () => {
     state.soundEnabled = !state.soundEnabled;
     localStorage.setItem('moonflip_sound_muted', (!state.soundEnabled).toString());
-    el.soundIcon.textContent = state.soundEnabled ? '🔊' : '🔇';
+    el.soundSvgOn.style.display = state.soundEnabled ? 'block' : 'none';
+    el.soundSvgOff.style.display = state.soundEnabled ? 'none' : 'block';
     if (state.soundEnabled) Sound.click();
   });
 
-  // Wager Quick Chips (100, 250, 500, 1k, 5k)
-  el.presetChips.forEach((btn) => {
-    btn.addEventListener('click', () => {
+  // Provably Fair Modal
+  const openFairness = () => {
+    Sound.click();
+    el.fairnessModal.classList.add('active');
+  };
+  const closeFairness = () => {
+    el.fairnessModal.classList.remove('active');
+  };
+  el.btnOpenFairness.addEventListener('click', openFairness);
+  el.btnOpenFairness2.addEventListener('click', openFairness);
+  el.btnCloseFairness.addEventListener('click', closeFairness);
+  el.btnDoneFairness.addEventListener('click', closeFairness);
+
+  // Wager Quick Chips
+  el.quickChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
       Sound.click();
-      el.wagerInput.value = btn.dataset.val;
-      state.wager = Number(btn.dataset.val);
-      updateLiveMultipliers();
+      el.wagerInput.value = chip.dataset.val;
+      state.wager = Number(chip.dataset.val);
+      updateTelemetry();
     });
   });
 
-  // Wager Math Modifiers: 1/2, 2x, MAX
+  // Math Buttons (1/2, 2x, MAX)
   el.btnHalf.addEventListener('click', () => {
     Sound.click();
-    const current = Number(el.wagerInput.value) || 100;
-    el.wagerInput.value = Math.max(10, Math.floor(current / 2));
+    const curr = Number(el.wagerInput.value) || 100;
+    el.wagerInput.value = Math.max(10, Math.floor(curr / 2));
     state.wager = Number(el.wagerInput.value);
-    updateLiveMultipliers();
+    updateTelemetry();
   });
 
   el.btnDouble.addEventListener('click', () => {
     Sound.click();
-    const current = Number(el.wagerInput.value) || 100;
-    el.wagerInput.value = Math.min(state.balance, current * 2);
+    const curr = Number(el.wagerInput.value) || 100;
+    el.wagerInput.value = Math.min(state.balance, curr * 2);
     state.wager = Number(el.wagerInput.value);
-    updateLiveMultipliers();
+    updateTelemetry();
   });
 
   el.btnMax.addEventListener('click', () => {
     Sound.click();
     el.wagerInput.value = Math.max(10, state.balance);
     state.wager = Number(el.wagerInput.value);
-    updateLiveMultipliers();
+    updateTelemetry();
   });
 
   el.wagerInput.addEventListener('input', () => {
     state.wager = Math.max(10, Math.floor(Number(el.wagerInput.value)) || 10);
-    updateLiveMultipliers();
+    updateTelemetry();
   });
 
-  // Bomb Slider & Presets
-  el.bombsRange.addEventListener('input', () => {
-    const val = Number(el.bombsRange.value);
+  // Mines Select & Segmented Pills
+  el.minesCountSelect.addEventListener('change', () => {
+    const val = Number(el.minesCountSelect.value);
     state.bombs = val;
-    el.bombsDisplay.textContent = `${val} ${val === 1 ? 'Mine' : 'Mines'}`;
-    el.bombPresetBtns.forEach((btn) => {
-      btn.classList.toggle('active', Number(btn.dataset.bombs) === val);
-    });
-    updateLiveMultipliers();
+    syncBombPills(val);
+    updateTelemetry();
   });
 
-  el.bombPresetBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
+  el.minePills.forEach((p) => {
+    p.addEventListener('click', () => {
       Sound.click();
-      const val = Number(btn.dataset.bombs);
-      el.bombsRange.value = val;
+      const val = Number(p.dataset.bombs);
+      el.minesCountSelect.value = String(val);
       state.bombs = val;
-      el.bombsDisplay.textContent = `${val} ${val === 1 ? 'Mine' : 'Mines'}`;
-      el.bombPresetBtns.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      updateLiveMultipliers();
+      syncBombPills(val);
+      updateTelemetry();
     });
   });
 
@@ -915,11 +959,12 @@
   // =========================================================================
 
   buildGrid();
-  updateLiveMultipliers();
+  updateTelemetry();
   resizeCanvas();
-  initProfile();
+  loadProfile();
 
   if (!state.soundEnabled) {
-    el.soundIcon.textContent = '🔇';
+    el.soundSvgOn.style.display = 'none';
+    el.soundSvgOff.style.display = 'block';
   }
 })();
