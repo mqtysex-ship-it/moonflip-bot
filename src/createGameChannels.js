@@ -3,7 +3,7 @@ import { ChannelType, OverwriteType, PermissionFlagsBits, EmbedBuilder } from 'd
 
 async function createGameChannels() {
   const guild = await fetchGuild('1566215806956601466');
-  const verifiedRole = guild.roles.cache.find((r) => r.name.toLowerCase() === 'verified');
+  const verifiedRole = guild.roles.cache.find((r) => r.id === '1566221699697999884' || r.name.toLowerCase().includes('verified'));
   const adminRole = guild.roles.cache.find((r) => r.name.toLowerCase() === 'admin');
 
   const catName = '─── 🎰 ᴛᴏᴋᴇɴ ɢᴀᴍᴇs ───';

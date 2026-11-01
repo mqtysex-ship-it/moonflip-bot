@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, EmbedBuilder, MessageFlags } from 'discord.js';
+import { Client, GatewayIntentBits, EmbedBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -226,22 +226,123 @@ export async function getDiscordClient() {
           return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        // Verification
+        // Verification Gateway
         if (id === 'verify_button') {
-          const verifiedRole = interaction.guild?.roles.cache.find(
-            (r) => r.name.toLowerCase() === 'verified'
-          );
-          if (!verifiedRole) {
-            return await interaction.reply({
-              content: '⚠️ The Verified role was not found in this server.',
-              flags: MessageFlags.Ephemeral,
+          // Immediately defer ephemerally to prevent 3-second interaction timeout ("This interaction failed")
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+          if (!interaction.guild) {
+            return await interaction.editReply({
+              content: '⚠️ This verification gateway can only be used inside the server.',
             });
           }
-          await interaction.member.roles.add(verifiedRole);
-          return await interaction.reply({
-            content: '🎉 **You have been successfully verified!** Welcome to the community — all channels, token games, and voice rooms are now unlocked for you.',
-            flags: MessageFlags.Ephemeral,
-          });
+
+          // Ensure we have a full GuildMember with role management capability
+          let member = interaction.member;
+          if (!member?.roles?.add) {
+            member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          }
+
+          if (!member) {
+            return await interaction.editReply({
+              content: '⚠️ Could not resolve your server member profile. Please click the button again.',
+            });
+          }
+
+          // Locate the Verified role using robust multi-attribute lookup
+          const verifiedRole = await resolveVerifiedRole(interaction.guild);
+          if (!verifiedRole) {
+            console.error('[Verify Gateway] Verified role not found in guild:', interaction.guild.name);
+            return await interaction.editReply({
+              content: '⚠️ **Configuration Error**: The Verified role was not found on this server. Please inform server administrators.',
+            });
+          }
+
+          // Check if the user is already verified
+          if (member.roles.cache.has(verifiedRole.id)) {
+            const loungeCh = interaction.guild.channels.cache.find(
+              (c) => c.name.toLowerCase().includes('lounge') && !c.name.toLowerCase().includes('staff') && !c.name.toLowerCase().includes('vip')
+            );
+            const gamesCh = interaction.guild.channels.cache.find(
+              (c) => c.name.toLowerCase().includes('mines') || c.name.toLowerCase().includes('crash')
+            );
+
+            const alreadyEmbed = new EmbedBuilder()
+              .setColor(0x3498db)
+              .setTitle('ℹ️  ALREADY VERIFIED')
+              .setDescription(
+                `> Hey <@${interaction.user.id}>, you are **already verified** in **${interaction.guild.name}**!\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `✦ You already have full access to all channels, token games, and voice rooms.\n` +
+                `💬 **Community Lounge**: ${loungeCh ? `<#${loungeCh.id}>` : '#lounge'}\n` +
+                `🎰 **Token Games**: ${gamesCh ? `<#${gamesCh.id}>` : '#token-games'}\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+              )
+              .setFooter({
+                text: 'Moonflip Security Gateway • Already Unlocked',
+                iconURL: interaction.guild.iconURL() || undefined,
+              })
+              .setTimestamp();
+
+            return await interaction.editReply({ embeds: [alreadyEmbed] });
+          }
+
+          // Check bot hierarchy and permissions
+          const me = interaction.guild.members.me || (await interaction.guild.members.fetchMe().catch(() => null));
+          if (me) {
+            if (!me.permissions.has(PermissionFlagsBits.ManageRoles) && !me.permissions.has(PermissionFlagsBits.Administrator)) {
+              console.error('[Verify Gateway] Bot is missing ManageRoles / Administrator permission');
+              return await interaction.editReply({
+                content: '⚠️ **Permission Error**: The bot does not have permissions to manage roles. Please notify a server administrator.',
+              });
+            }
+
+            if (verifiedRole.position >= me.roles.highest.position) {
+              console.error(`[Verify Gateway] Bot hierarchy error: Verified role (${verifiedRole.position}) >= Bot role (${me.roles.highest.position})`);
+              return await interaction.editReply({
+                content: '⚠️ **Hierarchy Error**: The bot\'s role is lower than the Verified role in Server Settings > Roles. Please ask an administrator to move the bot\'s role above the Verified role.',
+              });
+            }
+          }
+
+          // Assign Verified role
+          await member.roles.add(verifiedRole, 'Moonflip Gateway: User accepted rules and completed verification');
+
+          // Initialize user profile in virtual economy (grants starting 1,000 tokens if new)
+          const userEconomy = getUser(interaction.user.id);
+          const balance = userEconomy?.balance ?? 1000;
+
+          // Find channels for easy onboarding links
+          const loungeCh = interaction.guild.channels.cache.find(
+            (c) => c.name.toLowerCase().includes('lounge') && !c.name.toLowerCase().includes('staff') && !c.name.toLowerCase().includes('vip')
+          );
+          const gamesCh = interaction.guild.channels.cache.find(
+            (c) => c.name.toLowerCase().includes('mines') || c.name.toLowerCase().includes('crash')
+          );
+
+          const successEmbed = new EmbedBuilder()
+            .setColor(0x2ecc71)
+            .setTitle('🎉  ACCOUNT SUCCESSFULLY VERIFIED!')
+            .setThumbnail(interaction.user.displayAvatarURL())
+            .setDescription(
+              `> Welcome to **${interaction.guild.name}**, <@${interaction.user.id}>! 🌙✨\n` +
+              `> You have been granted the <@&${verifiedRole.id}> role. All community channels, lounges, and games are now unlocked!\n\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `### 🚀 QUICK START GUIDE:\n` +
+              `💬 **Say Hello**: Join the conversation in ${loungeCh ? `<#${loungeCh.id}>` : '#lounge'}\n` +
+              `🎰 **Token Casino**: Check out ${gamesCh ? `<#${gamesCh.id}>` : '#token-games'} (Mines, Crash, Keno, Slots, Blackjack, Coinflip)\n` +
+              `🪙 **Starter Wallet**: \`${balance.toLocaleString()} 🪙\` ready to play\n` +
+              `🎁 **Daily Bonus**: Claim free tokens every 24h with \`/daily\`\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `*Enjoy your stay and game responsibly!*`
+            )
+            .setFooter({
+              text: 'Moonflip Security Gateway • Instant Access Granted',
+              iconURL: interaction.guild.iconURL() || undefined,
+            })
+            .setTimestamp();
+
+          return await interaction.editReply({ embeds: [successEmbed] });
         }
 
         // Wallet & Daily
@@ -406,12 +507,11 @@ export async function getDiscordClient() {
       } catch (err) {
         if (err.code === 10062 || err.code === 40060) return;
         console.error('[Button Interaction Error]', err.message);
-        if (!interaction.replied && !interaction.deferred) {
-          return await interaction.reply({
-            content: `⚠️ Action failed: ${err.message}`,
-            flags: MessageFlags.Ephemeral,
-          }).catch(() => {});
-        }
+        const replyFn = interaction.deferred ? 'editReply' : interaction.replied ? 'followUp' : 'reply';
+        return interaction[replyFn]({
+          content: `⚠️ Action failed: ${err.message}`,
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
       }
     });
 
@@ -462,9 +562,11 @@ export async function getDiscordClient() {
 
         // Auto-assign tier role if reached
         if (result.rewardedTier) {
-          const tierRole = message.guild.roles.cache.find(
-            (r) => r.name.toLowerCase() === result.rewardedTier.roleName.toLowerCase()
-          );
+          const tierRole = message.guild.roles.cache.find((r) => {
+            const cleanRole = r.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const cleanTarget = result.rewardedTier.roleName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return cleanRole === cleanTarget || cleanRole.includes(cleanTarget) || r.name.toLowerCase().includes(result.rewardedTier.roleName.toLowerCase());
+          });
           if (tierRole) {
             await message.member?.roles?.add(tierRole).catch(() => {});
           }
@@ -508,13 +610,43 @@ export function getBotInviteUrl(clientId) {
 }
 
 /**
+ * Resolves the Verified role in a guild, checking by ID, exact name, or partial normalized name.
+ * Automatically triggers REST fetch if uncached.
+ */
+export async function resolveVerifiedRole(guild) {
+  if (!guild) return null;
+
+  const matchRole = (rolesCol) => {
+    return rolesCol.find((r) => {
+      if (r.id === '1566221699697999884') return true;
+      const clean = r.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return clean === 'verified' || clean.includes('verified');
+    });
+  };
+
+  let role = matchRole(guild.roles.cache);
+  if (!role) {
+    const fetched = await guild.roles.fetch().catch(() => null);
+    if (fetched) {
+      role = matchRole(fetched);
+    }
+  }
+  return role;
+}
+
+/**
  * Fetches a Guild by ID and pre-populates roles and channels caches.
  */
 export async function fetchGuild(guildId) {
   const client = await getDiscordClient();
-  const guild = client.guilds.cache.get(guildId) || (await client.guilds.fetch(guildId).catch(() => null));
+  const targetId = guildId || process.env.DISCORD_GUILD_ID || client.guilds.cache.first()?.id;
+  if (!targetId) {
+    throw new Error('No guild ID provided and client is not in any cached guilds.');
+  }
+
+  const guild = client.guilds.cache.get(targetId) || (await client.guilds.fetch(targetId).catch(() => null));
   if (!guild) {
-    throw new Error(`Guild with ID "${guildId}" was not found. Verify the bot has been invited to this server.`);
+    throw new Error(`Guild with ID "${targetId}" was not found. Verify the bot has been invited to this server.`);
   }
 
   // Only fetch channels/roles over REST if cache is empty
