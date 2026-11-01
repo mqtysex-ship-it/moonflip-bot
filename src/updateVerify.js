@@ -33,7 +33,6 @@ async function updateVerify() {
       text: 'Promotional Prize Program • 18+ Verification • Server Protection',
       iconURL: guild.iconURL() || undefined,
     })
-    .setImage('attachment://moonflip_verify_banner.gif')
     .setTimestamp();
 
   const verifyGif = new AttachmentBuilder(getVerifyBannerGif(), {
@@ -48,7 +47,7 @@ async function updateVerify() {
 
   const row = new ActionRowBuilder().addComponents(btn);
 
-  await verifyCh.send({ embeds: [embed], files: [verifyGif], components: [row] });
+  await verifyCh.send({ files: [verifyGif], embeds: [embed], components: [row] });
   console.log('Verification embed updated successfully!');
 
   await destroyDiscordClient();

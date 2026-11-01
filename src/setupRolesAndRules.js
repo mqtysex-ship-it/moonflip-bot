@@ -1,5 +1,6 @@
 import { fetchGuild, destroyDiscordClient } from './discord.js';
 import { ChannelType, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { buildRulesChannelPayload } from './rulesSystem.js';
 
 export async function setupRolesAndRules(guildId = '1566215806956601466') {
   const guild = await fetchGuild(guildId);
@@ -124,78 +125,15 @@ export async function setupRolesAndRules(guildId = '1566215806956601466') {
     console.log('Sent roles directory embed');
   }
 
-  // 3. Post Categorized Modular Rules in #rules
+  // 3. Post Categorized Modular Rules + Interactive Dropdown in #rules
   const rulesCh = guild.channels.cache.find((c) => c.name.includes('rules'));
   if (rulesCh) {
     const msgs = await rulesCh.messages.fetch({ limit: 10 }).catch(() => []);
     for (const [, m] of msgs) await m.delete().catch(() => {});
 
-    // Card 1: Header & General Conduct
-    const embed1 = new EmbedBuilder()
-      .setColor(0x3498db)
-      .setTitle('📜  SECTION I: GENERAL COMMUNITY CONDUCT')
-      .setDescription(
-        `> Welcome to **${guild.name}**! By remaining in this server, you agree to respect everyone and adhere to the guidelines below.\n\n` +
-        `**[ 1.1 ] Mutual Respect & Anti-Harassment**\n` +
-        `Treat all members with respect. Hate speech, racism, sexism, slurs, cyberbullying, doxxing, or targeted toxicity will result in an instant ban.\n\n` +
-        `**[ 1.2 ] No Advertising or Unsolicited DMs**\n` +
-        `Do not promote other Discord servers, referral links, YouTube/Twitch channels, or DM server members without prior staff permission.\n\n` +
-        `**[ 1.3 ] Strictly Safe For Work (SFW)**\n` +
-        `All text, profile pictures, banners, custom statuses, and uploaded media must be strictly Safe For Work. NSFW content is zero-tolerance.`
-      );
-
-    // Card 2: Virtual Token & Gaming Regulations
-    const embed2 = new EmbedBuilder()
-      .setColor(0xf1c40f)
-      .setTitle('🎰  SECTION II: VIRTUAL TOKEN & GAMING REGULATIONS')
-      .setDescription(
-        `> Guidelines governing our virtual token gaming platform.\n\n` +
-        `**[ 2.1 ] Virtual Tokens Only — Strictly Zero Real Money Wagers**\n` +
-        `All chips, tokens, and balances are strictly virtual game points. Buying or selling tokens between members for real money (RMT) is strictly illegal and will result in a permanent blacklist.\n\n` +
-        `**[ 2.2 ] Fair Play & Anti-Exploit Policy**\n` +
-        `Exploiting bot bugs, using macros, auto-clickers, duplication glitches, or abusing system bugs to farm tokens is considered cheating. Violations lead to immediate balance wipes and bans.\n\n` +
-        `**[ 2.3 ] No Alt Accounts / Multi-Accounting**\n` +
-        `Players may only play from a single Discord account. Using alt accounts to multiply daily rewards or bypass limits will result in all balances being permanently revoked.`
-      );
-
-    // Card 3: Promotional Prize Redemptions & KYC
-    const embed3 = new EmbedBuilder()
-      .setColor(0x2ecc71)
-      .setTitle('🎁  SECTION III: PROMOTIONAL REDEMPTIONS & KYC')
-      .setDescription(
-        `> Terms regarding promotional prizes, crypto, and gift card rewards.\n\n` +
-        `**[ 3.1 ] 18+ Age Requirement**\n` +
-        `All promotional prize redemptions (Cryptocurrency or Digital Gift Cards) require participants to be at least **18 years of age**.\n\n` +
-        `**[ 3.2 ] Mandatory KYC Verification**\n` +
-        `To comply with Anti-Money Laundering (AML) standards and prevent fraud, staff reserves the right to request Identity Verification (KYC) before dispatching any prize redemption.\n\n` +
-        `**[ 3.3 ] Playthrough & Turnover Requirement**\n` +
-        `Tokens cannot be acquired and instantly redeemed. A playthrough requirement must be met before redemption requests can be processed.\n\n` +
-        `**[ 3.4 ] Finality & Network Fees**\n` +
-        `Crypto redemptions are subject to network gas fees. Members are solely responsible for providing accurate wallet addresses; sent blockchain transactions cannot be reversed.`
-      );
-
-    // Card 4: Security & Infraction Ladder
-    const embed4 = new EmbedBuilder()
-      .setColor(0xe74c3c)
-      .setTitle('⚖️  SECTION IV: SECURITY & ENFORCEMENT MATRIX')
-      .setDescription(
-        `> How rules are enforced and how to keep your account safe.\n\n` +
-        `**[ 4.1 ] Staff Impersonation & Scam Defense**\n` +
-        `Staff will **NEVER** DM you asking for passwords, seed phrases, or private payment links. Always verify official roles in the sidebar.\n\n` +
-        `**[ 4.2 ] Infraction Matrix**\n` +
-        `✦ **1st Offense**: Official Warning & Message Removal\n` +
-        `✦ **2nd Offense**: 24-Hour Timeout / Mute\n` +
-        `✦ **3rd Offense**: Temporary Kick / Balance Reset\n` +
-        `✦ **Severe / Exploit Offense**: Permanent Ban & Wallet Blacklist\n\n` +
-        `**[ 4.3 ] Staff Discretion**\n` +
-        `Moderators and Administrators hold final authority on all disputes. Submit appeals or reports in \`#💡┃feedback\`.\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-      )
-      .setFooter({ text: 'Official Community Guidelines • Updated & Enforced' })
-      .setTimestamp();
-
-    await rulesCh.send({ embeds: [embed1, embed2, embed3, embed4] });
-    console.log('Sent 4-part categorized rules embeds in #rules');
+    const payload = buildRulesChannelPayload(guild);
+    await rulesCh.send(payload);
+    console.log('Sent interactive Rainbet/Clash.gg rules & dropdown in #rules');
   }
 
   console.log('Roles categories and modular rules deployed successfully!');

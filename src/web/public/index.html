@@ -138,6 +138,29 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #475569;
     }
+    /* Real-Time Live Sync Keyframes */
+    @keyframes gainFlash {
+      0% { background-color: rgba(16, 185, 129, 0.4); color: #34d399; }
+      100% { background-color: transparent; }
+    }
+    @keyframes lossFlash {
+      0% { background-color: rgba(239, 68, 68, 0.4); color: #f87171; }
+      100% { background-color: transparent; }
+    }
+    @keyframes pulseScale {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08); text-shadow: 0 0 14px var(--accent-glow); }
+      100% { transform: scale(1); }
+    }
+    .flash-gain {
+      animation: gainFlash 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .flash-loss {
+      animation: lossFlash 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .number-pulse {
+      animation: pulseScale 0.6s ease-out;
+    }
   </style>
 </head>
 <body class="text-slate-100 min-h-screen flex flex-col antialiased selection:bg-accent selection:text-black relative">
@@ -166,6 +189,20 @@
       <!-- Controls: Theme Picker & Sync -->
       <div class="flex items-center space-x-3">
         
+        <!-- Live Token Supply & SSE Streaming Status -->
+        <div class="hidden md:flex items-center space-x-2 text-xs bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800 font-mono">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="coins" class="w-3.5 h-3.5 text-yellow-400"></i>
+            <span class="text-slate-400">Coins:</span>
+            <span id="header-tokens" class="text-accent font-extrabold transition-all duration-300">-- 🪙</span>
+          </div>
+          <span class="text-slate-700">|</span>
+          <div class="flex items-center gap-1.5" title="Real-Time Synchronization Stream">
+            <span id="sse-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="sse-status-text" class="text-[10px] font-bold text-emerald-400 tracking-wider">LIVE</span>
+          </div>
+        </div>
+
         <!-- Live Ping & Uptime Pill -->
         <div class="hidden sm:flex items-center space-x-2.5 text-xs bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
           <div class="flex items-center gap-1.5">
@@ -686,6 +723,43 @@
     <!-- TAB 5: ECONOMY -->
     <div id="tab-economy" class="tab-content hidden space-y-6">
       
+      <!-- Live Real-Time Economy Telemetry HUD -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="glass-panel p-4 rounded-2xl flex items-center justify-between border border-surface-border">
+          <div>
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Circulating Supply</p>
+            <h4 id="eco-hud-tokens" class="text-xl font-extrabold text-accent font-mono mt-0.5 transition-all">-- 🪙</h4>
+          </div>
+          <div class="p-2.5 rounded-xl bg-accent-light text-accent">
+            <i data-lucide="coins" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="glass-panel p-4 rounded-2xl flex items-center justify-between border border-surface-border">
+          <div>
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Wagered (Volume)</p>
+            <h4 id="eco-hud-wagered" class="text-xl font-extrabold text-white font-mono mt-0.5">-- 🪙</h4>
+          </div>
+          <div class="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
+            <i data-lucide="trending-up" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="glass-panel p-4 rounded-2xl flex items-center justify-between border border-surface-border">
+          <div>
+            <div class="flex items-center space-x-1.5">
+              <span id="eco-sync-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Live Sync Engine</p>
+            </div>
+            <h4 id="eco-sync-label" class="text-xs font-bold text-emerald-400 mt-1 font-mono flex items-center gap-1">
+              <span>REAL-TIME STREAMING (0ms)</span>
+            </h4>
+            <p id="eco-sync-time" class="text-[10px] text-slate-500 font-mono mt-0.5">Live WebSocket/SSE push active</p>
+          </div>
+          <div class="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
+            <i data-lucide="activity" class="w-5 h-5"></i>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         <!-- Left: Modify Player Balance Card -->
@@ -700,7 +774,11 @@
             <form id="form-balance" onsubmit="handleBalanceSubmit(event)" class="space-y-4">
               <div>
                 <label class="block text-xs font-semibold text-slate-300 mb-1">Discord User ID</label>
-                <input id="input-eco-userid" type="text" placeholder="e.g. 996534058362339512" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-accent font-mono" required>
+                <input id="input-eco-userid" oninput="updateSelectedUserLiveBalance()" type="text" placeholder="e.g. 996534058362339512" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-accent font-mono" required>
+                <div id="selected-user-pill" class="hidden mt-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700/80 flex items-center justify-between text-xs font-mono">
+                  <span class="text-slate-400">Live Wallet Balance:</span>
+                  <span id="selected-user-balance" class="text-accent font-extrabold">-- 🪙</span>
+                </div>
               </div>
 
               <div>

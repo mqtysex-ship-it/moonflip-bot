@@ -137,8 +137,21 @@ async function loadStats() {
     const data = await res.json();
 
     if (data.economy) {
-      document.getElementById('stat-tokens').innerText = `${data.economy.totalTokens.toLocaleString()} 🪙`;
-      document.getElementById('stat-players-count').innerText = `Across ${data.economy.totalUsers} registered player(s)`;
+      const formatted = `${data.economy.totalTokens.toLocaleString()} 🪙`;
+      const statTokens = document.getElementById('stat-tokens');
+      if (statTokens) statTokens.innerText = formatted;
+
+      const headerTokens = document.getElementById('header-tokens');
+      if (headerTokens) headerTokens.innerText = formatted;
+
+      const ecoHudTokens = document.getElementById('eco-hud-tokens');
+      if (ecoHudTokens) ecoHudTokens.innerText = formatted;
+
+      const ecoHudWagered = document.getElementById('eco-hud-wagered');
+      if (ecoHudWagered) ecoHudWagered.innerText = `${data.economy.totalWagered.toLocaleString()} 🪙`;
+
+      const statPlayersCount = document.getElementById('stat-players-count');
+      if (statPlayersCount) statPlayersCount.innerText = `Across ${data.economy.totalUsers} registered player(s)`;
     }
 
     if (data.tickets) {
@@ -678,53 +691,242 @@ async function saveRoleEdit() {
   }
 }
 
-// 8. Economy Tab
+// 8. Economy Tab & Real-Time Live Sync Engine
+let liveEventSource = null;
+let cachedPlayers = [];
+let cachedStats = null;
+
+function initLiveSync() {
+  if (liveEventSource) {
+    try {
+      liveEventSource.close();
+    } catch {}
+  }
+
+  try {
+    liveEventSource = new EventSource('/api/economy/live');
+
+    liveEventSource.addEventListener('economy', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        applyLiveEconomyData(data);
+      } catch (err) {
+        console.error('[Live Sync Parse Error]', err);
+      }
+    });
+
+    liveEventSource.onopen = () => {
+      setLiveSyncStatus(true);
+    };
+
+    liveEventSource.onerror = () => {
+      setLiveSyncStatus(false);
+    };
+  } catch (err) {
+    console.error('[Live Sync Init Error]', err);
+  }
+}
+
+function setLiveSyncStatus(isLive) {
+  const dot = document.getElementById('sse-status-dot');
+  const text = document.getElementById('sse-status-text');
+  const ecoDot = document.getElementById('eco-sync-dot');
+  const ecoLabel = document.getElementById('eco-sync-label');
+
+  if (isLive) {
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+    if (text) {
+      text.innerText = 'LIVE';
+      text.className = 'text-[10px] font-bold text-emerald-400 tracking-wider';
+    }
+    if (ecoDot) ecoDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+    if (ecoLabel) {
+      ecoLabel.innerHTML = '<span>REAL-TIME STREAMING (0ms)</span>';
+      ecoLabel.className = 'text-xs font-bold text-emerald-400 mt-1 font-mono flex items-center gap-1';
+    }
+  } else {
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+    if (text) {
+      text.innerText = 'RECONNECTING';
+      text.className = 'text-[10px] font-bold text-amber-400 tracking-wider';
+    }
+    if (ecoDot) ecoDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+    if (ecoLabel) {
+      ecoLabel.innerHTML = '<span>RECONNECTING STREAM...</span>';
+      ecoLabel.className = 'text-xs font-bold text-amber-400 mt-1 font-mono flex items-center gap-1';
+    }
+  }
+}
+
+function applyLiveEconomyData(data) {
+  if (!data) return;
+
+  const stats = data.stats;
+  const players = data.players || [];
+  const change = data.change; // { userId, action, amount, balance }
+
+  cachedStats = stats;
+  cachedPlayers = players;
+
+  // 1. Update Circulating Coins in all UI targets with smooth pulse
+  if (stats) {
+    const formattedTokens = `${stats.totalTokens.toLocaleString()} 🪙`;
+
+    const statTokensEl = document.getElementById('stat-tokens');
+    if (statTokensEl && statTokensEl.innerText !== formattedTokens) {
+      statTokensEl.innerText = formattedTokens;
+      statTokensEl.classList.remove('number-pulse');
+      void statTokensEl.offsetWidth;
+      statTokensEl.classList.add('number-pulse');
+    }
+
+    const headerTokensEl = document.getElementById('header-tokens');
+    if (headerTokensEl && headerTokensEl.innerText !== formattedTokens) {
+      headerTokensEl.innerText = formattedTokens;
+      headerTokensEl.classList.remove('number-pulse');
+      void headerTokensEl.offsetWidth;
+      headerTokensEl.classList.add('number-pulse');
+    }
+
+    const ecoHudTokensEl = document.getElementById('eco-hud-tokens');
+    if (ecoHudTokensEl && ecoHudTokensEl.innerText !== formattedTokens) {
+      ecoHudTokensEl.innerText = formattedTokens;
+      ecoHudTokensEl.classList.remove('number-pulse');
+      void ecoHudTokensEl.offsetWidth;
+      ecoHudTokensEl.classList.add('number-pulse');
+    }
+
+    const ecoHudWageredEl = document.getElementById('eco-hud-wagered');
+    if (ecoHudWageredEl) {
+      ecoHudWageredEl.innerText = `${stats.totalWagered.toLocaleString()} 🪙`;
+    }
+
+    const statPlayersCountEl = document.getElementById('stat-players-count');
+    if (statPlayersCountEl) {
+      statPlayersCountEl.innerText = `Across ${stats.totalUsers} registered player(s)`;
+    }
+
+    const timeEl = document.getElementById('eco-sync-time');
+    if (timeEl) {
+      const now = new Date().toLocaleTimeString();
+      timeEl.innerText = `Live push received at ${now}`;
+    }
+  }
+
+  // 2. Update selected user balance preview if active
+  updateSelectedUserLiveBalance();
+
+  // 3. Render or update players table
+  renderPlayersTable(players, change?.userId, change?.action);
+
+  // 4. Update Wealth Chart in real-time if on overview tab
+  if (wealthChart && players.length > 0) {
+    const brackets = [0, 0, 0, 0, 0];
+    for (const p of players) {
+      const b = p.balance || 0;
+      if (b < 1000) brackets[0]++;
+      else if (b < 5000) brackets[1]++;
+      else if (b < 20000) brackets[2]++;
+      else if (b < 50000) brackets[3]++;
+      else brackets[4]++;
+    }
+    wealthChart.data.datasets[0].data = brackets;
+    wealthChart.update('none'); // High-performance 0ms update
+  }
+}
+
+function renderPlayersTable(players, highlightedUserId = null, changeAction = null) {
+  const tbody = document.getElementById('players-table-body');
+  if (!tbody) return;
+
+  const countBadge = document.getElementById('player-count-badge');
+  if (countBadge) {
+    countBadge.innerText = `${players.length} Players`;
+  }
+
+  if (players.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No players registered yet.</td></tr>`;
+    return;
+  }
+
+  const medals = ['🥇', '🥈', '🥉'];
+  tbody.innerHTML = players
+    .map((p, idx) => {
+      const medal = medals[idx] || `<span class="text-slate-500 font-mono text-xs">#${idx + 1}</span>`;
+      const isTarget = highlightedUserId && p.userId === highlightedUserId;
+      let flashClass = '';
+      if (isTarget) {
+        flashClass = changeAction === 'deduct' ? 'flash-loss' : 'flash-gain';
+      }
+
+      return `
+        <tr id="player-row-${p.userId}" class="hover:bg-slate-800/40 transition ${flashClass}">
+          <td class="px-4 py-3 font-medium">${medal}</td>
+          <td class="px-4 py-3">
+            <button onclick="fillUserId('${p.userId}')" class="font-mono text-xs text-blue-400 hover:underline text-left">
+              ${p.userId}
+            </button>
+          </td>
+          <td class="px-4 py-3 text-right font-mono font-bold text-accent">${p.balance.toLocaleString()} 🪙</td>
+          <td class="px-4 py-3 text-right font-mono text-slate-300">${p.gamesPlayed.toLocaleString()}</td>
+          <td class="px-4 py-3 text-right font-mono text-slate-400">${p.totalBet.toLocaleString()} 🪙</td>
+          <td class="px-4 py-3 text-center">
+            <button onclick="fillUserId('${p.userId}')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold transition">
+              Select
+            </button>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  refreshIcons();
+}
+
+function updateSelectedUserLiveBalance() {
+  const input = document.getElementById('input-eco-userid');
+  const pill = document.getElementById('selected-user-pill');
+  const balSpan = document.getElementById('selected-user-balance');
+  if (!input || !pill || !balSpan) return;
+
+  const uid = input.value.trim();
+  if (!uid) {
+    pill.classList.add('hidden');
+    return;
+  }
+
+  const found = cachedPlayers.find((p) => p.userId === uid);
+  if (found) {
+    balSpan.innerText = `${found.balance.toLocaleString()} 🪙`;
+    pill.classList.remove('hidden');
+  } else {
+    balSpan.innerText = 'New / Unregistered (1,000 🪙 on first bet)';
+    pill.classList.remove('hidden');
+  }
+}
+
 async function loadEconomy() {
+  if (cachedPlayers.length > 0) {
+    renderPlayersTable(cachedPlayers);
+  }
   try {
     const res = await fetch('/api/economy/players');
     const data = await res.json();
-    const tbody = document.getElementById('players-table-body');
-    document.getElementById('player-count-badge').innerText = `${data.players.length} Players`;
-
-    if (data.players.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No players registered yet.</td></tr>`;
-      return;
-    }
-
-    const medals = ['🥇', '🥈', '🥉'];
-    tbody.innerHTML = data.players
-      .map((p, idx) => {
-        const medal = medals[idx] || `<span class="text-slate-500 font-mono text-xs">#${idx + 1}</span>`;
-        return `
-          <tr class="hover:bg-slate-800/40 transition">
-            <td class="px-4 py-3 font-medium">${medal}</td>
-            <td class="px-4 py-3">
-              <button onclick="fillUserId('${p.userId}')" class="font-mono text-xs text-blue-400 hover:underline text-left">
-                ${p.userId}
-              </button>
-            </td>
-            <td class="px-4 py-3 text-right font-mono font-bold text-accent">${p.balance.toLocaleString()} 🪙</td>
-            <td class="px-4 py-3 text-right font-mono text-slate-300">${p.gamesPlayed.toLocaleString()}</td>
-            <td class="px-4 py-3 text-right font-mono text-slate-400">${p.totalBet.toLocaleString()} 🪙</td>
-            <td class="px-4 py-3 text-center">
-              <button onclick="fillUserId('${p.userId}')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold">
-                Select
-              </button>
-            </td>
-          </tr>
-        `;
-      })
-      .join('');
-
-    refreshIcons();
+    cachedPlayers = data.players || [];
+    renderPlayersTable(cachedPlayers);
+    updateSelectedUserLiveBalance();
   } catch (err) {
     console.error('Failed to load economy:', err);
   }
 }
 
 function fillUserId(id) {
-  document.getElementById('input-eco-userid').value = id;
-  document.getElementById('input-eco-amount').focus();
+  const input = document.getElementById('input-eco-userid');
+  if (input) {
+    input.value = id;
+    updateSelectedUserLiveBalance();
+  }
+  document.getElementById('input-eco-amount')?.focus();
 }
 
 function setAmountQuick(amt) {
@@ -1017,7 +1219,7 @@ document.getElementById('btn-manual-refresh').addEventListener('click', () => {
   showToast('Dashboard data refreshed.', 'info');
 });
 
-// Initial boot
+// Initial boot & Real-Time Sync Setup
 window.addEventListener('DOMContentLoaded', () => {
   initTheme();
   loadStatus();
@@ -1026,11 +1228,25 @@ window.addEventListener('DOMContentLoaded', () => {
   loadLogs();
   refreshIcons();
 
-  // Auto polling every 5s
+  // 1. Establish ultra-fast Server-Sent Events (SSE) stream for real-time live synchronization
+  initLiveSync();
+
+  // 2. Safety Net Polling Loop (every 4s as fallback, keeps uptime/logs/tickets/economy fresh)
   setInterval(() => {
     loadStatus();
     loadStats();
     loadLogs();
     if (currentTab === 'tickets') loadTickets();
-  }, 5000);
+    if (currentTab === 'economy') loadEconomy();
+  }, 4000);
+
+  // 3. Immediately refresh when user focuses or returns to the dashboard tab
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      loadStatus();
+      loadStats();
+      if (currentTab === 'economy') loadEconomy();
+      if (currentTab === 'overview') loadCharts();
+    }
+  });
 });

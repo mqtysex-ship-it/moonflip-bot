@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, EmbedBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, EmbedBuilder, MessageFlags } from 'discord.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -6,12 +6,13 @@ import { getBalance, claimDaily, addTokens, getLeaderboard } from './games/econo
 import { addXp, getUserLevelData, LEVEL_TIERS } from './games/levels.js';
 import { start5x5Mines, handle5x5MinesInteraction, showMinesSetupModal } from './games/minesGame.js';
 import { continuousCrash, showCrashModal } from './games/continuousCrash.js';
-import { playModernKeno, showKenoModal } from './games/kenoGame.js';
+import { playModernKeno, showKenoModal, handleKenoInteraction } from './games/kenoGame.js';
 import { playSlots, showSlotsModal } from './games/slotsGame.js';
 import { playCoinflip, showCoinflipModal } from './games/coinflipGame.js';
-import { startBlackjack, handleBlackjackButton } from './games/blackjackGame.js';
+import { startBlackjack, handleBlackjackButton, showBlackjackModal } from './games/blackjackGame.js';
 import { registerGuildSlashCommands, handleChatInputCommand } from './commands/slashCommands.js';
 import { handleTicketInteraction } from './tickets/ticketSystem.js';
+import { handleRulesInteraction } from './rulesSystem.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,7 +47,12 @@ export async function getDiscordClient() {
     const client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
       ],
+      rest: {
+        timeout: 15000,
+        retries: 2,
+      },
     });
 
     client.once('clientReady', async (c) => {
@@ -54,13 +60,15 @@ export async function getDiscordClient() {
       discordClient = c;
       resolve(c);
 
-      // Auto-register slash commands & start continuous crash for each guild
+      // Auto-register slash commands & start continuous crash in parallel for each guild
       try {
         const guilds = await c.guilds.fetch();
-        for (const [id, baseGuild] of guilds) {
+        for (const [, baseGuild] of guilds) {
           const g = await baseGuild.fetch();
-          await registerGuildSlashCommands(g);
-          continuousCrash.start(g).catch((err) => console.error('[Continuous Crash Start Error]', err.message));
+          Promise.allSettled([
+            registerGuildSlashCommands(g),
+            continuousCrash.start(g),
+          ]).catch(() => {});
         }
       } catch (err) {
         console.error('[Slash Command Auto-Register Error]', err.message);
@@ -68,45 +76,59 @@ export async function getDiscordClient() {
     });
 
     client.on('error', (err) => {
+      if (err?.code === 10062 || err?.code === 40060) return;
       console.error('[Discord MCP Client Error]', err.message);
     });
 
-    // Interactive interaction listener (Slash commands & Buttons)
+    // Interactive interaction listener (Slash commands, Modals & Buttons)
     client.on('interactionCreate', async (interaction) => {
       // 1. Handle Slash Commands (/balance, /daily, /pay, /addtokens, etc.)
       if (interaction.isChatInputCommand()) {
         try {
           return await handleChatInputCommand(interaction);
         } catch (err) {
+          if (err.code === 10062 || err.code === 40060) return;
           console.error('[Slash Command Exec Error]', err.message);
           const replyFn = interaction.replied || interaction.deferred ? 'followUp' : 'reply';
           return interaction[replyFn]({
             content: `⚠️ Command failed: ${err.message}`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           }).catch(() => {});
         }
       }
 
-      // 2. Handle Modal Submissions (5x5 Mines, Continuous Crash, Keno)
+      // 2. Handle Modal Submissions (5x5 Mines, Continuous Crash, Keno, Coinflip, Slots, Blackjack)
       if (interaction.isModalSubmit()) {
         try {
           if (interaction.customId === 'mines_custom_modal') {
             return await handle5x5MinesInteraction(interaction);
           }
           if (interaction.customId === 'crash_custom_modal') {
-            const raw = interaction.fields.getTextInputValue('crash_bet_input');
+            const raw = interaction.fields.getTextInputValue('crash_bet_input') || '100';
             const amt = Math.max(10, parseInt(raw.replace(/[^0-9]/g, ''), 10) || 100);
-            return continuousCrash.handleBet(interaction, amt);
+            let autoVal = null;
+            try {
+              const autoRaw = interaction.fields.getTextInputValue('crash_auto_input') || '';
+              const parsedAuto = parseFloat(autoRaw.replace(/[^0-9.]/g, ''));
+              if (!isNaN(parsedAuto) && parsedAuto >= 1.05) {
+                autoVal = Math.min(1000, Math.round(parsedAuto * 100) / 100);
+              }
+            } catch {}
+            return await continuousCrash.handleBet(interaction, amt, autoVal);
           }
           if (interaction.customId === 'keno_custom_modal') {
-            const betRaw = interaction.fields.getTextInputValue('keno_bet_input');
-            const numRaw = interaction.fields.getTextInputValue('keno_numbers_input');
+            const betRaw = interaction.fields.getTextInputValue('keno_bet_input') || '100';
+            const numRaw = interaction.fields.getTextInputValue('keno_numbers_input') || '5';
+            let riskRaw = 'medium';
+            try {
+              riskRaw = interaction.fields.getTextInputValue('keno_risk_input') || 'medium';
+            } catch {}
             const bet = Math.max(10, parseInt(betRaw.replace(/[^0-9]/g, ''), 10) || 100);
             const nums = numRaw
-              .split(',')
+              .split(/[\s,]+/)
               .map((s) => parseInt(s.trim(), 10))
               .filter((n) => !isNaN(n) && n >= 1 && n <= 20);
-            return await playModernKeno(interaction, bet, nums);
+            return await playModernKeno(interaction, bet, nums, riskRaw);
           }
           if (interaction.customId === 'coinflip_custom_modal') {
             const sideRaw = interaction.fields.getTextInputValue('coinflip_side_input') || 'heads';
@@ -120,20 +142,43 @@ export async function getDiscordClient() {
             const bet = Math.max(10, parseInt(betRaw.replace(/[^0-9]/g, ''), 10) || 100);
             return await playSlots(interaction, bet);
           }
+          if (interaction.customId === 'bj_custom_modal') {
+            const betRaw = interaction.fields.getTextInputValue('bj_bet_input') || '100';
+            const bet = Math.max(10, parseInt(betRaw.replace(/[^0-9]/g, ''), 10) || 100);
+            return await startBlackjack(interaction, bet);
+          }
         } catch (err) {
+          if (err.code === 10062 || err.code === 40060) return;
           console.error('[Modal Submit Error]', err.message);
           const replyFn = interaction.replied || interaction.deferred ? 'followUp' : 'reply';
           return interaction[replyFn]({
             content: `⚠️ Modal error: ${err.message}`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           }).catch(() => {});
         }
+      }
+
+      if (interaction.isStringSelectMenu()) {
+        try {
+          if (interaction.customId === 'rules_topic_select') {
+            return await handleRulesInteraction(interaction);
+          }
+        } catch (err) {
+          if (err.code === 10062 || err.code === 40060) return;
+          console.error('[Select Menu Error]', err.message);
+        }
+        return;
       }
 
       if (!interaction.isButton()) return;
       const id = interaction.customId;
 
       try {
+        // Rules Interactive Buttons
+        if (id.startsWith('rules_btn_')) {
+          return await handleRulesInteraction(interaction);
+        }
+
         // Tickets System interactions
         if (id.startsWith('ticket_')) {
           return await handleTicketInteraction(interaction);
@@ -156,13 +201,13 @@ export async function getDiscordClient() {
             .setTitle('🏆  SERVER WEALTH LEADERBOARD')
             .setDescription(`> **Top 10 Richest Token Holders**\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${list}━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
             .setTimestamp();
-          return interaction.reply({ embeds: [embed], ephemeral: true });
+          return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         // Test Deposit (+1,000)
         if (id === 'eco_test_deposit_1000') {
           const amount = 1000;
-          const newBal = addTokens(interaction.user.id, amount);
+          const newBal = addTokens(interaction.user.id, amount, false);
           const receiptId = Math.random().toString(36).substring(2, 9).toUpperCase();
 
           const embed = new EmbedBuilder()
@@ -178,7 +223,7 @@ export async function getDiscordClient() {
               `*Test deposit credited to your wallet.*`
             )
             .setTimestamp();
-          return interaction.reply({ embeds: [embed], ephemeral: true });
+          return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         // Verification
@@ -187,24 +232,24 @@ export async function getDiscordClient() {
             (r) => r.name.toLowerCase() === 'verified'
           );
           if (!verifiedRole) {
-            return interaction.reply({
+            return await interaction.reply({
               content: '⚠️ The Verified role was not found in this server.',
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
           await interaction.member.roles.add(verifiedRole);
-          return interaction.reply({
+          return await interaction.reply({
             content: '🎉 **You have been successfully verified!** Welcome to the community — all channels, token games, and voice rooms are now unlocked for you.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
         // Wallet & Daily
         if (id === 'eco_balance') {
           const bal = getBalance(interaction.user.id);
-          return interaction.reply({
+          return await interaction.reply({
             content: `💳 **Wallet Balance**: \`${bal.toLocaleString()} 🪙\`\n> Need more? Use the **🎁 Daily (+500)** button to claim free tokens every 24 hours!`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -237,20 +282,20 @@ export async function getDiscordClient() {
               `*Earn XP by chatting in community channels or playing token games!*`
             )
             .setTimestamp();
-          return interaction.reply({ embeds: [embed], ephemeral: true });
+          return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         if (id === 'eco_daily') {
           const res = claimDaily(interaction.user.id);
           if (res.success) {
-            return interaction.reply({
+            return await interaction.reply({
               content: `🎁 **Daily Reward Claimed!** You received **+${res.amount} 🪙**!\n💳 **New Balance**: \`${res.newBalance.toLocaleString()} 🪙\``,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           } else {
-            return interaction.reply({
+            return await interaction.reply({
               content: `⏳ **Daily Cooldown**: You already claimed your daily tokens! Please wait **${res.remainingHours}h ${res.remainingMinutes}m** before claiming again.`,
-              ephemeral: true,
+              flags: MessageFlags.Ephemeral,
             });
           }
         }
@@ -267,19 +312,36 @@ export async function getDiscordClient() {
         if (id === 'start_mines_100') return await start5x5Mines(interaction, 100, 3);
         if (id === 'start_mines_500') return await start5x5Mines(interaction, 500, 5);
 
-        // Continuous Crash Game
+        // Orbital Crash Game (Launch Presets, Replay, Auto-Cashout Targets, Live Cashout, Modal)
         if (id.startsWith('crash_bet_')) {
           const amount = parseInt(id.replace('crash_bet_', ''), 10) || 100;
           return await continuousCrash.handleBet(interaction, amount);
         }
-        if (id === 'crash_live_cashout') {
+        if (id.startsWith('crash_quickauto_')) {
+          const parts = id.split('_');
+          const bet = parseInt(parts[2], 10) || 100;
+          const autoCode = parseInt(parts[3], 10) || 200;
+          return await continuousCrash.handleBet(interaction, bet, autoCode / 100);
+        }
+        if (id.startsWith('crash_target_')) {
+          const targetCode = parseInt(id.replace('crash_target_', ''), 10) || 200;
+          return await continuousCrash.handleCashout(interaction, targetCode / 100);
+        }
+        if (id === 'crash_live_cashout' || id === 'crash_cashout') {
           return await continuousCrash.handleCashout(interaction);
         }
         if (id === 'crash_modal_btn') {
           return await showCrashModal(interaction);
         }
 
-        // Modern 20-Ball Keno
+        // Modern 20-Ball Keno (Interactive Board + Multi-Risk + Quick Presets)
+        if (
+          id === 'keno_board_open' ||
+          id.startsWith('keno_toggle_') ||
+          id.startsWith('keno_action_')
+        ) {
+          return await handleKenoInteraction(interaction);
+        }
         if (
           id.startsWith('keno_play_') ||
           id.startsWith('keno_replay_') ||
@@ -289,25 +351,30 @@ export async function getDiscordClient() {
           const parts = id.split('_');
           let bet = 100;
           let picks = 5;
+          let risk = null;
           if (parts.length >= 4) {
             picks = parseInt(parts[2], 10) || 5;
             bet = parseInt(parts[3], 10) || 100;
+            if (parts[4]) risk = parts[4];
           } else {
             bet = parseInt(parts[parts.length - 1], 10) || 100;
           }
-          return await playModernKeno(interaction, bet, picks);
+          return await playModernKeno(interaction, bet, picks, risk);
         }
         if (id === 'keno_modal_btn') {
           return await showKenoModal(interaction);
         }
 
-        // Slots Game
+        // Slots Game (Presets, Replay, 2x & Custom Modal)
         if (id.startsWith('slots_spin_')) {
           const bet = parseInt(id.replace('slots_spin_', ''), 10) || 100;
           return await playSlots(interaction, bet);
         }
+        if (id === 'slots_modal_btn') {
+          return await showSlotsModal(interaction);
+        }
 
-        // Coinflip Game
+        // Coinflip Game (Heads, Tails, 2x & Custom Modal)
         if (id.startsWith('flip_heads_')) {
           const bet = parseInt(id.replace('flip_heads_', ''), 10) || 100;
           return await playCoinflip(interaction, 'heads', bet);
@@ -316,19 +383,33 @@ export async function getDiscordClient() {
           const bet = parseInt(id.replace('flip_tails_', ''), 10) || 100;
           return await playCoinflip(interaction, 'tails', bet);
         }
+        if (id === 'coinflip_modal_btn') {
+          return await showCoinflipModal(interaction);
+        }
 
-        // Blackjack Game
-        if (id === 'start_bj_100') return await startBlackjack(interaction, 100);
-        if (id === 'start_bj_500') return await startBlackjack(interaction, 500);
-        if (id === 'bj_hit' || id === 'bj_stand') return await handleBlackjackButton(interaction);
+        // Blackjack Game (Deal, Replay, 2x, Hit, Stand, Double Down & Custom Modal)
+        if (id.startsWith('start_bj_')) {
+          const bet = parseInt(id.replace('start_bj_', ''), 10) || 100;
+          return await startBlackjack(interaction, bet);
+        }
+        if (id === 'bj_hit' || id === 'bj_stand' || id === 'bj_double') {
+          return await handleBlackjackButton(interaction);
+        }
+        if (id === 'bj_modal_btn') {
+          return await showBlackjackModal(interaction);
+        }
 
+        // Fallback so an unrecognized button never hangs unacknowledged
+        if (!interaction.replied && !interaction.deferred) {
+          return await interaction.deferUpdate().catch(() => {});
+        }
       } catch (err) {
-        if (err.code === 10062) return; // Interaction expired / unknown, ignore safely
+        if (err.code === 10062 || err.code === 40060) return;
         console.error('[Button Interaction Error]', err.message);
         if (!interaction.replied && !interaction.deferred) {
           return await interaction.reply({
             content: `⚠️ Action failed: ${err.message}`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           }).catch(() => {});
         }
       }
@@ -423,7 +504,6 @@ export function getBotInviteUrl(clientId) {
     clientId = discordClient.user.id;
   }
   if (!clientId) return null;
-  // Permissions 8 = Administrator (can manage channels, roles, categories)
   return `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=8&integration_type=0&scope=bot`;
 }
 
@@ -432,15 +512,15 @@ export function getBotInviteUrl(clientId) {
  */
 export async function fetchGuild(guildId) {
   const client = await getDiscordClient();
-  const guild = await client.guilds.fetch(guildId).catch(() => null);
+  const guild = client.guilds.cache.get(guildId) || (await client.guilds.fetch(guildId).catch(() => null));
   if (!guild) {
     throw new Error(`Guild with ID "${guildId}" was not found. Verify the bot has been invited to this server.`);
   }
 
-  // Pre-fetch channels and roles to ensure cache is populated
+  // Only fetch channels/roles over REST if cache is empty
   await Promise.all([
-    guild.channels.fetch().catch(() => {}),
-    guild.roles.fetch().catch(() => {}),
+    guild.channels.cache.size > 0 ? Promise.resolve() : guild.channels.fetch().catch(() => {}),
+    guild.roles.cache.size > 1 ? Promise.resolve() : guild.roles.fetch().catch(() => {}),
   ]);
 
   return guild;

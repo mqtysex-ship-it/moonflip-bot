@@ -1339,7 +1339,7 @@ export function getMinesPreviewGif() {
     canvas.fillRoundedRect(panX + 10, 134, 118, 34, 6, isCashedOut ? C.GREEN_DARK : C.BG_NAVY);
     canvas.strokeRoundedRect(panX + 10, 134, 118, 34, 6, 2, btnCol);
     canvas.drawText(isCashedOut ? '★ CASHED OUT! ★' : 'PICKING TILES...', panX + 69, 143, 1, C.WHITE);
-    canvas.drawText(isCashedOut ? '+3,712 TOKENS' : '97% FAIR RTP', panX + 69, 155, 1, isCashedOut ? C.GOLD_GLEAM : C.GOLD_LIGHT);
+    canvas.drawText(isCashedOut ? '+3,712 TOKENS' : 'PROVABLY FAIR', panX + 69, 155, 1, isCashedOut ? C.GOLD_GLEAM : C.GOLD_LIGHT);
 
     canvas.drawText('MOONFLIP CASINO', panX + 69, 192, 1, C.GOLD_RICH);
 
@@ -1366,8 +1366,8 @@ export function getKenoPreviewGif() {
   const frames = [];
 
   const playerPicks = new Set([3, 7, 12, 14, 19]);
-  const drawSeq = [3, 9, 7, 12, 16, 14, 19]; // 5/5 hits!
-  const hitPayouts = ['0.0X', '0.5X', '1.8X', '4.0X', '15.0X', '50.0X'];
+  const drawSeq = [3, 9, 7, 12, 16, 14, 19]; // 5/5 hits showcase!
+  const hitPayouts = ['0.0X', '0.0X', '0.4X', '2.0X', '6.0X', '25.0X'];
 
   const totalFrames = 22;
 
@@ -1378,7 +1378,7 @@ export function getKenoPreviewGif() {
     const isJackpot = f >= 16;
     canvas.fillRoundedRect(14, 8, width - 28, height - 16, 10, C.BG_NAVY);
     canvas.strokeRoundedRect(14, 8, width - 28, height - 16, 10, 2, isJackpot ? C.GOLD_GLEAM : C.PURPLE_MID);
-    canvas.drawText('★ MOONFLIP 20-BALL KENO LOTTERY ★', width / 2, 18, 1, C.GOLD_GLEAM, C.BLACK);
+    canvas.drawText('★ MOONFLIP PROVABLY FAIR KENO • MULTI-RISK ★', width / 2, 18, 1, C.GOLD_GLEAM, C.BLACK);
 
     const drawnCount = Math.min(drawSeq.length, Math.floor(f / 2));
     const drawnSet = new Set(drawSeq.slice(0, drawnCount));
@@ -1426,6 +1426,10 @@ export function getKenoPreviewGif() {
         canvas.strokeRoundedRect(bx, by, cellW, cellH, 5, isPick && isDrawn ? 2 : 1, border);
         const label = num < 10 ? `0${num}` : `${num}`;
         canvas.drawText(label, bx + cellW / 2, by + 12, 1, txtCol, C.BLACK);
+
+        if (isPick && isDrawn && (f + num) % 2 === 0) {
+          canvas.drawStarSparkle(bx + cellW - 6, by + 6, 3, C.GOLD_GLEAM, C.WHITE);
+        }
       }
     }
 
@@ -1434,18 +1438,19 @@ export function getKenoPreviewGif() {
     canvas.fillRoundedRect(panX, 38, 114, 140, 8, C.PANEL_NAVY);
     canvas.strokeRoundedRect(panX, 38, 114, 140, 8, 1, C.PURPLE_MID);
 
-    canvas.drawText(`HITS: ${hits} / 5`, panX + 57, 50, 1, C.WHITE);
-    canvas.drawText(hitPayouts[hits], panX + 57, 68, 2, hits === 5 ? C.GOLD_GLEAM : C.GREEN_LIGHT, C.BLACK);
-    canvas.drawText('5/5 = 50.0X', panX + 57, 98, 1, C.GOLD_PURE);
-    canvas.drawText('4/5 = 15.0X', panX + 57, 112, 1, C.SILVER_LIGHT);
-    canvas.drawText('3/5 =  4.0X', panX + 57, 126, 1, C.SILVER_LIGHT);
-    canvas.drawText('2/5 =  1.8X', panX + 57, 140, 1, C.SILVER_MID);
+    canvas.drawText(`HITS: ${hits} / 5`, panX + 57, 48, 1, C.WHITE);
+    canvas.drawText(hitPayouts[hits], panX + 57, 64, 2, hits === 5 ? C.GOLD_GLEAM : C.GREEN_LIGHT, C.BLACK);
+    canvas.drawText('5/5 = 25.0X', panX + 57, 94, 1, C.GOLD_PURE);
+    canvas.drawText('4/5 =  6.0X', panX + 57, 108, 1, C.SILVER_LIGHT);
+    canvas.drawText('3/5 =  2.0X', panX + 57, 122, 1, C.SILVER_LIGHT);
+    canvas.drawText('2/5 =  0.4X', panX + 57, 136, 1, C.SILVER_MID);
+    canvas.drawText('HIGH RISK: 45X', panX + 57, 154, 1, C.RED_LIGHT);
 
     // Bottom Banner
     canvas.fillRoundedRect(28, 186, width - 56, 28, 6, isJackpot ? C.GREEN_DARK : C.PANEL_NAVY);
     canvas.strokeRoundedRect(28, 186, width - 56, 28, 6, 1, isJackpot ? C.GOLD_GLEAM : C.PURPLE_LIGHT);
     canvas.drawText(
-      isJackpot ? '★ 5/5 HITS! 50.0X MEGA JACKPOT (+5,000) ★' : `DRAWING LUCKY BALLS... (${drawnCount}/7 DRAWN)`,
+      isJackpot ? '★ 5/5 HITS! 25.0X JACKPOT (+2,500) ★' : `PNEUMATIC DRAW TUBE... (${drawnCount}/7 BALLS)`,
       width / 2,
       196,
       1,
@@ -1557,6 +1562,217 @@ export function getBlackjackPreviewGif() {
 }
 
 /**
+ * Generates an animated Orbital Rocket Crash Preview GIF for the #crash lobby panel.
+ * Frame 0 is the Hero High-Altitude Cashout Showcase (8.45X WIN!).
+ */
+export function getCrashPreviewGif() {
+  if (PREVIEW_CACHE.has('crash')) return PREVIEW_CACHE.get('crash');
+
+  const width = 390;
+  const height = 235;
+  const frames = [];
+  const totalFrames = 24;
+
+  // Exponential multiplier progression up to 8.45x Cashout Showcase
+  const multSteps = [
+    1.00, 1.08, 1.18, 1.32, 1.50, 1.72, 1.98, 2.30,
+    2.68, 3.15, 3.70, 4.35, 5.10, 5.95, 6.85, 7.65,
+    8.45, 8.45, 8.45, 8.45, 8.45, 8.45, 8.45, 8.45,
+  ];
+
+  const bgStars = [
+    [58, 48], [96, 42], [142, 52], [185, 44], [222, 60],
+    [72, 85], [125, 78], [168, 92], [210, 110], [88, 120],
+  ];
+
+  for (let f = 0; f < totalFrames; f++) {
+    const canvas = new PixelCanvas(width, height);
+    canvas.clear(C.BG_DEEP);
+
+    const isCashedOut = f >= 16;
+    const curMult = multSteps[f];
+    const progress = Math.min(1, f / 16); // 0.0 -> 1.0 across climb
+
+    // Outer Luxury Telemetry Cabinet
+    canvas.fillRoundedRect(14, 8, width - 28, height - 16, 10, C.BG_NAVY);
+    canvas.strokeRoundedRect(
+      14,
+      8,
+      width - 28,
+      height - 16,
+      10,
+      2,
+      isCashedOut ? (f % 2 === 0 ? C.GREEN_BRIGHT : C.GOLD_GLEAM) : C.GOLD_RICH
+    );
+    canvas.drawText('★ MOONFLIP ORBITAL CRASH • LIVE TELEMETRY ★', width / 2, 18, 1, C.GOLD_GLEAM, C.BLACK);
+
+    // 1. Left Radar & Exponential Trajectory Viewport (x = 26..242, y = 34..180)
+    const vx = 26;
+    const vy = 34;
+    const vw = 216;
+    const vh = 146;
+    canvas.fillRoundedRect(vx, vy, vw, vh, 8, C.BG_DEEP);
+    canvas.strokeRoundedRect(vx, vy, vw, vh, 8, 1, isCashedOut ? C.GREEN_BRIGHT : C.BORDER_NAVY);
+
+    // Subtle Moonflip Crescent in upper-left deep space
+    drawMoonflipEmblem(canvas, vx + 36, vy + 30, 11, C.GOLD_DEEP, C.GOLD_RICH);
+
+    // Twinkling Deep-Space Stars
+    for (let i = 0; i < bgStars.length; i++) {
+      const [sx, sy] = bgStars[i];
+      if ((f + i) % 3 !== 0) {
+        canvas.setPixel(sx, sy, (f + i) % 2 === 0 ? C.WHITE : C.CYAN_ICE);
+      }
+    }
+
+    // Radar Horizontal Altitude Gridlines & Labels
+    const gridLevels = [
+      { y: vy + 24, label: '10X' },
+      { y: vy + 56, label: '5X' },
+      { y: vy + 88, label: '2X' },
+      { y: vy + 122, label: '1X' },
+    ];
+    for (const g of gridLevels) {
+      for (let gx = vx + 26; gx < vx + vw - 8; gx += 4) {
+        canvas.setPixel(gx, g.y, C.BORDER_NAVY);
+      }
+      canvas.drawText(g.label, vx + 14, g.y - 3, 1, C.SILVER_DARK);
+    }
+
+    // Plot Exponential Trajectory Curve from (startX, startY) to (endX, endY)
+    const startX = vx + 28;
+    const startY = vy + 124;
+    const maxSpanX = 166;
+    const maxSpanY = 92;
+    const curSpanX = Math.round(progress * maxSpanX);
+
+    let rocketX = startX;
+    let rocketY = startY;
+
+    for (let dx = 0; dx <= curSpanX; dx++) {
+      const t = maxSpanX > 0 ? dx / maxSpanX : 0;
+      const curveY = Math.round(startY - Math.pow(t, 1.65) * maxSpanY);
+      const px = startX + dx;
+
+      // Under-curve shaded telemetry fill
+      const fillCol = isCashedOut
+        ? (dx % 2 === 0 ? C.FELT_MID : C.FELT_DARK)
+        : (dx % 2 === 0 ? C.BLUE_DEEP : C.PANEL_NAVY);
+      for (let py = curveY + 2; py <= startY; py++) {
+        canvas.setPixel(px, py, fillCol);
+      }
+
+      // Glowing 3px trajectory line
+      const lineCol = isCashedOut ? C.GREEN_BRIGHT : C.GOLD_GLEAM;
+      canvas.setPixel(px, curveY - 1, C.WHITE);
+      canvas.setPixel(px, curveY, lineCol);
+      canvas.setPixel(px, curveY + 1, isCashedOut ? C.GREEN_LIGHT : C.GOLD_PURE);
+
+      rocketX = px;
+      rocketY = curveY;
+    }
+
+    // Draw Thruster Exhaust Flame & Diagonal Rocket Sprite at (rocketX, rocketY)
+    const flameLen = (f % 2 === 0) ? 14 : 10;
+    for (let fl = 1; fl <= flameLen; fl++) {
+      const fx = rocketX - Math.round(fl * 0.85);
+      const fy = rocketY + Math.round(fl * 0.65);
+      const r = fl < 5 ? 3 : fl < 9 ? 2 : 1;
+      const col = fl < 4 ? C.WHITE : fl < 8 ? C.GOLD_GLEAM : C.ORANGE_BRIGHT;
+      canvas.fillEllipse(fx, fy, r, r, col);
+    }
+
+    // Rocket Fuselage & Fins
+    canvas.fillEllipse(rocketX, rocketY, 6, 4, C.WHITE);
+    canvas.fillEllipse(rocketX + 4, rocketY - 3, 4, 3, C.RED_BRIGHT); // Nose cone
+    canvas.fillRect(rocketX - 6, rocketY + 2, 4, 4, C.RED_BRIGHT);   // Lower fin
+    canvas.fillRect(rocketX - 5, rocketY - 4, 4, 3, C.RED_BRIGHT);   // Upper fin
+    canvas.fillEllipse(rocketX + 1, rocketY - 1, 2, 2, C.CYAN_DIAMOND); // Cockpit window
+
+    if (isCashedOut) {
+      canvas.drawStarSparkle(rocketX - 10, rocketY - 10, 5, C.GOLD_GLEAM, C.WHITE);
+      canvas.drawStarSparkle(rocketX + 12, rocketY - 8, 6, C.GREEN_LIGHT, C.WHITE);
+    }
+
+    // Floating Multiplier Pill above Rocket inside Viewport
+    const badgeX = Math.min(vx + vw - 34, Math.max(vx + 54, rocketX - 6));
+    const badgeY = Math.max(vy + 10, rocketY - 22);
+    canvas.fillRoundedRect(badgeX - 24, badgeY, 48, 13, 4, isCashedOut ? C.GREEN_DARK : C.BG_NAVY);
+    canvas.strokeRoundedRect(badgeX - 24, badgeY, 48, 13, 4, 1, isCashedOut ? C.GOLD_GLEAM : C.GOLD_PURE);
+    canvas.drawText(`${curMult.toFixed(2)}X`, badgeX, badgeY + 3, 1, C.WHITE);
+
+    // 2. Right Telemetry & Cashout HUD Panel (x = 248..366, y = 34..180)
+    const panX = 248;
+    const panW = 118;
+    canvas.fillRoundedRect(panX, vy, panW, vh, 8, C.PANEL_NAVY);
+    canvas.strokeRoundedRect(panX, vy, panW, vh, 8, 1, isCashedOut ? C.GREEN_BRIGHT : C.GOLD_RICH);
+
+    canvas.drawText('MULTIPLIER', panX + 59, 44, 1, C.SILVER_LIGHT);
+    canvas.drawText(
+      `${curMult.toFixed(2)}X`,
+      panX + 59,
+      58,
+      2,
+      isCashedOut ? C.GREEN_LIGHT : curMult >= 4.0 ? C.GOLD_GLEAM : C.WHITE,
+      C.BLACK
+    );
+
+    const zoneText = curMult >= 5.0 ? 'DEEP SPACE' : curMult >= 2.0 ? 'HIGH ORBIT' : 'STRATOSPHERE';
+    canvas.drawText(`ZONE: ${zoneText}`, panX + 59, 84, 1, C.CYAN_ICE);
+
+    const liveWin = Math.floor(500 * curMult);
+    canvas.drawText(`WIN: +${liveWin.toLocaleString()}`, panX + 59, 98, 1, C.GOLD_GLEAM);
+
+    // Cockpit Action Button Box
+    const boxY = 116;
+    canvas.fillRoundedRect(panX + 8, boxY, panW - 16, 36, 6, isCashedOut ? C.GREEN_DARK : C.BG_NAVY);
+    canvas.strokeRoundedRect(
+      panX + 8,
+      boxY,
+      panW - 16,
+      36,
+      6,
+      2,
+      isCashedOut ? C.GOLD_GLEAM : C.GREEN_BRIGHT
+    );
+    canvas.drawText(isCashedOut ? '★ CASHED OUT! ★' : '💰 CASH OUT', panX + 59, boxY + 8, 1, C.WHITE);
+    canvas.drawText(
+      isCashedOut ? '+4,225 TOKENS' : 'INSTANT LOCK',
+      panX + 59,
+      boxY + 21,
+      1,
+      isCashedOut ? C.GOLD_GLEAM : C.GREEN_LIGHT
+    );
+
+    canvas.drawText('AUTO-CASH READY', panX + 59, 162, 1, C.GOLD_RICH);
+
+    // 3. Bottom Telemetry & History Strip (y = 186..216)
+    canvas.fillRoundedRect(26, 186, width - 52, 28, 6, isCashedOut ? C.GREEN_DARK : C.PANEL_NAVY);
+    canvas.strokeRoundedRect(26, 186, width - 52, 28, 6, 1, isCashedOut ? C.GOLD_GLEAM : C.GOLD_RICH);
+    canvas.drawText(
+      isCashedOut
+        ? '★ EJECTED SAFELY AT 8.45X! (+4,225 TOKENS WON) ★'
+        : 'RECENT:  2.45X  •  1.42X  •  12.80X  •  3.15X  •  5.60X',
+      width / 2,
+      196,
+      1,
+      isCashedOut ? C.GOLD_GLEAM : C.WHITE,
+      C.BLACK
+    );
+
+    const delayCs = f === totalFrames - 1 ? 260 : 6;
+    frames.push({ pixels: canvas.pixels, delayCs });
+  }
+
+  // Hero Frame 0 = Final Cashout Showcase so paused [GIF] state looks incredible!
+  frames.unshift({ pixels: frames[frames.length - 1].pixels, delayCs: 120 });
+
+  const buf = encodeGIF(width, height, frames, 0);
+  PREVIEW_CACHE.set('crash', buf);
+  return buf;
+}
+
+/**
  * Generates an animated Moonflip Official Rules Banner GIF for #rules.
  */
 export function getRulesBannerGif() {
@@ -1664,4 +1880,158 @@ export function getVerifyBannerGif() {
   PREVIEW_CACHE.set('verify', buf);
   return buf;
 }
+
+/**
+ * Generates an animated Moonflip 24/7 Support & Ticket Gateway Banner GIF for #create-ticket.
+ */
+export function getTicketBannerGif() {
+  if (PREVIEW_CACHE.has('ticket')) return PREVIEW_CACHE.get('ticket');
+
+  const width = 420;
+  const height = 185;
+  const frames = [];
+  const totalFrames = 16;
+
+  const stars = [
+    [38, 28], [88, 20], [332, 22], [382, 30],
+    [32, 108], [388, 106], [135, 42], [285, 40],
+  ];
+
+  for (let f = 0; f < totalFrames; f++) {
+    const canvas = new PixelCanvas(width, height);
+    canvas.clear(C.BG_DEEP);
+
+    // Outer Luxury Gold & Cyan Card Frame
+    canvas.fillRoundedRect(6, 6, width - 12, height - 12, 12, C.BG_NAVY);
+    canvas.fillEllipse(width / 2, 72, 168, 64, C.PANEL_NAVY);
+    canvas.strokeRoundedRect(6, 6, width - 12, height - 12, 12, 3, C.GOLD_PURE);
+    canvas.strokeRoundedRect(11, 11, width - 22, height - 22, 9, 1, C.CYAN_DIAMOND);
+
+    // Twinkling Stars
+    for (let i = 0; i < stars.length; i++) {
+      if ((f + i) % 3 !== 0) {
+        canvas.drawStarSparkle(stars[i][0], stars[i][1], (f + i) % 2 === 0 ? 5 : 3, C.GOLD_GLEAM, C.WHITE);
+      }
+    }
+
+    // Pulsing Support Signal Rings around Center Emblem
+    const ringR = 26 + ((f % 8) * 2);
+    canvas.strokeEllipse(width / 2, 44, ringR, ringR, 1, f % 2 === 0 ? C.CYAN_DIAMOND : C.GOLD_PURE);
+
+    // Center Moonflip Crescent Emblem
+    drawMoonflipEmblem(canvas, width / 2, 44, 21, C.GOLD_PURE, C.CYAN_ICE);
+
+    // Flanking Golden VIP Support Ticket Icons (Left & Right of Emblem)
+    const ticketBounce = Math.round(Math.sin((f / totalFrames) * Math.PI * 2) * 2);
+    const drawMiniTicket = (tx, ty, borderCol) => {
+      canvas.fillRoundedRect(tx, ty, 38, 22, 4, C.GOLD_DEEP);
+      canvas.strokeRoundedRect(tx, ty, 38, 22, 4, 2, borderCol);
+      // Ticket side notches
+      canvas.fillEllipse(tx, ty + 11, 3, 3, C.PANEL_NAVY);
+      canvas.fillEllipse(tx + 38, ty + 11, 3, 3, C.PANEL_NAVY);
+      canvas.drawText('VIP', tx + 19, ty + 8, 1, C.GOLD_GLEAM, C.BLACK);
+    };
+    drawMiniTicket(width / 2 - 84, 33 + ticketBounce, C.GOLD_GLEAM);
+    drawMiniTicket(width / 2 + 46, 33 - ticketBounce, C.CYAN_ICE);
+
+    // Main Brand Title & Subtitle
+    canvas.drawText('★ MOONFLIP SUPPORT DESK ★', width / 2, 80, 2, C.WHITE, C.BLACK);
+    canvas.drawText('24/7 PRIVATE TICKETS • PRIZE REDEMPTIONS • KYC', width / 2, 104, 1, C.CYAN_ICE);
+
+    // 4 Department Badges at Bottom
+    const depts = [
+      { x: 18, label: 'REDEMPTION', sub: 'CRYPTO & KYC', col: C.GREEN_BRIGHT },
+      { x: 116, label: 'WALLET', sub: 'TOKEN HELP', col: C.BLUE_BRIGHT },
+      { x: 214, label: 'BUG REPORT', sub: 'GAME FIXES', col: C.ORANGE_BRIGHT },
+      { x: 312, label: 'SUPPORT', sub: 'STAFF HELP', col: C.PURPLE_LIGHT },
+    ];
+
+    for (let i = 0; i < depts.length; i++) {
+      const b = depts[i];
+      const activeHighlight = Math.floor(f / 4) === i;
+      canvas.fillRoundedRect(b.x, 124, 90, 42, 6, C.BG_DEEP);
+      canvas.strokeRoundedRect(b.x, 124, 90, 42, 6, activeHighlight ? 3 : 2, activeHighlight ? C.GOLD_GLEAM : b.col);
+      canvas.drawText(b.label, b.x + 45, 133, 1, C.WHITE);
+      canvas.drawText(b.sub, b.x + 45, 148, 1, activeHighlight ? C.GOLD_GLEAM : C.GOLD_LIGHT);
+    }
+
+    frames.push({ pixels: canvas.pixels, delayCs: 10 });
+  }
+
+  const buf = encodeGIF(width, height, frames, 0);
+  PREVIEW_CACHE.set('ticket', buf);
+  return buf;
+}
+
+/**
+ * Generates an animated Moonflip Official Announcements Banner GIF for #announcements.
+ */
+export function getAnnouncementsBannerGif() {
+  if (PREVIEW_CACHE.has('announcements')) return PREVIEW_CACHE.get('announcements');
+
+  const width = 420;
+  const height = 185;
+  const frames = [];
+  const totalFrames = 16;
+
+  const stars = [
+    [42, 26], [105, 22], [315, 22], [378, 28],
+    [30, 112], [390, 110], [150, 44], [270, 44],
+  ];
+
+  for (let f = 0; f < totalFrames; f++) {
+    const canvas = new PixelCanvas(width, height);
+    canvas.clear(C.BG_DEEP);
+
+    // Outer Royal Purple & Gold Broadcast Frame
+    canvas.fillRoundedRect(6, 6, width - 12, height - 12, 12, C.BG_NAVY);
+    canvas.fillEllipse(width / 2, 72, 170, 64, C.PURPLE_DEEP);
+    canvas.fillEllipse(width / 2, 72, 125, 48, C.PANEL_NAVY);
+    canvas.strokeRoundedRect(6, 6, width - 12, height - 12, 12, 3, f % 2 === 0 ? C.GOLD_GLEAM : C.GOLD_PURE);
+    canvas.strokeRoundedRect(11, 11, width - 22, height - 22, 9, 1, C.PURPLE_LIGHT);
+
+    // Twinkling Stars
+    for (let i = 0; i < stars.length; i++) {
+      if ((f + i) % 3 !== 0) {
+        canvas.drawStarSparkle(stars[i][0], stars[i][1], (f + i) % 2 === 0 ? 5 : 3, C.GOLD_GLEAM, C.WHITE);
+      }
+    }
+
+    // Expanding Broadcast Wave Arcs around Center Emblem
+    const wave1 = 28 + ((f % 8) * 3);
+    const wave2 = 28 + (((f + 4) % 8) * 3);
+    canvas.strokeEllipse(width / 2, 44, wave1, Math.round(wave1 * 0.65), 1, C.GOLD_GLEAM);
+    canvas.strokeEllipse(width / 2, 44, wave2, Math.round(wave2 * 0.65), 1, C.PURPLE_LIGHT);
+
+    // Center Moonflip Crescent Emblem
+    drawMoonflipEmblem(canvas, width / 2, 44, 21, C.GOLD_PURE, C.GOLD_GLEAM);
+
+    // Main Broadcast Title & Subtitle
+    canvas.drawText('★ MOONFLIP ANNOUNCEMENTS ★', width / 2, 80, 2, C.WHITE, C.BLACK);
+    canvas.drawText('OFFICIAL NEWS • PLATFORM UPDATES • COMMUNITY EVENTS', width / 2, 104, 1, C.GOLD_GLEAM);
+
+    // 3 Broadcast Feature Cards at Bottom
+    const cards = [
+      { x: 24, label: 'NEW UPDATES', sub: 'GAMES & FEATURES', col: C.CYAN_DIAMOND },
+      { x: 154, label: 'GIVEAWAYS', sub: 'TOKEN DROPS', col: C.GOLD_PURE },
+      { x: 284, label: 'TOURNAMENTS', sub: 'VIP EVENTS', col: C.PURPLE_LIGHT },
+    ];
+
+    for (let i = 0; i < cards.length; i++) {
+      const b = cards[i];
+      const highlight = Math.floor(f / 5) % 3 === i;
+      canvas.fillRoundedRect(b.x, 124, 112, 42, 6, C.BG_DEEP);
+      canvas.strokeRoundedRect(b.x, 124, 112, 42, 6, highlight ? 3 : 2, highlight ? C.WHITE : b.col);
+      canvas.drawText(b.label, b.x + 56, 133, 1, C.WHITE);
+      canvas.drawText(b.sub, b.x + 56, 148, 1, C.GOLD_GLEAM);
+    }
+
+    frames.push({ pixels: canvas.pixels, delayCs: 10 });
+  }
+
+  const buf = encodeGIF(width, height, frames, 0);
+  PREVIEW_CACHE.set('announcements', buf);
+  return buf;
+}
+
 

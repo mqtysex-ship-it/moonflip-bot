@@ -2,6 +2,7 @@ import {
   SlashCommandBuilder,
   PermissionFlagsBits,
   EmbedBuilder,
+  MessageFlags,
 } from 'discord.js';
 import {
   getUser,
@@ -116,7 +117,14 @@ export async function registerGuildSlashCommands(guild) {
 export function isStaffOrOwner(interaction) {
   if (interaction.guild?.ownerId === interaction.user.id) return true;
   if (interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) return true;
-  if (interaction.member?.roles?.cache?.some((r) => r.name.toLowerCase() === 'admin')) return true;
+  if (
+    interaction.member?.roles?.cache?.some((r) => {
+      const n = r.name.toLowerCase();
+      return n.includes('admin') || n.includes('manager') || n.includes('owner');
+    })
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -170,7 +178,7 @@ export async function handleChatInputCommand(interaction) {
           `⏰ **Cooldown Remaining**: **${res.remainingHours} hours and ${res.remainingMinutes} minutes**.`
         )
         .setTimestamp();
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
   }
 
@@ -209,16 +217,16 @@ export async function handleChatInputCommand(interaction) {
     const amount = interaction.options.getInteger('amount');
 
     if (targetUser.id === interaction.user.id) {
-      return interaction.reply({ content: '❌ You cannot send tokens to yourself!', ephemeral: true });
+      return interaction.reply({ content: '❌ You cannot send tokens to yourself!', flags: MessageFlags.Ephemeral });
     }
 
     if (targetUser.bot) {
-      return interaction.reply({ content: '❌ You cannot send tokens to a bot account!', ephemeral: true });
+      return interaction.reply({ content: '❌ You cannot send tokens to a bot account!', flags: MessageFlags.Ephemeral });
     }
 
     const res = transferTokens(interaction.user.id, targetUser.id, amount);
     if (!res.success) {
-      return interaction.reply({ content: `❌ Transfer failed: ${res.error}`, ephemeral: true });
+      return interaction.reply({ content: `❌ Transfer failed: ${res.error}`, flags: MessageFlags.Ephemeral });
     }
 
     const embed = new EmbedBuilder()
@@ -336,7 +344,7 @@ export async function handleChatInputCommand(interaction) {
     if (!isStaffOrOwner(interaction)) {
       return interaction.reply({
         content: '⛔ **Access Denied**: Only the Server Owner or Admins can add tokens.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -367,16 +375,14 @@ export async function handleChatInputCommand(interaction) {
     if (!isStaffOrOwner(interaction)) {
       return interaction.reply({
         content: '⛔ **Access Denied**: Only the Server Owner or Admins can remove tokens.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     const targetUser = interaction.options.getUser('user');
     const amount = interaction.options.getInteger('amount');
-    const user = getUser(targetUser.id);
-    const prevBal = user.balance;
-    user.balance = Math.max(0, user.balance - amount);
-    const newBal = user.balance;
+    const prevBal = getBalance(targetUser.id);
+    const newBal = setBalance(targetUser.id, Math.max(0, prevBal - amount));
 
     const embed = new EmbedBuilder()
       .setColor(0xe74c3c)
@@ -400,7 +406,7 @@ export async function handleChatInputCommand(interaction) {
     if (!isStaffOrOwner(interaction)) {
       return interaction.reply({
         content: '⛔ **Access Denied**: Only the Server Owner or Admins can set balances.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -431,11 +437,11 @@ export async function handleChatInputCommand(interaction) {
     if (!isStaffOrOwner(interaction)) {
       return interaction.reply({
         content: '⛔ **Access Denied**: Only Staff Members or Admins can deploy the ticket panel.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     try {
       const { panelCh } = await setupTicketPanel(interaction.guild);
       return interaction.editReply({

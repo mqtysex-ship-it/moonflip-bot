@@ -2,11 +2,21 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { EmbedBuilder, PermissionFlagsBits, ActivityType } from 'discord.js';
+import { AttachmentBuilder, EmbedBuilder, PermissionFlagsBits, ActivityType } from 'discord.js';
 import { getDiscordClient, fetchGuild } from '../discord.js';
-import { getUser, addTokens, setBalance, getLeaderboard } from '../games/economy.js';
+import {
+  getUser,
+  getAllUsers,
+  addTokens,
+  setBalance,
+  getLeaderboard,
+  economyEvents,
+  getEconomyStats,
+  getEconomyPlayers,
+} from '../games/economy.js';
 import { setupTicketPanel, loadDepartments, saveDepartments } from '../tickets/ticketSystem.js';
 import { deployGamePanels } from '../games/panels.js';
+import { getAnnouncementsBannerGif } from '../games/animator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,14 +79,13 @@ export function createWebServer() {
     }
   }
 
-  // Helper to load economy data
+  // Helper to load economy data from live in-memory store
   function loadEconomyData() {
     try {
-      if (fs.existsSync(ECONOMY_FILE)) {
-        return JSON.parse(fs.readFileSync(ECONOMY_FILE, 'utf-8'));
-      }
-    } catch {}
-    return { users: {} };
+      return { users: getAllUsers() };
+    } catch {
+      return { users: {} };
+    }
   }
 
   // Helper to load settings data
@@ -135,30 +144,87 @@ export function createWebServer() {
     }
   });
 
+  // Active SSE Clients for real-time live economy sync
+  const sseClients = new Set();
+  let broadcastTimer = null;
+  let latestBroadcastChange = null;
+
+  function broadcastEconomyUpdate(changeData) {
+    latestBroadcastChange = changeData;
+    if (broadcastTimer) return;
+    broadcastTimer = setTimeout(() => {
+      broadcastTimer = null;
+      if (sseClients.size === 0) return;
+
+      const stats = getEconomyStats();
+      const players = getEconomyPlayers();
+      const payload = {
+        type: 'economyUpdate',
+        change: latestBroadcastChange,
+        stats,
+        players,
+        timestamp: Date.now(),
+      };
+      const message = `event: economy\ndata: ${JSON.stringify(payload)}\n\n`;
+
+      for (const client of sseClients) {
+        try {
+          client.write(message);
+        } catch {
+          sseClients.delete(client);
+        }
+      }
+    }, 40); // 40ms micro-debounce ensures 25 FPS live fluid sync without event loop lag
+  }
+
+  economyEvents.on('balanceChanged', (change) => {
+    broadcastEconomyUpdate(change);
+  });
+
+  // GET /api/economy/live - Real-time Server-Sent Events (SSE) Stream
+  app.get('/api/economy/live', (req, res) => {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.flushHeaders?.();
+
+    // Send immediate snapshot on connection
+    const initialPayload = {
+      type: 'initial',
+      stats: getEconomyStats(),
+      players: getEconomyPlayers(),
+      timestamp: Date.now(),
+    };
+    res.write(`event: economy\ndata: ${JSON.stringify(initialPayload)}\n\n`);
+
+    sseClients.add(res);
+
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(': heartbeat\n\n');
+      } catch {
+        clearInterval(heartbeat);
+        sseClients.delete(res);
+      }
+    }, 20000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      sseClients.delete(res);
+    });
+  });
+
   // 2. GET /api/stats - Aggregated metrics
   app.get('/api/stats', (req, res) => {
     try {
-      const eco = loadEconomyData();
       const tickets = loadTicketsData();
-
-      let totalTokens = 0;
-      let totalWagered = 0;
-      let totalGamesPlayed = 0;
-      const userList = Object.values(eco.users || {});
-
-      for (const u of userList) {
-        totalTokens += u.balance || 0;
-        totalWagered += u.totalBet || 0;
-        totalGamesPlayed += u.gamesPlayed || 0;
-      }
+      const ecoStats = getEconomyStats();
 
       res.json({
-        economy: {
-          totalTokens,
-          totalWagered,
-          totalGamesPlayed,
-          totalUsers: userList.length,
-        },
+        economy: ecoStats,
         tickets: {
           totalTickets: tickets.counter || 0,
           activeTicketsCount: Object.keys(tickets.activeTickets || {}).length,
@@ -172,19 +238,7 @@ export function createWebServer() {
   // 3. GET /api/economy/players - Leaderboard & players list
   app.get('/api/economy/players', (req, res) => {
     try {
-      const eco = loadEconomyData();
-      const players = Object.entries(eco.users || {}).map(([userId, data]) => ({
-        userId,
-        balance: data.balance || 0,
-        totalBet: data.totalBet || 0,
-        totalWon: data.totalWon || 0,
-        gamesPlayed: data.gamesPlayed || 0,
-        lastDaily: data.lastDaily || null,
-        createdAt: data.createdAt || null,
-      }));
-
-      players.sort((a, b) => b.balance - a.balance);
-      res.json({ players });
+      res.json({ players: getEconomyPlayers() });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -447,8 +501,14 @@ export function createWebServer() {
       if (mention === 'everyone') content = '@everyone';
       if (mention === 'here') content = '@here';
 
+      const isAnnounceCh = channel.name.toLowerCase().includes('announcements');
+      const files = isAnnounceCh
+        ? [new AttachmentBuilder(getAnnouncementsBannerGif(), { name: 'moonflip_announcements_banner.gif' })]
+        : [];
+
       await channel.send({
         content: content || undefined,
+        files,
         embeds: [embed],
       });
 
@@ -705,8 +765,14 @@ export function createWebServer() {
       if (mention === 'everyone') content = '@everyone';
       if (mention === 'here') content = '@here';
 
+      const isAnnounceCh = channel.name.toLowerCase().includes('announcements');
+      const files = isAnnounceCh
+        ? [new AttachmentBuilder(getAnnouncementsBannerGif(), { name: 'moonflip_announcements_banner.gif' })]
+        : [];
+
       await channel.send({
         content: content || undefined,
+        files,
         embeds: [embed],
       });
 

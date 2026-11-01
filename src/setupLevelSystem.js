@@ -190,7 +190,7 @@ export async function setupLevelSystem(guildId = '1566215806956601466') {
         },
         {
           name: '`[ Q4 ]` Are games rigged or provably fair?',
-          value: '✦ All games (Mines, Crash, Slots, Coinflip, Keno, Blackjack) use **cryptographically secure RNG** (`crypto.randomBytes`) with fixed theoretical RTPs (Return to Player) matching industry standards.',
+          value: '✦ All games (Mines, Crash, Slots, Coinflip, Keno, Blackjack) use **cryptographically secure RNG** (`crypto.randomBytes`) ensuring transparent, provably fair outcomes matching industry standards.',
         },
         {
           name: '`[ Q5 ]` How do I unlock the VIP High Roller category?',

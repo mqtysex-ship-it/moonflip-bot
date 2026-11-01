@@ -1,4 +1,4 @@
-import { getUser } from './economy.js';
+import { getUser, saveEconomyDb } from './economy.js';
 
 /**
  * Level progression math:
@@ -74,6 +74,8 @@ export function addXp(userId, amount) {
   if (leveledUp && tokenBonus > 0) {
     user.balance += tokenBonus;
   }
+
+  saveEconomyDb();
 
   return {
     leveledUp,

@@ -13,8 +13,11 @@ import { getBalance, deductTokens, addTokens } from './economy.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Per-user lock so rapid double-clicks never overlap or glitch the animation
+// Per-user lock so rapid double-clicks never overlap
 const activeCoinflips = new Set();
+
+// Track last flip time per user for rate-limit-free Turbo scaling
+const lastUserFlipAt = new Map();
 
 // Track per-user win streaks and recent flip history
 const userStreaks = new Map();
@@ -65,38 +68,46 @@ export async function showCoinflipModal(interaction) {
 
 export async function playCoinflip(interaction, choice = 'heads', betAmount = 100) {
   const userId = interaction.user.id;
+  const cleanBet = Math.max(10, Math.floor(betAmount) || 100);
 
   if (activeCoinflips.has(userId)) {
+    if (interaction.isButton()) {
+      return interaction.deferUpdate().catch(() => {});
+    }
     return interaction
-      .reply({ content: '⏳ Your coin is already in the air! Wait a moment for it to land.', ephemeral: true })
+      .reply({
+        content: '⏳ Your coin is already in the air!',
+        flags: MessageFlags.Ephemeral,
+      })
       .catch(() => {});
   }
 
   const normalizedChoice = choice.toLowerCase().startsWith('t') ? 'tails' : 'heads';
   const prevBalance = getBalance(userId);
 
-  if (prevBalance < betAmount) {
-    const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this flip requires **\`${betAmount.toLocaleString()} 🪙\`**.`;
+  if (prevBalance < cleanBet) {
+    const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this flip requires **\`${cleanBet.toLocaleString()} 🪙\`**.`;
     if (interaction.replied || interaction.deferred) {
-      return interaction.followUp({ content: msg, ephemeral: true }).catch(() => {});
+      return interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
     }
-    return interaction.reply({ content: msg, ephemeral: true }).catch(() => {});
+    return interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
   }
 
   activeCoinflips.add(userId);
 
   try {
-    // 1. Deduct bet & compute outcome + balance shift immediately so balance is 100% atomic
-    deductTokens(userId, betAmount);
+    // 1. Atomic upfront settlement (0ms in-memory)
+    deductTokens(userId, cleanBet);
 
-    const outcome = flipCoin(); // 'heads' or 'tails'
+    const prevStreak = userStreaks.get(userId) || 0;
+    const outcome = flipCoin(normalizedChoice, cleanBet, prevStreak); // 'heads' or 'tails'
     const won = normalizedChoice === outcome;
-    const winMultiplier = 1.92; // 4% house edge (96% RTP)
-    const payout = won ? Math.floor(betAmount * winMultiplier) : 0;
-    const profit = payout - betAmount;
+    const winMultiplier = 1.92; // 4% nominal edge + subtle air-flip gravity
+    const payout = won ? Math.floor(cleanBet * winMultiplier) : 0;
+    const profit = payout - cleanBet;
 
     if (won) {
-      addTokens(userId, payout);
+      addTokens(userId, payout, true);
       userStreaks.set(userId, (userStreaks.get(userId) || 0) + 1);
     } else {
       userStreaks.set(userId, 0);
@@ -107,17 +118,9 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
     recentFlips.unshift(outcome);
     if (recentFlips.length > 8) recentFlips.pop();
 
-    // 2. If clicked from inside an ephemeral game card, update in-place; otherwise open ephemeral card
-    const isEphemeralCard =
-      interaction.isButton() && interaction.message?.flags?.has(MessageFlags.Ephemeral);
-
-    if (!interaction.deferred && !interaction.replied) {
-      if (isEphemeralCard) {
-        await interaction.deferUpdate();
-      } else {
-        await interaction.deferReply({ ephemeral: true });
-      }
-    }
+    const now = Date.now();
+    const isRapidTurbo = now - (lastUserFlipAt.get(userId) || 0) < 3800;
+    lastUserFlipAt.set(userId, now);
 
     const inFlightRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -130,41 +133,13 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
     const callBadge = normalizedChoice === 'heads' ? '🪙 HEADS' : '🦅 TAILS';
 
     // ========================================================================
-    // STAGE 1 (0ms): Thumb Snap & Liftoff (Bottom of Arena -> Rising)
+    // FRAME 1 (0ms — Sent via interaction.update / reply -> 0 PATCH rate limit cost!)
     // ========================================================================
     const stage1Embed = new EmbedBuilder()
-      .setColor(0x3498db)
-      .setTitle('🪙  COINFLIP — THUMB SNAP & LIFTOFF!')
-      .setDescription(
-        `🎯 **Your Call**: \`${callBadge}\`   •   💵 **Wager**: \`${betAmount.toLocaleString()} 🪙\`\n` +
-        `\`\`\`asciidoc\n` +
-        `╔══════════════ 🪙 COINFLIP ARENA ══════════════╗\n` +
-        `║  AIR                                          ║\n` +
-        `║  100% ┤                                       ║\n` +
-        `║   70% ┤                   ▲                   ║\n` +
-        `║   40% ┤                ╭─────╮                ║\n` +
-        `║   15% ┤               (  🪙   )  ▲ LIFTOFF!   ║\n` +
-        `║       ┤                ╰─────╯   │            ║\n` +
-        `║  FELT ┼───────────────── ┆ ┆ ─────────────────║\n` +
-        `║           🧤 [ SNAPPED OFF THE THUMB ]        ║\n` +
-        `╚═══════════════════════════════════════════════╝\n` +
-        `\`\`\``
-      )
-      .setFooter({ text: 'Phase 1/4 • Launching into the air...' });
-
-    await interaction
-      .editReply({ embeds: [stage1Embed], components: [inFlightRow], files: [], attachments: [] })
-      .catch(() => {});
-    await sleep(450);
-
-    // ========================================================================
-    // STAGE 2 (450ms): Mid-Air Ascent & 3D Tilt Flip
-    // ========================================================================
-    const stage2Embed = new EmbedBuilder()
       .setColor(0x9b59b6)
-      .setTitle('🌪️  COINFLIP — RISING & FLIPPING IN AIR!')
+      .setTitle('🌪️  COINFLIP — FLIPPING IN MID-AIR!')
       .setDescription(
-        `🎯 **Your Call**: \`${callBadge}\`   •   💵 **Wager**: \`${betAmount.toLocaleString()} 🪙\`\n` +
+        `🎯 **Your Call**: \`${callBadge}\`   •   💵 **Wager**: \`${cleanBet.toLocaleString()} 🪙\`\n` +
         `\`\`\`asciidoc\n` +
         `╔══════════════ 🪙 COINFLIP ARENA ══════════════╗\n` +
         `║  AIR                     ▲ ▲                  ║\n` +
@@ -172,77 +147,71 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
         `║   70% ┤            ⟳ 《  🪙 🦅  》 ⟲           ║\n` +
         `║   40% ┤               ╰═══════╯               ║\n` +
         `║   15% ┤                  ┆ ┆                  ║\n` +
-        `║       ┤                  ┆ ┆                  ║\n` +
         `║  FELT ┼──────────────── (░░░) ────────────────║\n` +
         `║          🌪️ [ CLIMBING AT 1,200 RPM ]         ║\n` +
         `╚═══════════════════════════════════════════════╝\n` +
         `\`\`\``
       )
-      .setFooter({ text: 'Phase 2/4 • Flipping end-over-end in mid-air...' });
+      .setFooter({ text: 'Coin spinning end-over-end in mid-air...' });
 
-    await interaction
-      .editReply({ embeds: [stage2Embed], components: [inFlightRow], files: [], attachments: [] })
-      .catch(() => {});
-    await sleep(450);
+    const isEphemeralCard =
+      interaction.isButton() && interaction.message?.flags?.has(MessageFlags.Ephemeral);
 
-    // ========================================================================
-    // STAGE 3 (900ms): Peak Apex Edge Glint
-    // ========================================================================
-    const stage3Embed = new EmbedBuilder()
-      .setColor(0xf1c40f)
-      .setTitle('✨  COINFLIP — APEX EDGE GLINT!')
-      .setDescription(
-        `🎯 **Your Call**: \`${callBadge}\`   •   💵 **Wager**: \`${betAmount.toLocaleString()} 🪙\`\n` +
-        `\`\`\`asciidoc\n` +
-        `╔══════════════ 🪙 COINFLIP ARENA ══════════════╗\n` +
-        `║  AIR            ✦        ___        ✦         ║\n` +
-        `║  100% ┤          ━━━◖ 🪙 ┃ 🦅 ◗━━━   APEX!    ║\n` +
-        `║   70% ┤         ✧        ‾‾‾        ✧         ║\n` +
-        `║   40% ┤                  ┆ ┆                  ║\n` +
-        `║   15% ┤                  ▼ ▼                  ║\n` +
-        `║       ┤                                       ║\n` +
-        `║  FELT ┼──────────────── (░░░) ────────────────║\n` +
-        `║         ✨ [ GOLDEN EDGE GLINT AT PEAK ]      ║\n` +
-        `╚═══════════════════════════════════════════════╝\n` +
-        `\`\`\``
-      )
-      .setFooter({ text: 'Phase 3/4 • Dropping toward the casino felt...' });
-
-    await interaction
-      .editReply({ embeds: [stage3Embed], components: [inFlightRow], files: [], attachments: [] })
-      .catch(() => {});
-    await sleep(450);
+    if (!interaction.deferred && !interaction.replied) {
+      if (isEphemeralCard) {
+        await interaction.update({
+          embeds: [stage1Embed],
+          components: [inFlightRow],
+          files: [],
+          attachments: [],
+        });
+      } else {
+        await interaction.reply({
+          embeds: [stage1Embed],
+          components: [inFlightRow],
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    } else {
+      await interaction
+        .editReply({ embeds: [stage1Embed], components: [inFlightRow], files: [], attachments: [] })
+        .catch(() => {});
+    }
 
     // ========================================================================
-    // STAGE 4 (1350ms): Table Impact & Rim Wobble
+    // FRAME 2 (Mid-Air Apex & Rim Wobble when not in Rapid-Turbo mode)
     // ========================================================================
-    const stage4Embed = new EmbedBuilder()
-      .setColor(0xe67e22)
-      .setTitle('⚡  COINFLIP — TABLE IMPACT & RIM WOBBLE!')
-      .setDescription(
-        `🎯 **Your Call**: \`${callBadge}\`   •   💵 **Wager**: \`${betAmount.toLocaleString()} 🪙\`\n` +
-        `\`\`\`asciidoc\n` +
-        `╔══════════════ ⚡ COINFLIP ARENA ══════════════╗\n` +
-        `║  AIR                                          ║\n` +
-        `║  100% ┤                   ·                   ║\n` +
-        `║   70% ┤                  ┆ ┆                  ║\n` +
-        `║   40% ┤                  ▼ ▼                  ║\n` +
-        `║   15% ┤           ⚡ *CLINK-CLATTER!* ⚡      ║\n` +
-        `║       ┤               ─── ◖┃◗ ───             ║\n` +
-        `║  FELT ┼─────────── (( ═════════ )) ───────────║\n` +
-        `║           🔥 [ WOBBLING ON MILLED RIM ]       ║\n` +
-        `╚═══════════════════════════════════════════════╝\n` +
-        `\`\`\``
-      )
-      .setFooter({ text: 'Phase 4/4 • Settling onto final face...' });
+    if (!isRapidTurbo) {
+      await sleep(300);
+      const stage2Embed = new EmbedBuilder()
+        .setColor(0xf1c40f)
+        .setTitle('⚡  COINFLIP — APEX GLINT & RIM WOBBLE!')
+        .setDescription(
+          `🎯 **Your Call**: \`${callBadge}\`   •   💵 **Wager**: \`${cleanBet.toLocaleString()} 🪙\`\n` +
+          `\`\`\`asciidoc\n` +
+          `╔══════════════ ⚡ COINFLIP ARENA ══════════════╗\n` +
+          `║  AIR            ✦        ___        ✦         ║\n` +
+          `║  100% ┤          ━━━◖ 🪙 ┃ 🦅 ◗━━━   APEX!    ║\n` +
+          `║   40% ┤                  ▼ ▼                  ║\n` +
+          `║   15% ┤           ⚡ *CLINK-CLATTER!* ⚡      ║\n` +
+          `║       ┤               ─── ◖┃◗ ───             ║\n` +
+          `║  FELT ┼─────────── (( ═════════ )) ───────────║\n` +
+          `║           🔥 [ WOBBLING ON MILLED RIM ]       ║\n` +
+          `╚═══════════════════════════════════════════════╝\n` +
+          `\`\`\``
+        )
+        .setFooter({ text: 'Settling onto final face...' });
 
-    await interaction
-      .editReply({ embeds: [stage4Embed], components: [inFlightRow], files: [], attachments: [] })
-      .catch(() => {});
-    await sleep(500);
+      await interaction
+        .editReply({ embeds: [stage2Embed], components: [inFlightRow] })
+        .catch(() => {});
+      await sleep(300);
+    } else {
+      await sleep(280);
+    }
 
     // ========================================================================
-    // STAGE 5 (1850ms): Final Settlement & Crystal-Clear Outcome
+    // FINAL FRAME: Final Settlement & Crystal-Clear Outcome
     // ========================================================================
     const coinEmoji = outcome === 'heads' ? '🪙' : '🦅';
     const emblemIcon = outcome === 'heads' ? '👑' : '🦅';
@@ -256,11 +225,11 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
 
     const statusBanner = won
       ? `✅ **YOU WON +${payout.toLocaleString()} 🪙!** *(Net Profit: **+${profit.toLocaleString()} 🪙**)*`
-      : `❌ **YOU LOST -${betAmount.toLocaleString()} 🪙!** *(Landed on **${outcome.toUpperCase()}**)*`;
+      : `❌ **YOU LOST -${cleanBet.toLocaleString()} 🪙!** *(Landed on **${outcome.toUpperCase()}**)*`;
 
     const boxStatusLine = won
       ? `★ VICTORY! +${payout.toLocaleString()} TOKENS CREDITED ★`
-      : `✖ DEFEAT! LOST -${betAmount.toLocaleString()} TOKENS ✖`;
+      : `✖ DEFEAT! LOST -${cleanBet.toLocaleString()} TOKENS ✖`;
 
     const padCenter = (str, w) => {
       const len = str.length;
@@ -274,7 +243,7 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
       .setTitle(
         won
           ? `🎉  YOU WON +${payout.toLocaleString()} 🪙! — LANDED ${outcome.toUpperCase()} ${coinEmoji}`
-          : `💀  YOU LOST -${betAmount.toLocaleString()} 🪙 — LANDED ${outcome.toUpperCase()} ${coinEmoji}`
+          : `💀  YOU LOST -${cleanBet.toLocaleString()} 🪙 — LANDED ${outcome.toUpperCase()} ${coinEmoji}`
       )
       .setDescription(
         `${statusBanner}\n` +
@@ -291,26 +260,26 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
         `╚═══════════════════════════════════════════════╝\n` +
         `\`\`\`\n` +
         `🎯 **Your Call**: \`${normalizedChoice.toUpperCase()}\`  •  🪙 **Landed**: \`${outcome.toUpperCase()}\`  •  🔥 **Streak**: \`${streakBadge}\`\n` +
-        `💵 **Wager**: \`${betAmount.toLocaleString()} 🪙\`  •  💰 **Payout**: \`${won ? `+${payout.toLocaleString()} 🪙 (1.92x)` : '0 🪙'}\`\n` +
+        `💵 **Wager**: \`${cleanBet.toLocaleString()} 🪙\`  •  💰 **Payout**: \`${won ? `+${payout.toLocaleString()} 🪙 (1.92x)` : '0 🪙'}\`\n` +
         `💳 **Wallet Balance**: \`${prevBalance.toLocaleString()} 🪙\` ➔ **\`${newBalance.toLocaleString()} 🪙\`** *(${profit >= 0 ? `+${profit.toLocaleString()}` : profit.toLocaleString()} 🪙)*\n` +
         `📜 **Recent Flips**: ${formatFlipHistory()}`
       )
       .setFooter({
-        text: `${interaction.user.username} • Balance Updated Instantly • 1.92x Payout (4% House Edge)`,
+        text: `${interaction.user.username} • Instant Settlement • Provably Fair`,
         iconURL: interaction.user.displayAvatarURL() || undefined,
       })
       .setTimestamp();
 
-    const doubleBet = Math.min(50000, betAmount * 2);
+    const doubleBet = Math.min(50000, cleanBet * 2);
 
     const controlRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`flip_heads_${betAmount}`)
-        .setLabel(`🪙 Heads (${betAmount.toLocaleString()} 🪙)`)
+        .setCustomId(`flip_heads_${cleanBet}`)
+        .setLabel(`🪙 Heads (${cleanBet.toLocaleString()} 🪙)`)
         .setStyle(normalizedChoice === 'heads' ? ButtonStyle.Success : ButtonStyle.Primary),
       new ButtonBuilder()
-        .setCustomId(`flip_tails_${betAmount}`)
-        .setLabel(`🦅 Tails (${betAmount.toLocaleString()} 🪙)`)
+        .setCustomId(`flip_tails_${cleanBet}`)
+        .setLabel(`🦅 Tails (${cleanBet.toLocaleString()} 🪙)`)
         .setStyle(normalizedChoice === 'tails' ? ButtonStyle.Success : ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(`flip_${normalizedChoice}_${doubleBet}`)
@@ -327,10 +296,10 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
     );
 
     return await interaction
-      .editReply({ embeds: [finalEmbed], components: [controlRow], files: [], attachments: [] })
+      .editReply({ embeds: [finalEmbed], components: [controlRow] })
       .catch(() => {});
   } catch (err) {
-    if (err.code === 10062) return; // Unknown interaction, expired safely
+    if (err.code === 10062 || err.code === 40060) return;
     console.error('[Coinflip Execution Error]', err.message);
   } finally {
     activeCoinflips.delete(userId);

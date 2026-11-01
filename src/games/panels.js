@@ -15,7 +15,21 @@ import {
   generateSlotsAnimationGif,
   getRulesBannerGif,
   getVerifyBannerGif,
+  getTicketBannerGif,
+  getAnnouncementsBannerGif,
 } from './animator.js';
+import { setupTicketPanel } from '../tickets/ticketSystem.js';
+import { buildRulesChannelPayload } from '../rulesSystem.js';
+
+async function clearRecentChannelMessages(chan) {
+  try {
+    const msgs = await chan.messages.fetch({ limit: 10 }).catch(() => null);
+    if (!msgs || msgs.size === 0) return;
+    await chan.bulkDelete(msgs, true).catch(async () => {
+      for (const [, m] of msgs) await m.delete().catch(() => {});
+    });
+  } catch {}
+}
 
 export async function deployGamePanels(guildId = '1566215806956601466') {
   const guild = await fetchGuild(guildId);
@@ -23,8 +37,7 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
   // 1. Mines Panel (5x5 Grid)
   const minesChan = guild.channels.cache.find((c) => c.name.toLowerCase().includes('mines'));
   if (minesChan) {
-    const msgs = await minesChan.messages.fetch({ limit: 10 }).catch(() => []);
-    for (const [, m] of msgs) await m.delete().catch(() => {});
+    await clearRecentChannelMessages(minesChan);
 
     const minesGif = new AttachmentBuilder(getMinesPreviewGif(), {
       name: 'moonflip_mines_preview.gif',
@@ -39,9 +52,8 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
         `1️⃣ Choose a quick-play preset below or click **⚙️ Custom Game** to set any wager & bomb count (1–24 mines).\n` +
         `2️⃣ Click any tile on the 5x5 grid to reveal either a 💎 **Gem** or 💣 **Bomb**.\n` +
         `3️⃣ Hit **💰 Cash Out** anytime to lock in your multiplied profits!\n\n` +
-        `*94% RTP • Provably Fair Seed • Full 5x5 Grid (25 Tiles)*`
+        `*Provably Fair Seed • Full 5x5 Grid (25 Tiles)*`
       )
-      .setImage('attachment://moonflip_mines_preview.gif')
       .setFooter({ text: 'Moonflip Casino • Virtual Tokens Only' });
 
     const row = new ActionRowBuilder().addComponents(
@@ -52,15 +64,14 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
       new ButtonBuilder().setCustomId('eco_balance').setLabel('💰 Balance').setStyle(ButtonStyle.Secondary)
     );
 
-    await minesChan.send({ embeds: [embed], files: [minesGif], components: [row] });
+    await minesChan.send({ files: [minesGif], embeds: [embed], components: [row] });
     console.log(`Deployed 5x5 Mines panel in #${minesChan.name}`);
   }
 
-  // 2. Keno Panel (20-Ball Lottery)
+  // 2. Keno Panel (20-Ball Multi-Risk Lottery)
   const kenoChan = guild.channels.cache.find((c) => c.name.toLowerCase().includes('keno'));
   if (kenoChan) {
-    const msgs = await kenoChan.messages.fetch({ limit: 10 }).catch(() => []);
-    for (const [, m] of msgs) await m.delete().catch(() => {});
+    await clearRecentChannelMessages(kenoChan);
 
     const kenoGif = new AttachmentBuilder(getKenoPreviewGif(), {
       name: 'moonflip_keno_preview.gif',
@@ -68,28 +79,27 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
 
     const embed = new EmbedBuilder()
       .setColor(0x9b59b6)
-      .setTitle('🎲  MOONFLIP 20-BALL KENO LOTTERY')
+      .setTitle('🎲  MOONFLIP 20-BALL KENO — MULTI-RISK CHAMBER')
       .setDescription(
-        `> Select your lucky numbers across the **Moonflip 20-Ball Lottery Board**! 7 winning balls are drawn each round for up to a **30.0x Mega Jackpot**.\n\n` +
-        `### 🎯 Payout Multipliers (5-Pick Ticket):\n` +
-        `✦ **5/5 Hits**: **30.0x Mega Jackpot** 👑\n` +
-        `✦ **4/5 Hits**: **5.5x Payout** 💎\n` +
-        `✦ **3/5 Hits**: **2.0x Payout** 🥇\n` +
-        `✦ **2/5 Hits**: **1.0x Push (Money Back)** 🥈\n\n` +
-        `*94% RTP • Provably Fair Machine Draw • Virtual Tokens Only*`
+        `> Step up to the **Moonflip Pneumatic Keno Chamber**! Customize **2 to 10 lucky numbers** on our **Interactive 4x5 Board**, choose your **Risk Mode (🟢 Low / 🔥 Medium / 💀 High)**, and watch 7 balls launch into the draw tube!\n\n` +
+        `### 🎯 5-Pick Payout Multipliers (By Risk Mode):\n` +
+        `✦ **5/5 Hits**: \`🟢 15.0x\` • \`🔥 25.0x\` • **\`💀 45.0x Jackpot\`** 👑\n` +
+        `✦ **4/5 Hits**: \`🟢 4.0x\` • \`🔥 6.0x\` • \`💀 9.0x\` 💎\n` +
+        `✦ **3/5 Hits**: \`🟢 1.6x\` • \`🔥 2.0x\` • \`💀 2.5x\` 🥇\n` +
+        `✦ **2/5 Hits**: \`🟢 0.75x\` • \`🔥 0.40x Salvage\` • \`💀 0.0x\` ⚡\n\n` +
+        `*Interactive 20-Button Board • 4-Stage Pneumatic Draw • Up to 120x (7/7 High Risk)*`
       )
-      .setImage('attachment://moonflip_keno_preview.gif')
-      .setFooter({ text: 'Moonflip Casino • Virtual Tokens Only' });
+      .setFooter({ text: 'Moonflip Casino • Interactive Multi-Risk Keno' });
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('keno_quick_5_100').setLabel('🎲 5 Picks (100 🪙)').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('keno_quick_5_250').setLabel('🎲 5 Picks (250 🪙)').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('keno_quick_3_100').setLabel('🎲 3 Picks (100 🪙)').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('keno_modal_btn').setLabel('⚙️ Custom Pick').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('keno_board_open').setLabel('🎛️ Interactive Board').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('keno_quick_5_100_medium').setLabel('🔥 5 Picks (100 🪙)').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('keno_quick_5_250_high').setLabel('💀 High Risk (250 🪙)').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('keno_modal_btn').setLabel('⚙️ Custom Setup').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('eco_balance').setLabel('💰 Balance').setStyle(ButtonStyle.Secondary)
     );
 
-    await kenoChan.send({ embeds: [embed], files: [kenoGif], components: [row] });
+    await kenoChan.send({ files: [kenoGif], embeds: [embed], components: [row] });
     console.log(`Deployed 20-Ball Keno panel in #${kenoChan.name}`);
   }
 
@@ -104,8 +114,7 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
   // 4. Coinflip Panel
   const coinChan = guild.channels.cache.find((c) => c.name.toLowerCase().includes('coinflip'));
   if (coinChan) {
-    const msgs = await coinChan.messages.fetch({ limit: 10 }).catch(() => []);
-    for (const [, m] of msgs) await m.delete().catch(() => {});
+    await clearRecentChannelMessages(coinChan);
 
     const coinGif = new AttachmentBuilder(getCoinflipAnimationGif('heads'), {
       name: 'moonflip_coinflip_preview.gif',
@@ -117,11 +126,10 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
       .setDescription(
         `> Pure 50/50 high-stakes duel! Watch the **gold coin snap off the thumb, climb to 100% apex altitude, spin end-over-end at 1,200 RPM**, wobble on its rim, and settle on the felt!\n\n` +
         `### 🪙 Game Highlights & Payouts:\n` +
-        `✦ **Winning Call**: **1.92x Instant Payout** *(4% House Edge)*\n` +
+        `✦ **Winning Call**: **1.92x Instant Payout** *(Provably Fair)*\n` +
         `✦ **5-Phase Flight Animation**: Launch ➔ Climb ➔ Apex Edge Glint ➔ Rim Wobble ➔ Settle\n` +
         `✦ **Hot Streak & 2x Double**: Track win streaks and double down in one click!`
       )
-      .setImage('attachment://moonflip_coinflip_preview.gif')
       .setFooter({ text: 'Moonflip Casino • Provably Fair 3D Coinflip' });
 
     const row = new ActionRowBuilder().addComponents(
@@ -132,15 +140,14 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
       new ButtonBuilder().setCustomId('eco_balance').setLabel('💰 Balance').setStyle(ButtonStyle.Secondary)
     );
 
-    await coinChan.send({ embeds: [embed], files: [coinGif], components: [row] });
+    await coinChan.send({ files: [coinGif], embeds: [embed], components: [row] });
     console.log(`Deployed Coinflip panel in #${coinChan.name}`);
   }
 
   // 5. Blackjack Panel
   const bjChan = guild.channels.cache.find((c) => c.name.toLowerCase().includes('blackjack'));
   if (bjChan) {
-    const msgs = await bjChan.messages.fetch({ limit: 10 }).catch(() => []);
-    for (const [, m] of msgs) await m.delete().catch(() => {});
+    await clearRecentChannelMessages(bjChan);
 
     const bjGif = new AttachmentBuilder(getBlackjackPreviewGif(), {
       name: 'moonflip_blackjack_preview.gif',
@@ -156,25 +163,24 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
         `✦ **Standard Win**: Pays **2.00x** • **Push (Tie)**: **1.00x** refund\n` +
         `✦ **Dealer Rule**: Dealer stands on 17 and hits on 16 or below.`
       )
-      .setImage('attachment://moonflip_blackjack_preview.gif')
       .setFooter({ text: 'Moonflip Casino • Virtual Tokens Only' });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('start_bj_100').setLabel('🃏 Deal Hand (100 🪙)').setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId('start_bj_500').setLabel('🃏 High Stakes (500 🪙)').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('bj_modal_btn').setLabel('⚙️ Custom Bet').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('eco_balance').setLabel('💰 Balance').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('eco_daily').setLabel('🎁 Daily (+500)').setStyle(ButtonStyle.Primary)
     );
 
-    await bjChan.send({ embeds: [embed], files: [bjGif], components: [row] });
+    await bjChan.send({ files: [bjGif], embeds: [embed], components: [row] });
     console.log(`Deployed Blackjack panel in #${bjChan.name}`);
   }
 
   // 6. Slots Panel
   const slotsChan = guild.channels.cache.find((c) => c.name.toLowerCase().includes('slots'));
   if (slotsChan) {
-    const msgs = await slotsChan.messages.fetch({ limit: 10 }).catch(() => []);
-    for (const [, m] of msgs) await m.delete().catch(() => {});
+    await clearRecentChannelMessages(slotsChan);
 
     const slotsGif = new AttachmentBuilder(
       generateSlotsAnimationGif(
@@ -198,9 +204,8 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
         `✦ 🍇 🍇 🍇 : **5.0x Royal Grapes** 🍇 *(Pair: 1.5x)*\n` +
         `✦ 🍒 🍒 🍒 : **3.0x Ruby Cherries** 🍒 *(Pair: 1.2x)*\n` +
         `✦ 🍋 🍋 🍋 : **2.0x Golden Lemon** 🍋 *(Pair: 1.1x)*\n\n` +
-        `*96% RTP • 5-Stage Sequential Reel Lock • Provably Fair Seed*`
+        `*Provably Fair Seed • 5-Stage Sequential Reel Lock*`
       )
-      .setImage('attachment://moonflip_slots_preview.gif')
       .setFooter({ text: 'Moonflip Casino • Provably Fair Las Vegas Slots' });
 
     const row = new ActionRowBuilder().addComponents(
@@ -211,76 +216,23 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
       new ButtonBuilder().setCustomId('eco_balance').setLabel('💰 Balance').setStyle(ButtonStyle.Secondary)
     );
 
-    await slotsChan.send({ embeds: [embed], files: [slotsGif], components: [row] });
+    await slotsChan.send({ files: [slotsGif], embeds: [embed], components: [row] });
     console.log(`Deployed Slots panel in #${slotsChan.name}`);
   }
 
-  // 7. Rules Channel Banner + Embeds (#rules)
+  // 7. Rules Channel Banner + Interactive Dropdown & Embed (#rules)
   const rulesCh = guild.channels.cache.find((c) => c.name.toLowerCase().includes('rules'));
   if (rulesCh) {
-    const msgs = await rulesCh.messages.fetch({ limit: 10 }).catch(() => []);
-    for (const [, m] of msgs) await m.delete().catch(() => {});
-
-    const rulesGif = new AttachmentBuilder(getRulesBannerGif(), {
-      name: 'moonflip_rules_banner.gif',
-    });
-
-    const embed = new EmbedBuilder()
-      .setColor(0xf1c40f)
-      .setTitle('🏆  MOONFLIP OFFICIAL RULES & PRIZE REDEMPTION')
-      .setDescription(
-        `> Welcome to **Moonflip**! 🌙🪙\n` +
-        `> Our community features provably fair virtual token games, leaderboards, and **promotional prize redemptions** (Crypto & Digital Gift Cards). All members must adhere to the official regulations below.\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-      )
-      .addFields(
-        {
-          name: '`[ 01 ]` 🪙 Virtual Tokens & Fair Acquisition',
-          value:
-            'Tokens are earned freely through daily claims, level-up rewards, community events, or official server channels. Tokens represent digital entertainment points and promotional entries.',
-        },
-        {
-          name: '`[ 02 ]` 🎁 Prize Redemptions (Crypto & Gift Cards)',
-          value:
-            'Eligible token balances can be redeemed for promotional rewards, including **cryptocurrency (USDT, LTC, BTC)** and **digital gift cards**, subject to security review and stock availability.',
-        },
-        {
-          name: '`[ 03 ]` 🔞 Strict 18+ Policy & Mandatory KYC',
-          value:
-            'All prize redemptions are strictly limited to members **18 years of age or older**. Staff reserves the right to request identity verification (KYC) prior to approving any payout.',
-        },
-        {
-          name: '`[ 04 ]` ⚖️ Anti-Money Laundering (AML) & Playthrough',
-          value:
-            'Acquired tokens cannot be immediately redeemed without gameplay. A mandatory **playthrough / turnover requirement** must be met in compliance with standard AML protections.',
-        },
-        {
-          name: '`[ 05 ]` 🚫 Multi-Accounting & Exploit Forfeiture',
-          value:
-            'Operating alt accounts, macros, auto-clickers, or exploiting system bugs is strictly prohibited and results in **immediate forfeiture of all balances and a permanent ban**.',
-        },
-        {
-          name: '`[ 06 ]` 🛡️ Anti-Scam & Official Support',
-          value:
-            'Moonflip Staff will **NEVER** DM you first offering prizes or asking for seed phrases/private keys. Always verify staff roles and use official server channels.',
-        }
-      )
-      .setImage('attachment://moonflip_rules_banner.gif')
-      .setFooter({
-        text: 'Moonflip Official Rules • 18+ Strictly Enforced • KYC & AML Protected',
-        iconURL: guild.iconURL() || undefined,
-      })
-      .setTimestamp();
-
-    await rulesCh.send({ embeds: [embed], files: [rulesGif] });
-    console.log(`Deployed Moonflip Rules banner & embed in #${rulesCh.name}`);
+    await clearRecentChannelMessages(rulesCh);
+    const rulesPayload = buildRulesChannelPayload(guild);
+    await rulesCh.send(rulesPayload);
+    console.log(`Deployed Moonflip Rules banner, embed & dropdown in #${rulesCh.name}`);
   }
 
   // 8. Verification Gateway Banner + Embed (#verify)
   const verifyCh = guild.channels.cache.find((c) => c.name.toLowerCase().includes('verify'));
   if (verifyCh) {
-    const msgs = await verifyCh.messages.fetch({ limit: 10 }).catch(() => []);
-    for (const [, m] of msgs) await m.delete().catch(() => {});
+    await clearRecentChannelMessages(verifyCh);
 
     const verifyGif = new AttachmentBuilder(getVerifyBannerGif(), {
       name: 'moonflip_verify_banner.gif',
@@ -300,7 +252,6 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
         `4️⃣ Click **✅ Verify Now & Unlock Moonflip** below to access all games and lounges!\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
       )
-      .setImage('attachment://moonflip_verify_banner.gif')
       .setFooter({
         text: 'Moonflip Security Gateway • Instant Role Assignment',
         iconURL: guild.iconURL() || undefined,
@@ -315,7 +266,51 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
         .setEmoji('✅')
     );
 
-    await verifyCh.send({ embeds: [embed], files: [verifyGif], components: [row] });
+    await verifyCh.send({ files: [verifyGif], embeds: [embed], components: [row] });
     console.log(`Deployed Moonflip Verify banner & embed in #${verifyCh.name}`);
+  }
+
+  // 9. Announcements Channel Banner + Embed (#announcements)
+  const announceCh = guild.channels.cache.find((c) => c.name.toLowerCase().includes('announcements'));
+  const ticketCh = guild.channels.cache.find((c) => c.name.toLowerCase().includes('create-ticket') || c.name.toLowerCase().includes('tickets'));
+  const loungeCh = guild.channels.cache.find((c) => c.name.toLowerCase().includes('lounge') && !c.name.toLowerCase().includes('vip') && !c.name.toLowerCase().includes('staff'));
+  if (announceCh) {
+    await clearRecentChannelMessages(announceCh);
+
+    const announceGif = new AttachmentBuilder(getAnnouncementsBannerGif(), {
+      name: 'moonflip_announcements_banner.gif',
+    });
+
+    const embed = new EmbedBuilder()
+      .setColor(0xf1c40f)
+      .setTitle('📢  WELCOME TO MOONFLIP — OFFICIAL ANNOUNCEMENTS')
+      .setDescription(
+        `> Welcome to the official **Moonflip** community! 🌙🪙\n` +
+        `> This channel is your primary broadcast hub for **platform updates, new game launches, token giveaways, leaderboard tournaments, and promotional reward events**.\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `### 🚀 GETTING STARTED ON MOONFLIP:\n` +
+        `✦ **Verify Your Account**: Unlock all channels in <#${verifyCh?.id || ''}>\n` +
+        `✦ **Official Regulations**: Review fair play & prize rules in <#${rulesCh?.id || ''}>\n` +
+        `✦ **Community Lounge**: Chat & earn XP in <#${loungeCh?.id || ''}>\n` +
+        `✦ **24/7 Support & Redemptions**: Open a ticket anytime in <#${ticketCh?.id || ''}>\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🔔 *Keep notifications enabled for this channel so you never miss a free token drop or event!*`
+      )
+      .setFooter({
+        text: 'Moonflip Official Broadcast • Stay Tuned for Events & Giveaways',
+        iconURL: guild.iconURL() || undefined,
+      })
+      .setTimestamp();
+
+    await announceCh.send({ files: [announceGif], embeds: [embed] });
+    console.log(`Deployed Moonflip Announcements banner & embed in #${announceCh.name}`);
+  }
+
+  // 10. Support Ticket Panel (#create-ticket)
+  try {
+    await setupTicketPanel(guild);
+    console.log('Deployed Moonflip Support Ticket banner & panel');
+  } catch (err) {
+    console.error('Error deploying ticket panel:', err.message);
   }
 }

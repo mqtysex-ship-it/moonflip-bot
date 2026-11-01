@@ -7,10 +7,12 @@ import {
   ButtonBuilder,
   ButtonStyle,
   AttachmentBuilder,
+  MessageFlags,
 } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getTicketBannerGif } from '../games/animator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -298,7 +300,11 @@ export async function setupTicketPanel(guild) {
     }
   }
 
-  await panelCh.send({ embeds: [embed], components: rows });
+  const ticketGif = new AttachmentBuilder(getTicketBannerGif(), {
+    name: 'moonflip_ticket_banner.gif',
+  });
+
+  await panelCh.send({ files: [ticketGif], embeds: [embed], components: rows });
   console.log(`Ticket panel successfully posted in #${panelCh.name}!`);
 
   return { supportCat, panelCh };
@@ -323,7 +329,7 @@ export async function handleTicketInteraction(interaction) {
         instructions: 'Please describe your inquiry in detail.',
       };
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       // Ensure roles & channels are in cache
       if (!guild.roles.cache || guild.roles.cache.size <= 1) {
@@ -494,6 +500,30 @@ export async function handleTicketInteraction(interaction) {
     data.activeTickets[ticketChannel.id].messageId = initialMsg.id;
     saveData(data);
 
+    // Notify Staff HQ (#🎁┃redemption-review for redemptions, #🔨┃mod-operations for general/wallet/bug)
+    try {
+      const targetStaffChName =
+        ticketConfig.prefix === 'redemption' ? 'redemption-review' : 'mod-operations';
+      const staffAlertCh = guild.channels.cache.find(
+        (c) => c.type === ChannelType.GuildText && c.name.includes(targetStaffChName)
+      );
+      if (staffAlertCh) {
+        const alertEmbed = new EmbedBuilder()
+          .setColor(ticketConfig.color || 0xf1c40f)
+          .setTitle(`🔔  NEW TICKET OPENED — #${ticketNum}`)
+          .setDescription(
+            `> A new **${ticketConfig.title}** ticket requires staff attention.\n\n` +
+            `✦ **Member**: <@${user.id}> (\`${user.tag || user.username}\`)\n` +
+            `✦ **Channel**: <#${ticketChannel.id}>\n` +
+            `✦ **Department**: \`${ticketConfig.title}\``
+          )
+          .setTimestamp();
+        await staffAlertCh.send({ embeds: [alertEmbed] }).catch(() => {});
+      }
+    } catch {
+      // Ignore notification error
+    }
+
     return interaction.editReply({
       content: `✅ **Ticket Opened!** Your private support room has been created: <#${ticketChannel.id}>`,
     });
@@ -504,7 +534,7 @@ export async function handleTicketInteraction(interaction) {
     if (!isStaffMember(member)) {
       return interaction.reply({
         content: '⛔ **Access Denied**: Only server staff and moderators can claim support tickets.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -514,14 +544,14 @@ export async function handleTicketInteraction(interaction) {
     if (!ticket) {
       return interaction.reply({
         content: '⚠️ This channel is not registered as an active ticket.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     if (ticket.claimedBy) {
       return interaction.reply({
         content: `⚠️ This ticket has already been claimed by <@${ticket.claimedBy}>.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -574,7 +604,7 @@ export async function handleTicketInteraction(interaction) {
 
     return interaction.reply({
       content: '✅ You have claimed this ticket!',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -590,7 +620,7 @@ export async function handleTicketInteraction(interaction) {
     if (!isOwner && !isStaff) {
       return interaction.reply({
         content: '⛔ You do not have permission to close this ticket.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -618,7 +648,7 @@ export async function handleTicketInteraction(interaction) {
     await interaction.message.delete().catch(() => {});
     return interaction.reply({
       content: '✅ Ticket close cancelled.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -657,6 +687,38 @@ export async function handleTicketInteraction(interaction) {
       } catch {
         // User may have DMs disabled, ignore silently
       }
+    }
+
+    // Also archive transcript to Staff HQ (#🎁┃redemption-review or #🔨┃mod-operations)
+    try {
+      const logChKeyword =
+        ticket?.type === 'redemption' ? 'redemption-review' : 'mod-operations';
+      const staffLogCh = guild.channels.cache.find(
+        (c) => c.type === ChannelType.GuildText && c.name.includes(logChKeyword)
+      );
+      if (staffLogCh) {
+        const logEmbed = new EmbedBuilder()
+          .setColor(0x95a5a6)
+          .setTitle(`🔒  TICKET ARCHIVED — #${ticket?.id || 'Support'}`)
+          .addFields(
+            { name: '👤 Member', value: ticket?.userId ? `<@${ticket.userId}>` : 'Unknown', inline: true },
+            { name: '📂 Department', value: `\`${ticket?.title || 'Support'}\``, inline: true },
+            { name: '🙋‍♂️ Claimed By', value: ticket?.claimedBy ? `<@${ticket.claimedBy}>` : '`Unclaimed`', inline: true },
+            { name: '🔒 Closed By', value: `<@${user.id}>`, inline: true }
+          )
+          .setFooter({ text: 'Moonflip Staff HQ Archive' })
+          .setTimestamp();
+
+        const staffAttachment = await generateTranscriptFile(interaction.channel, ticket);
+        await staffLogCh
+          .send({
+            embeds: [logEmbed],
+            files: staffAttachment ? [staffAttachment] : [],
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // Ignore archive error
     }
 
     // Clean from active data
@@ -700,7 +762,7 @@ export async function handleTicketInteraction(interaction) {
     const replyFn = interaction.replied || interaction.deferred ? 'editReply' : 'reply';
     return interaction[replyFn]({
       content: `⚠️ Failed to process ticket action: ${err.message}`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     }).catch(() => {});
   }
 }
