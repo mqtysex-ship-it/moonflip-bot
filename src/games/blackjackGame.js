@@ -127,20 +127,36 @@ export async function showBlackjackModal(interaction) {
 }
 
 function buildReplayRow(betAmount) {
-  const doubleBet = Math.min(50000, betAmount * 2);
-  return new ActionRowBuilder().addComponents(
+  const cleanBet = Math.min(50000, Math.max(10, betAmount));
+  const doubleBet = Math.min(50000, cleanBet * 2);
+  const highBet = cleanBet >= 1000 ? 5000 : cleanBet >= 250 ? 1000 : 500;
+
+  const rowButtons = [
     new ButtonBuilder()
-      .setCustomId(`start_bj_${betAmount}`)
-      .setLabel(`🃏 Deal Again (${betAmount.toLocaleString()} 🪙)`)
+      .setCustomId(`start_bj_${cleanBet}`)
+      .setLabel(`🃏 Deal Again (${cleanBet.toLocaleString()} 🪙)`)
       .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId(`start_bj_${doubleBet}`)
-      .setLabel(`⚡ 2x (${doubleBet.toLocaleString()} 🪙)`)
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('start_bj_500')
-      .setLabel('🔥 High Stakes (500 🪙)')
-      .setStyle(ButtonStyle.Danger),
+  ];
+
+  if (doubleBet !== cleanBet) {
+    rowButtons.push(
+      new ButtonBuilder()
+        .setCustomId(`start_bj_${doubleBet}`)
+        .setLabel(`⚡ 2x (${doubleBet.toLocaleString()} 🪙)`)
+        .setStyle(ButtonStyle.Primary)
+    );
+  }
+
+  if (highBet !== cleanBet && highBet !== doubleBet) {
+    rowButtons.push(
+      new ButtonBuilder()
+        .setCustomId(`start_bj_${highBet}`)
+        .setLabel(`🔥 High Stakes (${highBet.toLocaleString()} 🪙)`)
+        .setStyle(ButtonStyle.Danger)
+    );
+  }
+
+  rowButtons.push(
     new ButtonBuilder()
       .setCustomId('bj_modal_btn')
       .setLabel('⚙️ Custom Bet')
@@ -150,6 +166,16 @@ function buildReplayRow(betAmount) {
       .setLabel('💰 Balance')
       .setStyle(ButtonStyle.Secondary)
   );
+
+  const seenIds = new Set();
+  const safeButtons = rowButtons.filter((btn) => {
+    const id = btn.data.custom_id;
+    if (seenIds.has(id)) return false;
+    seenIds.add(id);
+    return true;
+  }).slice(0, 5);
+
+  return new ActionRowBuilder().addComponents(safeButtons);
 }
 
 function buildActiveRow(state) {

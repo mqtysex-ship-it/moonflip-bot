@@ -18,7 +18,7 @@ process.on('unhandledRejection', (reason) => {
 function startProcess() {
   console.log('[Daemon Runner] Launching Discord Bot process...');
   const child = spawn(process.execPath, [indexPath], {
-    stdio: 'inherit',
+    stdio: ['pipe', 'inherit', 'inherit'],
     cwd: path.resolve(__dirname, '..'),
   });
 

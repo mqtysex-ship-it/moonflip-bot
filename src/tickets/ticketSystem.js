@@ -741,7 +741,7 @@ export async function handleTicketInteraction(interaction) {
 
   // 6. Generate Transcript on Demand
   if (customId === 'ticket_action_transcript') {
-    await interaction.deferReply({ ephemeral: false });
+    await interaction.deferReply();
 
     const data = loadData();
     const ticket = data.activeTickets[interaction.channelId];

@@ -272,7 +272,7 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
 
     const doubleBet = Math.min(50000, cleanBet * 2);
 
-    const controlRow = new ActionRowBuilder().addComponents(
+    const controlButtons = [
       new ButtonBuilder()
         .setCustomId(`flip_heads_${cleanBet}`)
         .setLabel(`🪙 Heads (${cleanBet.toLocaleString()} 🪙)`)
@@ -281,10 +281,18 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
         .setCustomId(`flip_tails_${cleanBet}`)
         .setLabel(`🦅 Tails (${cleanBet.toLocaleString()} 🪙)`)
         .setStyle(normalizedChoice === 'tails' ? ButtonStyle.Success : ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`flip_${normalizedChoice}_${doubleBet}`)
-        .setLabel(`⚡ 2x (${doubleBet.toLocaleString()} 🪙)`)
-        .setStyle(ButtonStyle.Danger),
+    ];
+
+    if (doubleBet !== cleanBet) {
+      controlButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`flip_${normalizedChoice}_${doubleBet}`)
+          .setLabel(`⚡ 2x (${doubleBet.toLocaleString()} 🪙)`)
+          .setStyle(ButtonStyle.Danger)
+      );
+    }
+
+    controlButtons.push(
       new ButtonBuilder()
         .setCustomId('coinflip_modal_btn')
         .setLabel('⚙️ Custom Bet')
@@ -294,6 +302,16 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
         .setLabel('💰 Balance')
         .setStyle(ButtonStyle.Secondary)
     );
+
+    const seenIds = new Set();
+    const safeButtons = controlButtons.filter((btn) => {
+      const id = btn.data.custom_id;
+      if (seenIds.has(id)) return false;
+      seenIds.add(id);
+      return true;
+    }).slice(0, 5);
+
+    const controlRow = new ActionRowBuilder().addComponents(safeButtons);
 
     return await interaction
       .editReply({ embeds: [finalEmbed], components: [controlRow] })

@@ -173,19 +173,32 @@ export function render5x5Board(
     const nextBombs =
       curBombIdx !== -1 ? BOMB_CYCLE[(curBombIdx + 1) % BOMB_CYCLE.length] : 5;
 
-    const replayRow = new ActionRowBuilder().addComponents(
+    const replayButtons = [
       new ButtonBuilder()
         .setCustomId(`start_m5_${state.betAmount}_${state.bombs}`)
         .setLabel(`🔄 Play Again (${state.betAmount.toLocaleString()} 🪙 • ${state.bombs}💣)`)
         .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId(`start_m5_${doubleBet}_${state.bombs}`)
-        .setLabel(`⚡ 2x (${doubleBet.toLocaleString()} 🪙)`)
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`start_m5_${state.betAmount}_${nextBombs}`)
-        .setLabel(`💣 ${nextBombs} Bombs`)
-        .setStyle(ButtonStyle.Danger),
+    ];
+
+    if (doubleBet !== state.betAmount) {
+      replayButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`start_m5_${doubleBet}_${state.bombs}`)
+          .setLabel(`⚡ 2x (${doubleBet.toLocaleString()} 🪙)`)
+          .setStyle(ButtonStyle.Primary)
+      );
+    }
+
+    if (nextBombs !== state.bombs) {
+      replayButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`start_m5_${state.betAmount}_${nextBombs}`)
+          .setLabel(`💣 ${nextBombs} Bombs`)
+          .setStyle(ButtonStyle.Danger)
+      );
+    }
+
+    replayButtons.push(
       new ButtonBuilder()
         .setCustomId('mines_setup_modal')
         .setLabel('⚙️ Custom')
@@ -195,6 +208,16 @@ export function render5x5Board(
         .setLabel('💰 Balance')
         .setStyle(ButtonStyle.Secondary)
     );
+
+    const seenIds = new Set();
+    const safeButtons = replayButtons.filter((btn) => {
+      const id = btn.data.custom_id;
+      if (seenIds.has(id)) return false;
+      seenIds.add(id);
+      return true;
+    }).slice(0, 5);
+
+    const replayRow = new ActionRowBuilder().addComponents(safeButtons);
 
     return { embed, components: [replayRow] };
   }

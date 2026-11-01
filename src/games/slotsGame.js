@@ -308,20 +308,34 @@ export async function playSlots(interaction, betAmount = 100) {
       .setTimestamp();
 
     const doubleBet = Math.min(50000, cleanBet * 2);
+    const highBet = cleanBet >= 1000 ? 5000 : cleanBet >= 250 ? 1000 : 500;
 
-    const controlRow = new ActionRowBuilder().addComponents(
+    const rowButtons = [
       new ButtonBuilder()
         .setCustomId(`slots_spin_${cleanBet}`)
         .setLabel(`🎰 Spin (${cleanBet.toLocaleString()} 🪙)`)
         .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId(`slots_spin_${doubleBet}`)
-        .setLabel(`⚡ 2x (${doubleBet.toLocaleString()} 🪙)`)
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId('slots_spin_500')
-        .setLabel('🔥 High Roller (500 🪙)')
-        .setStyle(ButtonStyle.Danger),
+    ];
+
+    if (doubleBet !== cleanBet) {
+      rowButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`slots_spin_${doubleBet}`)
+          .setLabel(`⚡ 2x (${doubleBet.toLocaleString()} 🪙)`)
+          .setStyle(ButtonStyle.Primary)
+      );
+    }
+
+    if (highBet !== cleanBet && highBet !== doubleBet) {
+      rowButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`slots_spin_${highBet}`)
+          .setLabel(`🔥 High Roller (${highBet.toLocaleString()} 🪙)`)
+          .setStyle(ButtonStyle.Danger)
+      );
+    }
+
+    rowButtons.push(
       new ButtonBuilder()
         .setCustomId('slots_modal_btn')
         .setLabel('⚙️ Custom Bet')
@@ -331,6 +345,16 @@ export async function playSlots(interaction, betAmount = 100) {
         .setLabel('💰 Balance')
         .setStyle(ButtonStyle.Secondary)
     );
+
+    const seenIds = new Set();
+    const safeButtons = rowButtons.filter((btn) => {
+      const id = btn.data.custom_id;
+      if (seenIds.has(id)) return false;
+      seenIds.add(id);
+      return true;
+    }).slice(0, 5);
+
+    const controlRow = new ActionRowBuilder().addComponents(safeButtons);
 
     return await interaction
       .editReply({ embeds: [finalEmbed], components: [controlRow] })

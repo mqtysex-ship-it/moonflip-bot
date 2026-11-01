@@ -373,30 +373,46 @@ function buildReplayActionRow(state) {
   const autoTarget = state.autoCashout || 2.0;
   const autoCode = Math.round(autoTarget * 100);
 
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`crash_bet_${bet}`)
-        .setLabel(`🚀 Fly Again (${bet.toLocaleString()} 🪙)`)
-        .setStyle(ButtonStyle.Success),
+  const replayButtons = [
+    new ButtonBuilder()
+      .setCustomId(`crash_bet_${bet}`)
+      .setLabel(`🚀 Fly Again (${bet.toLocaleString()} 🪙)`)
+      .setStyle(ButtonStyle.Success),
+  ];
+
+  if (doubleBet !== bet) {
+    replayButtons.push(
       new ButtonBuilder()
         .setCustomId(`crash_bet_${doubleBet}`)
         .setLabel(`⚡ 2x (${doubleBet.toLocaleString()} 🪙)`)
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`crash_quickauto_${bet}_${autoCode}`)
-        .setLabel(`🎯 ${bet.toLocaleString()} 🪙 @ ${autoTarget.toFixed(1)}x`)
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId('crash_modal_btn')
-        .setLabel('⚙️ Custom / Auto')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('eco_balance')
-        .setLabel('💰 Balance')
-        .setStyle(ButtonStyle.Secondary)
-    ),
-  ];
+        .setStyle(ButtonStyle.Primary)
+    );
+  }
+
+  replayButtons.push(
+    new ButtonBuilder()
+      .setCustomId(`crash_quickauto_${bet}_${autoCode}`)
+      .setLabel(`🎯 ${bet.toLocaleString()} 🪙 @ ${autoTarget.toFixed(1)}x`)
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId('crash_modal_btn')
+      .setLabel('⚙️ Custom / Auto')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('eco_balance')
+      .setLabel('💰 Balance')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const seenIds = new Set();
+  const safeButtons = replayButtons.filter((btn) => {
+    const id = btn.data.custom_id;
+    if (seenIds.has(id)) return false;
+    seenIds.add(id);
+    return true;
+  }).slice(0, 5);
+
+  return [new ActionRowBuilder().addComponents(safeButtons)];
 }
 
 /**
