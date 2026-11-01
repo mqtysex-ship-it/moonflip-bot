@@ -44,35 +44,37 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
     });
 
     const embed = new EmbedBuilder()
-      .setColor(0x2ecc71)
-      .setTitle('💣  MOONFLIP 5x5 MINES — HIGH-STAKES GRID')
+      .setColor(0x00f0ff)
+      .setTitle('💣  MOONFLIP 5x5 MINES — WEB ARÉNA')
       .setDescription(
-        `> Step onto the **Moonflip 5x5 Grid (25 tiles)** and uncover sparkling cyan diamonds while dodging hidden explosives! Every gem multiplies your payout.\n\n` +
-        `### 🎮 How to Play:\n` +
-        `1️⃣ Choose a quick-play preset below or click **⚙️ Custom Game** to set any wager & bomb count (1–24 mines).\n` +
-        `2️⃣ Click any tile on the 5x5 grid to reveal either a 💎 **Gem** or 💣 **Bomb**.\n` +
-        `3️⃣ Hit **💰 Cash Out** anytime to lock in your multiplied profits!\n\n` +
-        `*Provably Fair Seed • Full 5x5 Grid (25 Tiles)*`
+        `> **Naše nejoblíbenější hra se hraje výhradně v interaktivní Web Aréně!** 💎💣\n` +
+        `> Zažijte skutečné 3D otáčení dlaždic, zvuky drahokamů a bomb, okamžitý výběr zisku a bleskovou odezvu bez lagů ve stylu Stake.com / Rainbet.\n\n` +
+        `### 🚀 Jak jednoduše hrát (4 snadné kroky):\n` +
+        `1️⃣ **Klikněte na zelené tlačítko** ➔ \`🚀 Spustit Web Arénu\` níže (nebo napište \`/play\`).\n` +
+        `2️⃣ **Žádná registrace ani hesla** ➔ Web se otevře v prohlížeči (na PC i mobilu) a jste **automaticky přihlášeni** se svým Discord účtem a svými tokeny.\n` +
+        `3️⃣ **Klikáte přímo na herní pole** ➔ Hledejte diamanty, vyhýbejte se minám a sledujte stoupající násobitel.\n` +
+        `4️⃣ **Kdykoliv vyberte zisk** ➔ Tlačítkem **CASH OUT** okamžitě připíšete výhru do své Discord peněženky (\`/balance\`).\n\n` +
+        `*Provably Fair • Automatické propojení s Discordem • Podpora PC & Mobil*`
       )
-      .setFooter({ text: 'Moonflip Casino • Virtual Tokens Only' });
+      .setFooter({ text: 'Moonflip Casino • Web Arena Exclusive • 18+ Only' });
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('start_m5_100_3').setLabel('💣 100 🪙 (3 Bombs)').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('start_m5_250_5').setLabel('💣 250 🪙 (5 Bombs)').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('start_m5_500_3').setLabel('🔥 500 🪙 (3 Bombs)').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('mines_setup_modal').setLabel('⚙️ Custom Game').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('eco_balance').setLabel('💰 Balance').setStyle(ButtonStyle.Secondary)
-    );
-
-    const webRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('launch_web_arena')
-        .setLabel('🎮 Launch Web Arena (Real-time 3D Board)')
-        .setStyle(ButtonStyle.Success)
+        .setLabel('🚀 Spustit Web Arénu (5x5 Mines)')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('eco_balance')
+        .setLabel('💰 Zkontrolovat zůstatek')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('eco_daily')
+        .setLabel('🎁 Denní odměna (+500)')
+        .setStyle(ButtonStyle.Secondary)
     );
 
-    await minesChan.send({ files: [minesGif], embeds: [embed], components: [row, webRow] });
-    console.log(`Deployed 5x5 Mines panel in #${minesChan.name}`);
+    await minesChan.send({ files: [minesGif], embeds: [embed], components: [row] });
+    console.log(`Deployed 5x5 Mines Web Arena panel in #${minesChan.name}`);
   }
 
   // 2. Keno Panel (20-Ball Multi-Risk Lottery)

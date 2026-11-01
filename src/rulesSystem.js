@@ -14,6 +14,24 @@ import { getRulesBannerGif } from './games/animator.js';
  * Detailed Rainbet / Clash.gg style Compliance & Terms sections for the interactive dropdown.
  */
 export const RULES_SECTIONS = {
+  web_arena: {
+    color: 0x00f0ff,
+    title: '🎮  SEKCE 0 — JAK FUNGUJE WEBOVÁ ARÉNA & HRANÍ HER',
+    description:
+      `> **Hry jako 5x5 Mines se nyní hrají výhradně v naší Web Aréně!** 💎💣\n` +
+      `> Žádná padající tlačítka v Discordu a žádné lagy – rychlý, plynulý 3D zážitek ve stylu Stake.com.\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `### ⚡ Jak to jednoduše funguje? (4 snadné kroky):\n` +
+      `1️⃣ **Spuštění**: V kanálu <#mines> klikněte na **🚀 Spustit Web Arénu** nebo kdekoliv napište příkaz \`/play\`.\n` +
+      `2️⃣ **Žádná registrace ani hesla**: Web se otevře ve vašem prohlížeči (na PC i mobilu) a vy jste **automaticky přihlášeni** se svým Discord účtem a svými tokeny.\n` +
+      `3️⃣ **Interaktivní 3D herní pole**: Klikáte přímo na políčka, otáčejí se ve 3D a slyšíte reálné zvuky (diamanty, exploze). Kdykoliv můžete kliknout na zelené tlačítko **CASH OUT** a vybrat zisk.\n` +
+      `4️⃣ **Okamžitá výplata do Discordu**: Vyhrané tokeny se ihned připisují na váš Discord profil a stav můžete kdykoliv ověřit příkazem \`/balance\`.\n\n` +
+      `### 🔍 Exploration Mode (Zvědavost po výhře):\n` +
+      `✦ Po vybrání výhry (Cash Out) zůstává deska aktivní – můžete si pro zajímavost doklikat zbylá pole a zjistit, kde přesně miny číhaly, aniž byste riskovali své tokeny!\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    footer: 'Moonflip Gaming • Web Aréna & Pravidla her',
+  },
+
   age_kyc: {
     color: 0xe74c3c,
     title: '🔞  SECTION 1 — AGE ELIGIBILITY (18+), KYC TIERS & ACCOUNT HOLDS',
@@ -150,52 +168,47 @@ export function buildRulesChannelPayload(guild) {
   // Main sleek overview embed (Rainbet / Clash.gg aesthetic)
   const mainEmbed = new EmbedBuilder()
     .setColor(0xf1c40f)
-    .setTitle('📜  MOONFLIP — OFFICIAL TERMS OF SERVICE & HOUSE RULES')
+    .setTitle('📜  MOONFLIP — PRAVIDLA SERVERU & JAK HRÁT')
     .setDescription(
-      `> Welcome to **${guild.name}**! 🌙🪙\n` +
-      `> By verifying your account, chatting, or participating in any **Moonflip** games and promotional prize redemptions, you legally bind yourself to our **Terms of Service, AML Policy, and Community Code of Conduct**.\n` +
-      `> *Use the **interactive dropdown menu below** to inspect detailed compliance clauses.*\n\n` +
+      `> Vítejte na serveru **${guild.name}**! 🌙🪙\n` +
+      `> Všechny naše hry běží na transparentním a férovém systému (**Provably Fair**). Aby bylo hraní zábavné, bezpečné a srozumitelné pro všechny, shrnuli jsme nejdůležitější pravidla do 5 jasných bodů.\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
     )
     .addFields(
       {
-        name: '`[ §1 ]` 🔞 Strict 18+ Age Policy & Underage Funds Hold',
+        name: '🎮 1. Hraní her — Výhradně ve Web Aréně (/play)',
         value:
-          '> Participation is strictly restricted to individuals **18 years of age or older**.\n' +
-          '> ⚠️ **Underage Clause**: If an account holder is discovered to be **underage (<18)** or fails age verification, **the account will be immediately locked and all balances, tokens, and pending redemptions will be permanently held and forfeited**.',
+          '> Hry jako **5x5 Mines** se hrají výhradně v naší **Webové Aréně** (žádné mačkání desítek nepřehledných tlačítek v chatu Discordu).\n' +
+          '> ✦ **Automatické přihlášení:** Stačí kliknout na **🚀 Spustit Web Arénu** (nebo `/play`). Nemusíte zadávat žádná hesla ani se registrovat – web se ihned propojí s vaší Discord peněženkou.\n' +
+          '> ✦ **Okamžitá synchronizace:** Všechny sázky i výhry se v reálném čase připisují do vašeho `/balance`.',
       },
       {
-        name: '`[ §2 ]` 🪪 Mandatory KYC Verification & Identity Audits',
+        name: '🔞 2. Věková hranice (18+ Only)',
         value:
-          '> Moonflip Compliance reserves the absolute right to request **KYC Identity Verification** (Government ID + live selfie) prior to processing any crypto or gift card redemption.\n' +
-          '> Submitting falsified, edited, or third-party documents results in an **immediate permanent ban and balance seizure**.',
+          '> Hraní, soutěže a výběry odměn jsou povoleny **výhradně osobám starším 18 let**.\n' +
+          '> Pokud je zjištěn nezletilý uživatel, účet je okamžitě uzamčen a virtuální zůstatky propadají.',
       },
       {
-        name: '`[ §3 ]` ⚖️ AML Playthrough Turnover & Anti-Abuse',
+        name: '⚖️ 3. Férová hra & Zákaz multi-accountingu',
         value:
-          '> To comply with **Anti-Money Laundering (AML)** standards, acquired tokens require a **1x active wager turnover** (and **3x–5x** on promotional/bonus tokens) before redemption.\n' +
-          '> Opposite-betting, low-risk wash wagering (`1.01x` farming), or token cycling via `/pay` will trigger an **automatic redemption hold**.',
+          '> Přísně **1 účet na osobu a domácnost**. Zákaz zakládání alt účtů na farmení `/daily` či giveawayů.\n' +
+          '> Přísný zákaz používání botů, autoclickerů a exploitů. Výsledky her určuje kryptografický RNG.',
       },
       {
-        name: '`[ §4 ]` 🚫 Multi-Accounting, Alt Farming & Bug Exploits',
+        name: '🎁 4. Výběry odměn & Zákaz RMT',
         value:
-          '> Strictly **one (1) account per person, household, and IP**. Creating alts to farm `/daily`, giveaways, or rakeback, or using macros/scripts/exploits will result in **all linked accounts being permanently banned and 100% of funds confiscated**.',
+          `> Žádosti o výběry odměn (Krypto, dárkové karty) se provádějí přes oficiální <#${ticketCh?.id || 'tickety'}>.\n` +
+          '> Přísný zákaz prodeje tokenů nebo účtů za reálné peníze (RMT) mezi hráči.',
       },
       {
-        name: '`[ §5 ]` 🎁 Prize Redemptions, Finality & RMT Ban',
+        name: '💬 5. Komunita & Bezpečnost',
         value:
-          `> Redemptions (**USDT, LTC, BTC & Gift Cards**) are audited and processed via <#${ticketCh?.id || 'tickets'}> within **1–24h** (up to 72h for compliance reviews). On-chain crypto payouts are **100% final and irreversible**.\n` +
-          '> **Real-Money Trading (RMT)** between players is strictly prohibited.',
-      },
-      {
-        name: '`[ §6 ]` 💬 Community Etiquette & Anti-Scam Security',
-        value:
-          '> **Zero begging** for tokens/tips, zero toxicity, and zero external referral links.\n' +
-          '> 🛡️ **Security**: Moonflip Staff will **NEVER** DM you first or ask for your wallet seed phrase / private keys.',
+          '> Zákaz žebrání o tokeny, nulová toxicita a zákaz posílání externích reklamních odkazů.\n' +
+          '> 🛡️ **Pozor:** Admini vám **NIKDY nebudou psát první do DM** s žádostí o hesla či privátní klíče.',
       }
     )
     .setFooter({
-      text: 'Moonflip Compliance & Terms of Service • 18+ Only • Select a topic below for full legal clauses',
+      text: 'Moonflip Pravidla • 18+ • Pro podrobnosti rozklikněte menu níže',
       iconURL: guild.iconURL() || undefined,
     })
     .setTimestamp();
@@ -203,36 +216,41 @@ export function buildRulesChannelPayload(guild) {
   // Interactive Dropdown Menu (StringSelectMenu)
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('rules_topic_select')
-    .setPlaceholder('📂 Inspect Detailed Rulebook & Compliance Clauses...')
+    .setPlaceholder('📂 Vyberte téma pravidel nebo návod ke hraní...')
     .addOptions(
       new StringSelectMenuOptionBuilder()
-        .setLabel('1. 18+ Age Policy, KYC Tiers & Underage Funds Hold')
-        .setDescription('What happens if you are under 18, KYC checks, and account holds')
+        .setLabel('0. Jak funguje hraní ve Web Aréně (/play)')
+        .setDescription('Návod na hraní 5x5 Mines, automatické přihlášení a synchronizace')
+        .setValue('web_arena')
+        .setEmoji('🎮'),
+      new StringSelectMenuOptionBuilder()
+        .setLabel('1. Pravidla 18+, Ověření věku & KYC')
+        .setDescription('Věková způsobilost a postup při ověření identity')
         .setValue('age_kyc')
         .setEmoji('🔞'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('2. AML Compliance, Playthrough & Opposite Betting')
-        .setDescription('Mandatory wager turnover (1x–3x) and prohibited wash betting')
+        .setLabel('2. AML, Obrat sázek & Férová hra')
+        .setDescription('Podmínky protočení tokenů a zákaz wash-bettingu')
         .setValue('aml_turnover')
         .setEmoji('⚖️'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('3. Multi-Accounting, Sybil Farming & Bug Exploits')
-        .setDescription('Household/IP limits, alt detection, macros, and balance confiscation')
+        .setLabel('3. Zákaz multi-účtů, Botů a Exploitů')
+        .setDescription('Pravidlo 1 účtu, detekce altů a sankce')
         .setValue('multi_account')
         .setEmoji('🚫'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('4. Crypto & Gift Card Redemptions, Audits & Fees')
-        .setDescription('Payout windows, gas fees, blockchain finality, and pre-payout audits')
+        .setLabel('4. Výběry odměn, Krypto & Dárkové karty')
+        .setDescription('Zpracování výplat, blockchain a tickety')
         .setValue('redemptions')
         .setEmoji('🎁'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('5. Chat Etiquette, No-Begging, RMT & Scam Defense')
-        .setDescription('Community chat rules, RMT prohibition, and staff impersonation defense')
+        .setLabel('5. Chování v chatu, Zákaz žebrání & RMT')
+        .setDescription('Pravidla komunity a ochrana před podvodníky')
         .setValue('chat_scam')
         .setEmoji('💬'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('6. Enforcement & Penalty Matrix (Full Table)')
-        .setDescription('Complete overview of infractions, account holds, and penalties')
+        .setLabel('6. Matice trestů a sankcí')
+        .setDescription('Přehled prohřešků a postihů')
         .setValue('matrix')
         .setEmoji('🛡️')
     );
@@ -242,31 +260,23 @@ export function buildRulesChannelPayload(guild) {
   // Quick-Action Interactive Buttons below Dropdown
   const rowButtons = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('rules_btn_kyc_faq')
-      .setLabel('🔞 Underage & KYC Hold Policy')
-      .setStyle(ButtonStyle.Danger),
+      .setCustomId('launch_web_arena')
+      .setLabel('🚀 Spustit Web Arénu')
+      .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId('rules_btn_provably_fair')
-      .setLabel('🎲 Provably Fair & House Odds')
+      .setCustomId('rules_btn_web_guide')
+      .setLabel('🎮 Jak hrát (Návod)')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId('rules_btn_matrix')
-      .setLabel('⚖️ Penalty Matrix')
+      .setCustomId('rules_btn_provably_fair')
+      .setLabel('🎲 Provably Fair')
       .setStyle(ButtonStyle.Secondary)
   );
 
-  if (verifyCh) {
-    rowButtons.addComponents(
-      new ButtonBuilder()
-        .setLabel('⚡ Verify Account')
-        .setStyle(ButtonStyle.Link)
-        .setURL(`https://discord.com/channels/${guild.id}/${verifyCh.id}`)
-    );
-  }
   if (ticketCh) {
     rowButtons.addComponents(
       new ButtonBuilder()
-        .setLabel('🎫 Support Desk')
+        .setLabel('🎫 Podpora')
         .setStyle(ButtonStyle.Link)
         .setURL(`https://discord.com/channels/${guild.id}/${ticketCh.id}`)
     );
@@ -303,6 +313,21 @@ export async function handleRulesInteraction(interaction) {
 
   // 2. Quick-Info Buttons
   if (interaction.isButton()) {
+    if (interaction.customId === 'rules_btn_web_guide') {
+      const section = RULES_SECTIONS.web_arena;
+      const embed = new EmbedBuilder()
+        .setColor(section.color)
+        .setTitle(section.title)
+        .setDescription(section.description)
+        .setFooter({ text: section.footer })
+        .setTimestamp();
+
+      return interaction.reply({
+        embeds: [embed],
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
     if (interaction.customId === 'rules_btn_kyc_faq') {
       const section = RULES_SECTIONS.age_kyc;
       const embed = new EmbedBuilder()

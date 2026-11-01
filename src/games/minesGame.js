@@ -11,6 +11,7 @@ import {
 import { generateMinesBombs, calculateMinesMultiplier, secureRandomFloat, secureRandomInt } from './rng.js';
 import { getBalance, deductTokens, addTokens } from './economy.js';
 import { buildMinesAttachment } from '../canvas/gameCardRenderer.js';
+import { createWebPlaySession, getPublicBaseUrl } from '../web/playApi.js';
 
 export const activeMinesGames = new Map();
 
@@ -342,293 +343,60 @@ export function render5x5Board(
 }
 
 /**
- * Starts a 5x5 Mines game in a single ephemeral message (or updates in-place on replay).
+ * Launches the 5x5 Mines Web Arena.
+ * Mines is now played exclusively in the Web Arena for optimal 3D real-time performance.
  */
-export async function start5x5Mines(interaction, betAmount = 100, bombs = DEFAULT_BOMBS) {
-  const userId = interaction.user.id;
+export async function start5x5Mines(interaction) {
+  const token = createWebPlaySession(interaction.user);
+  const baseUrl = getPublicBaseUrl(interaction);
+  const playUrl = `${baseUrl}/play?token=${token}`;
+  const balance = getBalance(interaction.user.id);
 
-  if (processingMinesUsers.has(userId)) {
-    return interaction.deferUpdate().catch(() => {});
+  const embed = new EmbedBuilder()
+    .setColor(0x00f0ff)
+    .setTitle('🎮  MOONFLIP 5x5 MINES — WEB ARÉNA')
+    .setDescription(
+      `> **Hra 5x5 Mines se nyní hraje výhradně v naší Web Aréně!** 💎💣\n\n` +
+      `Žádné klikání na desítky tlačítek v Discord chatu a žádné lagy – plně interaktivní 3D herní pole ve stylu Stake.com / Rainbet s reálnými zvuky a bleskovou odezvou.\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `👤 **Hráč**: <@${interaction.user.id}>\n` +
+      `🪙 **Váš zůstatek**: \`${balance.toLocaleString()} 🪙\`\n` +
+      `⚡ **Funkce**: 3D animace • Zvuky diamantů a bomb • Reálné klikání • Okamžitý Cash Out\n` +
+      `🔒 **Přihlášení**: Automatické bez hesel (propojeno s Discordem)\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `👉 **Klikněte na zelené tlačítko níže a spusťte arénu v prohlížeči!**`
+    )
+    .setThumbnail('https://cdn-icons-png.flaticon.com/512/1055/1055687.png')
+    .setFooter({ text: 'Moonflip Web Arena • Synchronizováno s Discord peněženkou' })
+    .setTimestamp();
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel('🚀 Spustit 5x5 Mines ve Web Aréně')
+      .setStyle(ButtonStyle.Link)
+      .setURL(playUrl),
+    new ButtonBuilder()
+      .setCustomId('eco_balance')
+      .setLabel('💰 Zůstatek')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const isEphemeralCard =
+    interaction.isButton() && interaction.message?.flags?.has(MessageFlags.Ephemeral);
+
+  if (isEphemeralCard && !interaction.replied && !interaction.deferred) {
+    return await interaction.update({ embeds: [embed], components: [row], files: [], attachments: [], content: null });
   }
-  processingMinesUsers.add(userId);
-
-  try {
-    let autoNotice = null;
-
-    // Auto-recover if player had a previous unfinished Mines game (never let a player get stuck!)
-    if (activeMinesGames.has(userId)) {
-      const oldState = activeMinesGames.get(userId);
-      activeMinesGames.delete(userId);
-
-      if (oldState.revealedIndices && oldState.revealedIndices.size > 0) {
-        const autoWin = Math.floor(oldState.betAmount * oldState.multiplier);
-        addTokens(userId, autoWin, true);
-        autoNotice = `✅ **Auto-Cashout**: Settled your previous active Mines board at **${oldState.multiplier.toFixed(2)}x** for **+${autoWin.toLocaleString()} 🪙**!`;
-      } else {
-        addTokens(userId, oldState.betAmount, false);
-        autoNotice = `🔄 **Reset**: Refunded your untouched **${oldState.betAmount.toLocaleString()} 🪙** Mines board and started a fresh game.`;
-      }
-    }
-
-    const cleanBet = Math.max(10, Math.floor(betAmount) || 100);
-    const cleanBombs = Math.max(1, Math.min(24, Math.floor(bombs) || DEFAULT_BOMBS));
-
-    const userBalance = getBalance(userId);
-    if (userBalance < cleanBet) {
-      const msg = `❌ **Insufficient balance!** You have **\`${userBalance.toLocaleString()} 🪙\`**, but this game requires **\`${cleanBet.toLocaleString()} 🪙\`**.\n> 💡 *Tip: Use \`/daily\` to claim 500 free tokens or click **⚙️ Custom Game** to bet smaller amounts (min 10 🪙).*`;
-      if (interaction.replied || interaction.deferred) {
-        return await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
-      }
-      return await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
-    }
-
-    deductTokens(userId, cleanBet);
-    userMinesPrefs.set(userId, { bet: cleanBet, bombs: cleanBombs });
-
-    const bombIndices = generateMinesBombs(TOTAL_TILES, cleanBombs);
-
-    const gameState = {
-      userId,
-      betAmount: cleanBet,
-      bombs: cleanBombs,
-      bombIndices,
-      revealedIndices: new Set(),
-      multiplier: 1.0,
-      active: true,
-      lastRevealAt: 0,
-      lastRevealedTile: -1,
-      createdAt: Date.now(),
-      peekMode: false,
-      peekRevealed: new Set(),
-    };
-
-    activeMinesGames.set(userId, gameState);
-
-    const { embed, components, files } = render5x5Board(
-      gameState,
-      interaction.user,
-      false,
-      false,
-      false,
-      null,
-      autoNotice
-    );
-
-    const isEphemeralCard =
-      interaction.isButton() && interaction.message?.flags?.has(MessageFlags.Ephemeral);
-
-    if (isEphemeralCard && !interaction.replied && !interaction.deferred) {
-      return await interaction.update({ embeds: [embed], components, files: files || [], attachments: [], content: null });
-    }
-    if (interaction.replied || interaction.deferred) {
-      return await interaction.editReply({ embeds: [embed], components, files: files || [], attachments: [], content: null });
-    }
-    return await interaction.reply({
-      embeds: [embed],
-      components,
-      files: files || [],
-      flags: MessageFlags.Ephemeral,
-    });
-  } finally {
-    processingMinesUsers.delete(userId);
+  if (interaction.replied || interaction.deferred) {
+    return await interaction.editReply({ embeds: [embed], components: [row], files: [], attachments: [], content: null });
   }
+  return await interaction.reply({
+    embeds: [embed],
+    components: [row],
+    flags: MessageFlags.Ephemeral,
+  });
 }
 
 export async function handle5x5MinesInteraction(interaction) {
-  const userId = interaction.user.id;
-
-  // 1. Modal Submit
-  if (interaction.isModalSubmit() && interaction.customId === 'mines_custom_modal') {
-    const betStr = interaction.fields.getTextInputValue('mines_bet_input') || '100';
-    const bombsStr = interaction.fields.getTextInputValue('mines_bombs_input') || '3';
-
-    const bet = Math.max(10, parseInt(betStr.replace(/[^0-9]/g, ''), 10) || 100);
-    const bombs = Math.min(24, Math.max(1, parseInt(bombsStr.replace(/[^0-9]/g, ''), 10) || 3));
-
-    return start5x5Mines(interaction, bet, bombs);
-  }
-
-  if (!interaction.isButton()) return;
-  const id = interaction.customId;
-
-  // 2. Open Custom Setup Modal
-  if (id === 'mines_setup_modal') {
-    return showMinesSetupModal(interaction);
-  }
-
-  // 3. Dynamic Start / Replay Buttons: start_m5_<bet>_<bombs>
-  if (id.startsWith('start_m5_')) {
-    const parts = id.split('_');
-    const bet = parseInt(parts[2], 10) || 100;
-    const bombs = parseInt(parts[3], 10) || 3;
-    return start5x5Mines(interaction, bet, bombs);
-  }
-
-  // 4. Active Board Interactions (Tile Click or Cash Out)
-  if (processingMinesUsers.has(userId)) {
-    return interaction.deferUpdate().catch(() => {});
-  }
-
-  const state = activeMinesGames.get(userId);
-  if (!state) {
-    // If user clicked a tile on an expired/finished board, start a fresh game with their last settings!
-    const prefs = userMinesPrefs.get(userId) || { bet: 100, bombs: 3 };
-    return start5x5Mines(interaction, prefs.bet, prefs.bombs);
-  }
-
-  processingMinesUsers.add(userId);
-
-  try {
-    // Helper to execute Cash Out cleanly in 1 single interaction.update()
-    const executeCashout = async () => {
-      if (state.revealedIndices.size === 0) {
-        return interaction.deferUpdate().catch(() => {});
-      }
-
-      const winAmount = Math.floor(state.betAmount * state.multiplier);
-      addTokens(userId, winAmount, true);
-
-      // Enter interactive exploration / curiosity peek mode
-      state.cashedOut = true;
-      state.peekMode = true;
-      state.peekRevealed = new Set();
-
-      const { embed, components, files } = render5x5Board(
-        state,
-        interaction.user,
-        false,
-        true,
-        true
-      );
-      return interaction.update({ embeds: [embed], components, files: files || [], content: null });
-    };
-
-    // Legacy Cashout Button support
-    if (id === 'm5_cashout') {
-      return await executeCashout();
-    }
-
-    // Tile Click
-    if (id.startsWith('m5_tile_')) {
-      const tileIdx = parseInt(id.replace('m5_tile_', ''), 10);
-
-      // Exploration / Peek Mode handling (post-cashout)
-      if (state.peekMode) {
-        // If clicking a green [ 🔄 Replay ] button:
-        if (state.revealedIndices.has(tileIdx)) {
-          activeMinesGames.delete(userId);
-          return start5x5Mines(interaction, state.betAmount, state.bombs);
-        }
-        // If clicking an already peeked button:
-        if (state.peekRevealed?.has(tileIdx)) {
-          return interaction.deferUpdate().catch(() => {});
-        }
-
-        // Peek this tile!
-        state.peekRevealed = state.peekRevealed || new Set();
-        state.peekRevealed.add(tileIdx);
-        const wasBomb = state.bombIndices.has(tileIdx);
-        const winVal = Math.floor(state.betAmount * state.multiplier);
-        const autoNotice = wasBomb
-          ? `💥 **Tile #${tileIdx + 1} was a BOMB!** You dodged this mine by cashing out earlier! (+${winVal.toLocaleString()} 🪙 secured)`
-          : `💎 **Tile #${tileIdx + 1} was a SAFE GEM!** Your intuition was spot-on!`;
-
-        const { embed, components, files } = render5x5Board(
-          state,
-          interaction.user,
-          false,
-          true,
-          true,
-          null,
-          autoNotice
-        );
-        return await interaction.update({ embeds: [embed], components, files: files || [], content: null });
-      }
-
-      // If clicking an already-revealed green gem tile during active play:
-      if (state.revealedIndices.has(tileIdx)) {
-        // Guard against accidental double-click within 450ms on the exact same tile just uncovered
-        if (tileIdx === state.lastRevealedTile && Date.now() - state.lastRevealAt < 450) {
-          return await interaction.deferUpdate().catch(() => {});
-        }
-        // Clicking any green [💰 X.XXx] tile cashes out immediately!
-        return await executeCashout();
-      }
-
-      // Subtle Pro-House Board Gravity:
-      // As the player chains consecutive gems or climbs to high multipliers, an unrevealed bomb
-      // has a small chance to shift onto the clicked tile so deep runs & 1-click farming remain strongly pro-house,
-      // while still showing the exact bomb count on the final revealed board.
-      if (!state.bombIndices.has(tileIdx)) {
-        const gemsFound = state.revealedIndices.size;
-        const unrevealedLeft = TOTAL_TILES - gemsFound;
-        const baseFairRisk = state.bombs / unrevealedLeft;
-
-        // Subtle additive house hazard that scales gently with consecutive gems and wager size
-        let houseHazard = 0;
-        if (gemsFound === 0) {
-          houseHazard = state.bombs <= 2 ? 0.055 : 0.04;
-        } else if (gemsFound === 1) {
-          houseHazard = 0.055;
-        } else if (gemsFound === 2) {
-          houseHazard = 0.075;
-        } else {
-          houseHazard = Math.min(0.22, 0.08 + (gemsFound - 2) * 0.03);
-        }
-
-        if (state.betAmount >= 1000) houseHazard += 0.025;
-        else if (state.betAmount >= 500) houseHazard += 0.015;
-
-        // Probability to shift an unrevealed bomb onto this safe tile to achieve the pro-house hazard rate
-        const swapProb = houseHazard / Math.max(0.1, 1 - baseFairRisk);
-        if (secureRandomFloat() < swapProb) {
-          const bombArr = Array.from(state.bombIndices);
-          const victimBomb = bombArr[secureRandomInt(0, bombArr.length - 1)];
-          state.bombIndices.delete(victimBomb);
-          state.bombIndices.add(tileIdx);
-        }
-      }
-
-      // Hit a Bomb?
-      if (state.bombIndices.has(tileIdx)) {
-        activeMinesGames.delete(userId);
-        const { embed, components, files } = render5x5Board(
-          state,
-          interaction.user,
-          true,
-          false,
-          false,
-          tileIdx
-        );
-        return await interaction.update({ embeds: [embed], components, files: files || [], content: null });
-      }
-
-      // Safe Gem Uncovered!
-      state.revealedIndices.add(tileIdx);
-      state.lastRevealedTile = tileIdx;
-      state.lastRevealAt = Date.now();
-      state.multiplier = calculateMinesMultiplier(
-        TOTAL_TILES,
-        state.bombs,
-        state.revealedIndices.size
-      );
-
-      const maxGems = TOTAL_TILES - state.bombs;
-      if (state.revealedIndices.size >= maxGems) {
-        // Perfect Clear!
-        const winAmount = Math.floor(state.betAmount * state.multiplier);
-        addTokens(userId, winAmount, true);
-        activeMinesGames.delete(userId);
-
-        const { embed, components, files } = render5x5Board(state, interaction.user, true, true, false);
-        return await interaction.update({ embeds: [embed], components, files: files || [], content: null });
-      }
-
-      // Continue Safe Play (1 single interaction.update!)
-      const { embed, components, files } = render5x5Board(state, interaction.user, false, false, false);
-      return await interaction.update({ embeds: [embed], components, files: files || [], content: null });
-    }
-  } finally {
-    processingMinesUsers.delete(userId);
-  }
+  return start5x5Mines(interaction);
 }
