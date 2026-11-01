@@ -238,23 +238,44 @@ function formatPaytableLadder(pickCount, riskMode, highlightHits = null) {
 }
 
 /**
- * Builds the 4x5 ASCII/Unicode Keno Cabinet where EVERY cell has 2 digits + 1 emoji
- * so all 4 rows and 5 columns align with 100% uniform width on Discord.
+ * Visual monospace column width counter for Discord font metrics.
+ */
+function getKenoVisualWidth(str) {
+  let width = 0;
+  const clean = String(str).replace(/—/g, '-').replace(/★/g, '*').replace(/✖/g, 'x');
+  for (const char of clean) {
+    const code = char.codePointAt(0);
+    if ((code >= 0x1F300 && code <= 0x1FAFF) || code === 0x26AB || code === 0x26AA || code > 0xFFFF) {
+      width += 2;
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+function padKenoCenter(str, targetWidth) {
+  const clean = String(str).replace(/—/g, '-').replace(/★/g, '*').replace(/✖/g, 'x');
+  const curWidth = getKenoVisualWidth(clean);
+  if (curWidth >= targetWidth) return clean.slice(0, targetWidth);
+  const left = Math.floor((targetWidth - curWidth) / 2);
+  const right = targetWidth - curWidth - left;
+  return ' '.repeat(left) + clean + ' '.repeat(right);
+}
+
+/**
+ * Builds the 4x5 ASCII Keno Cabinet enclosed in a fully symmetrical box.
+ * Exactly 46 visual monospace columns on every line.
  */
 function buildKenoCabinetAscii(playerPicksSet, drawnSlice, bannerTitle, tubeStatusLine) {
   const drawnSet = new Set(drawnSlice);
-  let out = `╔══════════════════════════════════════════════╗\n`;
-  const padCenter = (str, w) => {
-    const clean = String(str);
-    if (clean.length >= w) return clean.slice(0, w);
-    const l = Math.floor((w - clean.length) / 2);
-    return ' '.repeat(l) + clean + ' '.repeat(w - clean.length - l);
-  };
-  out += `║${padCenter(bannerTitle, 46)}║\n`;
-  out += `╚══════════════════════════════════════════════╝\n`;
+  const rows = [];
+  rows.push('╔════════════════════════════════════════════╗');
+  rows.push(`║${padKenoCenter(bannerTitle, 44)}║`);
+  rows.push('╠════════════════════════════════════════════╣');
 
   for (let r = 0; r < 4; r++) {
-    const rowCells = [];
+    const cells = [];
     for (let c = 0; c < 5; c++) {
       const num = r * 5 + c + 1;
       const numStr = num < 10 ? `0${num}` : `${num}`;
@@ -262,21 +283,22 @@ function buildKenoCabinetAscii(playerPicksSet, drawnSlice, bannerTitle, tubeStat
       const isDrawn = drawnSet.has(num);
 
       if (isPick && isDrawn) {
-        rowCells.push(`[${numStr}🎯]`); // Direct Hit!
+        cells.push(`[${numStr}🎯]`);
       } else if (isPick) {
-        rowCells.push(`[${numStr}🔵]`); // Locked Player Pick
+        cells.push(`[${numStr}🔵]`);
       } else if (isDrawn) {
-        rowCells.push(`[${numStr}🟡]`); // Machine Drawn Ball
+        cells.push(`[${numStr}🟡]`);
       } else {
-        rowCells.push(`[${numStr}⚫]`); // Untouched Chamber Slot
+        cells.push(`[${numStr}⚫]`);
       }
     }
-    out += `  ${rowCells.join('  ')}\n`;
+    rows.push(`║   ${cells.join('  ')}   ║`);
   }
 
-  out += `════════════════════════════════════════════════\n`;
-  out += ` ${tubeStatusLine}`;
-  return out;
+  rows.push('╠════════════════════════════════════════════╣');
+  rows.push(`║${padKenoCenter(tubeStatusLine, 44)}║`);
+  rows.push('╚════════════════════════════════════════════╝');
+  return rows.join('\n');
 }
 
 /**
