@@ -108,9 +108,7 @@
   // =========================================================================
 
   let audioCtx = null;
-  let thrusterOsc = null;
-  let thrusterFilter = null;
-  let thrusterGain = null;
+  let thrusterState = null;
 
   function getAudioContext() {
     if (!audioCtx) {
@@ -126,122 +124,82 @@
   }
 
   const Sound = {
+    // Tactile UI click
     click() {
       if (!state.soundEnabled) return;
       const ctx = getAudioContext();
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(1200, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.03);
-      gain.gain.setValueAtTime(0.07, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.03);
-    },
-
-    gem(streak = 1) {
-      if (!state.soundEnabled) return;
-      const ctx = getAudioContext();
-      if (!ctx) return;
-
-      const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0];
-      const freq = scale[Math.min(streak - 1, scale.length - 1)];
-
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(freq, ctx.currentTime);
-
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(freq * 2, ctx.currentTime);
-
-      gain.gain.setValueAtTime(0.16, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.42);
-
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc1.start();
-      osc2.start();
-      osc1.stop(ctx.currentTime + 0.42);
-      osc2.stop(ctx.currentTime + 0.42);
-    },
-
-    bomb() {
-      if (!state.soundEnabled) return;
-      const ctx = getAudioContext();
-      if (!ctx) return;
-
-      const sub = ctx.createOscillator();
-      const subGain = ctx.createGain();
-      sub.type = 'sine';
-      sub.frequency.setValueAtTime(130, ctx.currentTime);
-      sub.frequency.exponentialRampToValueAtTime(25, ctx.currentTime + 0.55);
-
-      subGain.gain.setValueAtTime(0.38, ctx.currentTime);
-      subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
-
-      sub.connect(subGain);
-      subGain.connect(ctx.destination);
-      sub.start();
-      sub.stop(ctx.currentTime + 0.55);
-
-      const bufferSize = Math.floor(ctx.sampleRate * 0.4);
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(850, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.4);
-
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.32, ctx.currentTime);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-
-      noise.connect(filter);
-      filter.connect(noiseGain);
-      noiseGain.connect(ctx.destination);
-      noise.start();
-    },
-
-    cashout() {
-      if (!state.soundEnabled) return;
-      const ctx = getAudioContext();
-      if (!ctx) return;
-
-      const chord = [523.25, 659.25, 783.99, 1046.5, 1318.51];
-      chord.forEach((freq, i) => {
+      if (!ctx || ctx.state !== 'running') return;
+      try {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.06);
-
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.setValueAtTime(0.16, ctx.currentTime + i * 0.06);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.06 + 0.4);
-
+        osc.frequency.setValueAtTime(1400, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(420, ctx.currentTime + 0.025);
+        gain.gain.setValueAtTime(0.065, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.025);
         osc.connect(gain);
         gain.connect(ctx.destination);
-
-        osc.start(ctx.currentTime + i * 0.06);
-        osc.stop(ctx.currentTime + i * 0.06 + 0.42);
-      });
+        osc.start();
+        osc.stop(ctx.currentTime + 0.025);
+      } catch {}
     },
 
+    // Musical gem chime with progressive streak pitch
+    gem(streak = 1) {
+      if (!state.soundEnabled) return;
+      const ctx = getAudioContext();
+      if (!ctx || ctx.state !== 'running') return;
+      try {
+        const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0];
+        const freq = scale[Math.min(streak - 1, scale.length - 1)];
+
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(freq * 2, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.14, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start();
+        osc2.start();
+        osc1.stop(ctx.currentTime + 0.4);
+        osc2.stop(ctx.currentTime + 0.4);
+      } catch {}
+    },
+
+    // Soft sub boom for bomb detonation
+    bomb() {
+      if (!state.soundEnabled) return;
+      const ctx = getAudioContext();
+      if (!ctx || ctx.state !== 'running') return;
+      try {
+        const sub = ctx.createOscillator();
+        const subGain = ctx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(115, ctx.currentTime);
+        sub.frequency.exponentialRampToValueAtTime(26, ctx.currentTime + 0.5);
+
+        subGain.gain.setValueAtTime(0.32, ctx.currentTime);
+        subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+
+        sub.connect(subGain);
+        subGain.connect(ctx.destination);
+        sub.start();
+        sub.stop(ctx.currentTime + 0.5);
+      } catch {}
+    },
+
+    // CRASH: Studio-Grade Sci-Fi Riser (Warm sub foundation + lush detuned fifths + smooth filter)
     startThruster() {
       if (!state.soundEnabled || state.currentView !== 'crash' || document.hidden) return;
       const ctx = getAudioContext();
@@ -249,91 +207,314 @@
       this.stopThruster();
 
       try {
-        thrusterOsc = ctx.createOscillator();
-        thrusterFilter = ctx.createBiquadFilter();
-        thrusterGain = ctx.createGain();
+        // Sub-harmonic warm fundamental (55Hz / A1)
+        const subOsc = ctx.createOscillator();
+        const subGain = ctx.createGain();
+        subOsc.type = 'sine';
+        subOsc.frequency.setValueAtTime(55, ctx.currentTime);
+        subGain.gain.setValueAtTime(0.022, ctx.currentTime);
 
-        thrusterOsc.type = 'triangle';
-        thrusterOsc.frequency.setValueAtTime(68, ctx.currentTime);
+        // Lush choral fifths (110Hz + 165Hz) detuned slightly for warm analog chorus
+        const oscA = ctx.createOscillator();
+        const oscB = ctx.createOscillator();
+        oscA.type = 'triangle';
+        oscB.type = 'sine';
+        oscA.frequency.setValueAtTime(110, ctx.currentTime);
+        oscB.frequency.setValueAtTime(164.8, ctx.currentTime);
 
-        thrusterFilter.type = 'lowpass';
-        thrusterFilter.frequency.setValueAtTime(190, ctx.currentTime);
-        thrusterFilter.Q.setValueAtTime(2.0, ctx.currentTime);
+        // Low-pass filter with silky resonance
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(200, ctx.currentTime);
+        filter.Q.setValueAtTime(1.8, ctx.currentTime);
 
-        thrusterGain.gain.setValueAtTime(0.005, ctx.currentTime);
-        thrusterGain.gain.linearRampToValueAtTime(0.055, ctx.currentTime + 0.35);
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0.001, ctx.currentTime);
+        masterGain.gain.linearRampToValueAtTime(0.038, ctx.currentTime + 0.35);
 
-        thrusterOsc.connect(thrusterFilter);
-        thrusterFilter.connect(thrusterGain);
-        thrusterGain.connect(ctx.destination);
+        subOsc.connect(subGain);
+        subGain.connect(masterGain);
 
-        thrusterOsc.start();
-      } catch {}
+        oscA.connect(filter);
+        oscB.connect(filter);
+        filter.connect(masterGain);
+
+        masterGain.connect(ctx.destination);
+
+        subOsc.start();
+        oscA.start();
+        oscB.start();
+
+        thrusterState = {
+          ctx,
+          subOsc,
+          subGain,
+          oscA,
+          oscB,
+          filter,
+          masterGain,
+          lastHeartbeat: 0,
+          lastMilestone: 1.0,
+        };
+      } catch (err) {
+        console.warn('Thruster sound init exception:', err);
+      }
     },
 
     updateThruster(mult) {
-      if (!state.soundEnabled || !thrusterOsc || !audioCtx || state.currentView !== 'crash') return;
+      if (!state.soundEnabled || !thrusterState || state.currentView !== 'crash') return;
       try {
-        const targetFreq = Math.min(500, 68 + Math.log(Math.max(1, mult)) * 100);
-        const filterFreq = Math.min(1250, 190 + Math.log(Math.max(1, mult)) * 250);
-        thrusterOsc.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.08);
-        thrusterFilter.frequency.setTargetAtTime(filterFreq, audioCtx.currentTime, 0.08);
+        const { ctx, subOsc, oscA, oscB, filter, masterGain } = thrusterState;
+        const now = ctx.currentTime;
+        const clampedMult = Math.max(1, mult);
+        const logMult = Math.log(clampedMult);
+
+        // Smooth musical rise through overtones
+        const baseFreq = 55 + Math.min(200, logMult * 42);
+        subOsc.frequency.setTargetAtTime(baseFreq, now, 0.08);
+        oscA.frequency.setTargetAtTime(baseFreq * 2, now, 0.08);
+        oscB.frequency.setTargetAtTime(baseFreq * 3, now, 0.08);
+
+        // Smooth filter sweep from 200Hz to 800Hz
+        const targetFilter = Math.min(800, 200 + logMult * 150);
+        filter.frequency.setTargetAtTime(targetFilter, now, 0.08);
+
+        // Subtle dynamic volume swell for anticipation
+        const targetVol = Math.min(0.058, 0.035 + logMult * 0.007);
+        masterGain.gain.setTargetAtTime(targetVol, now, 0.09);
+
+        // Dopamine Milestone Dings: 1.5x, 2x, 3x, 5x, 10x, 20x, 50x, 100x
+        const milestones = [1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 50.0, 100.0, 250.0, 500.0];
+        for (const m of milestones) {
+          if (clampedMult >= m && thrusterState.lastMilestone < m) {
+            thrusterState.lastMilestone = m;
+            this.milestoneDing(m);
+            break;
+          }
+        }
+
+        // Sub-bass Dopamine Heartbeat pulses accelerating with multiplier
+        const pulseInterval = Math.max(0.3, 0.88 - Math.min(0.58, logMult * 0.17));
+        if (now - thrusterState.lastHeartbeat >= pulseInterval) {
+          thrusterState.lastHeartbeat = now;
+          this.heartbeatThump(clampedMult);
+        }
       } catch {}
     },
 
     stopThruster() {
-      if (thrusterOsc) {
-        try { thrusterOsc.stop(); } catch {}
-        thrusterOsc = null;
+      if (thrusterState) {
+        try {
+          const { subOsc, oscA, oscB, masterGain, ctx } = thrusterState;
+          if (masterGain && ctx) {
+            masterGain.gain.setValueAtTime(masterGain.gain.value, ctx.currentTime);
+            masterGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+          }
+          setTimeout(() => {
+            try { subOsc.stop(); } catch {}
+            try { oscA.stop(); } catch {}
+            try { oscB.stop(); } catch {}
+          }, 140);
+        } catch {}
+        thrusterState = null;
       }
-      thrusterFilter = null;
-      thrusterGain = null;
     },
 
+    // Suspense-building deep sub kick
+    heartbeatThump(mult) {
+      if (!state.soundEnabled || state.currentView !== 'crash') return;
+      const ctx = getAudioContext();
+      if (!ctx || ctx.state !== 'running') return;
+      try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(60, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(25, ctx.currentTime + 0.08);
+
+        const thumpVol = Math.min(0.065, 0.03 + Math.log(Math.max(1, mult)) * 0.01);
+        gain.gain.setValueAtTime(thumpVol, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      } catch {}
+    },
+
+    // Sparkling Crystal Glass Ding on Multiplier Milestones
+    milestoneDing(m) {
+      if (!state.soundEnabled || state.currentView !== 'crash') return;
+      const ctx = getAudioContext();
+      if (!ctx || ctx.state !== 'running') return;
+      try {
+        const root = m >= 10 ? 1760 : 1318.51;
+        [root, root * 1.5].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+          gain.gain.setValueAtTime(0.11 / (i + 1), ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.42);
+        });
+      } catch {}
+    },
+
+    // High-Dopamine CASHOUT — Double Metallic Snap + Cascading Golden Arpeggio + Warm Sub Bloom
+    cashout() {
+      if (!state.soundEnabled) return;
+      const ctx = getAudioContext();
+      if (!ctx || ctx.state !== 'running') return;
+      try {
+        // 1. Tactile metallic register snap ("Ka-Ching!")
+        [0, 0.032].forEach((delay, idx) => {
+          const snapOsc = ctx.createOscillator();
+          const snapFilter = ctx.createBiquadFilter();
+          const snapGain = ctx.createGain();
+
+          snapOsc.type = 'triangle';
+          snapOsc.frequency.setValueAtTime(idx === 0 ? 3200 : 4800, ctx.currentTime + delay);
+          snapFilter.type = 'bandpass';
+          snapFilter.frequency.setValueAtTime(3600, ctx.currentTime + delay);
+          snapFilter.Q.setValueAtTime(4.0, ctx.currentTime + delay);
+
+          snapGain.gain.setValueAtTime(0.14, ctx.currentTime + delay);
+          snapGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.055);
+
+          snapOsc.connect(snapFilter);
+          snapFilter.connect(snapGain);
+          snapGain.connect(ctx.destination);
+          snapOsc.start(ctx.currentTime + delay);
+          snapOsc.stop(ctx.currentTime + delay + 0.055);
+        });
+
+        // 2. Cascading Golden Arpeggio (E major celestial run)
+        const notes = [659.25, 830.61, 987.77, 1318.51, 1661.22, 1975.53];
+        notes.forEach((freq, i) => {
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          const t = ctx.currentTime + i * 0.042;
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(freq, t);
+
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(freq * 2, t);
+
+          gain.gain.setValueAtTime(0, ctx.currentTime);
+          gain.gain.setValueAtTime(0.13, t);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc1.start(t);
+          osc2.start(t);
+          osc1.stop(t + 0.5);
+          osc2.stop(t + 0.5);
+        });
+
+        // 3. Warm Bass Affirmation
+        const sub = ctx.createOscillator();
+        const subGain = ctx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(98, ctx.currentTime);
+        sub.frequency.exponentialRampToValueAtTime(44, ctx.currentTime + 0.35);
+
+        subGain.gain.setValueAtTime(0.18, ctx.currentTime);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+
+        sub.connect(subGain);
+        subGain.connect(ctx.destination);
+        sub.start();
+        sub.stop(ctx.currentTime + 0.35);
+      } catch {}
+    },
+
+    // Cinematic Supernova Implosion (Deep 808 sub-drop + soft pink noise dispersion)
     crashExplosion() {
       this.stopThruster();
       if (!state.soundEnabled || state.currentView !== 'crash' || document.hidden) return;
       const ctx = getAudioContext();
       if (!ctx || ctx.state !== 'running') return;
 
-      const sub = ctx.createOscillator();
-      const subGain = ctx.createGain();
-      sub.type = 'sawtooth';
-      sub.frequency.setValueAtTime(135, ctx.currentTime);
-      sub.frequency.exponentialRampToValueAtTime(22, ctx.currentTime + 0.6);
+      try {
+        // 1. Deep 808 Sub-Drop
+        const sub = ctx.createOscillator();
+        const subGain = ctx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(90, ctx.currentTime);
+        sub.frequency.exponentialRampToValueAtTime(22, ctx.currentTime + 0.65);
 
-      subGain.gain.setValueAtTime(0.32, ctx.currentTime);
-      subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        subGain.gain.setValueAtTime(0.32, ctx.currentTime);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.65);
 
-      sub.connect(subGain);
-      subGain.connect(ctx.destination);
-      sub.start();
-      sub.stop(ctx.currentTime + 0.6);
+        sub.connect(subGain);
+        subGain.connect(ctx.destination);
+        sub.start();
+        sub.stop(ctx.currentTime + 0.65);
 
-      const bufferSize = Math.floor(ctx.sampleRate * 0.45);
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
+        // 2. Velvet Air Dispersion
+        const bufferSize = Math.floor(ctx.sampleRate * 0.42);
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        let lastOut = 0.0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          lastOut = (lastOut + (0.04 * white)) / 1.04;
+          data[i] = lastOut * 3.5;
+        }
 
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
 
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1000, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(45, ctx.currentTime + 0.45);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(360, ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.42);
 
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.28, ctx.currentTime);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.2, ctx.currentTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42);
 
-      noise.connect(filter);
-      filter.connect(noiseGain);
-      noiseGain.connect(ctx.destination);
-      noise.start();
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+        noise.start();
+      } catch {}
     },
+
+    // Soft futuristic countdown blip on 3, 2, 1
+    countdownTick(count) {
+      if (!state.soundEnabled || state.currentView !== 'crash') return;
+      const ctx = getAudioContext();
+      if (!ctx || ctx.state !== 'running') return;
+      try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        const freq = count === 1 ? 1320 : 880;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        const dur = count === 1 ? 0.08 : 0.045;
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + dur);
+      } catch {}
+    }
   };
 
   // =========================================================================
@@ -700,7 +881,14 @@
         if (el.crashLiveMult) el.crashLiveMult.className = domCache.liveMultClass;
       }
       updateDomTextIfChanged(el.crashLiveStatus, 'liveStatusText', 'BETTING OPEN • NEXT FLIGHT IN');
+
+      const secCeil = Math.ceil(remainingMs / 1000);
+      if (secCeil <= 3 && secCeil >= 1 && domCache.lastCountdownTick !== secCeil) {
+        domCache.lastCountdownTick = secCeil;
+        Sound.countdownTick(secCeil);
+      }
     } else if (state.crashPhase === 'IN_FLIGHT') {
+      domCache.lastCountdownTick = 0;
       if (el.crashCountdownWrap && el.crashCountdownWrap.style.display !== 'none') {
         el.crashCountdownWrap.style.display = 'none';
       }
@@ -1174,7 +1362,7 @@
     gameInfoDesc: document.getElementById('gameInfoDesc'),
     gameInfoCmd: document.getElementById('gameInfoCmd'),
     gameInfoImg: document.getElementById('gameInfoImg'),
-    gameInfoRtp: document.getElementById('gameInfoRtp'),
+    gameInfoCategory: document.getElementById('gameInfoCategory'),
     gameInfoMaxWin: document.getElementById('gameInfoMaxWin'),
 
     // Profile, Balance & Sync
@@ -2542,7 +2730,10 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (targetView === 'all-games') {
       if (el.homeChassis) el.homeChassis.style.display = 'none';
-      if (el.gamesCatalogChassis) el.gamesCatalogChassis.style.display = 'flex';
+      if (el.gamesCatalogChassis) {
+        el.gamesCatalogChassis.style.display = 'flex';
+        el.gamesCatalogChassis.style.flexDirection = 'column';
+      }
       if (el.activeGameTopbar) el.activeGameTopbar.style.display = 'none';
       if (el.minesChassis) el.minesChassis.style.display = 'none';
       if (el.crashChassis) el.crashChassis.style.display = 'none';
@@ -2670,39 +2861,35 @@
   const GAME_INFO_DETAILS = {
     blackjack: {
       title: 'Blackjack 21',
-      subtitle: 'Classic Vegas Table Game',
+      category: 'Table & Cards',
       desc: 'The classic casino card showdown. Beat the dealer, double down on advantageous hands, split pairs, and hit natural 21 for 3:2 token payouts! Bets and balances are instantly synced with your Discord wallet.',
-      rtp: '99.5%',
       maxWin: '3:2 Natural Payout',
       cmd: '/blackjack bet:100',
-      img: '/play/assets/game-blackjack.png?v=5.1',
+      img: '/play/assets/game-blackjack.png?v=6.0',
     },
     keno: {
       title: 'Neon Keno',
-      subtitle: '40-Ball Holographic Draw',
-      desc: 'Pick between 1 and 10 lucky numbers on a 40-ball board. Volatility multipliers pay out according to your hits, with jackpot multipliers reaching up to 1,000×! Playable directly in Discord channels.',
-      rtp: '97.0%',
+      category: 'Arcade & Lottery',
+      desc: 'Pick your lucky numbers and match the drawn spheres for high multiplier returns! Volatility multipliers pay out according to your hits, with jackpot multipliers reaching up to 1,000×. Playable directly in Discord channels.',
       maxWin: '1,000× Jackpot',
       cmd: '/keno bet:100 picks:5',
-      img: '/play/assets/game-keno.png?v=5.1',
+      img: '/play/assets/game-keno.png?v=6.0',
     },
     slots: {
-      title: 'Vegas Grand Slots',
-      subtitle: '3-Reel Cybernetic Machine',
+      title: 'Cyber Slots',
+      category: 'Arcade & Lottery',
       desc: 'Spin 3 reels for Triple Neon 777s, diamonds, lunar crescents, and rockets. Hit 3 matching symbols on the center payline to trigger progressive community jackpots and bonus token payouts!',
-      rtp: '96.5%',
       maxWin: '500× Multiplier',
       cmd: '/slots bet:100',
-      img: '/play/assets/game-slots.png?v=5.1',
+      img: '/play/assets/game-slots.png?v=6.0',
     },
     coinflip: {
       title: 'Coinflip',
-      subtitle: 'High-Speed 50/50 Toss',
+      category: 'PvP & Solo Toss',
       desc: 'High-speed double-or-nothing coin toss with cryptographic fair physics. Play solo against the house or challenge server players to heads-or-tails duels for 1.96× token returns!',
-      rtp: '98.0%',
       maxWin: '1.96× Instant Win',
       cmd: '/coinflip bet:100 choice:heads',
-      img: '/play/assets/game-coinflip.png?v=5.1',
+      img: '/play/assets/game-coinflip.png?v=6.0',
     },
   };
 
@@ -2712,7 +2899,7 @@
     Sound.click();
     if (el.gameInfoTitle) el.gameInfoTitle.textContent = info.title;
     if (el.gameInfoDesc) el.gameInfoDesc.textContent = info.desc;
-    if (el.gameInfoRtp) el.gameInfoRtp.textContent = info.rtp;
+    if (el.gameInfoCategory) el.gameInfoCategory.textContent = info.category;
     if (el.gameInfoMaxWin) el.gameInfoMaxWin.textContent = info.maxWin;
     if (el.gameInfoCmd) el.gameInfoCmd.textContent = info.cmd;
     if (el.gameInfoImg) el.gameInfoImg.src = info.img;

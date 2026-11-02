@@ -61,17 +61,18 @@ export function createWebServer() {
 
   app.use(express.json());
   app.use(express.static(path.join(__dirname, 'public'), {
-    maxAge: '1h',
+    maxAge: 0,
     etag: true,
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.html')) {
-        res.setHeader('Cache-Control', 'no-cache');
+      if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       }
     },
   }));
 
   // Web Casino Arena route
   app.get('/play', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(__dirname, 'public/play/index.html'));
   });
 

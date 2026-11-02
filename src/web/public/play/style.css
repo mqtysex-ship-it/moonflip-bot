@@ -681,8 +681,8 @@ html, body {
 
 /* Games Catalog Chassis View */
 .mf-games-catalog-view {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
   gap: 24px;
   width: 100%;
   max-width: 1360px;
@@ -696,17 +696,17 @@ html, body {
   align-items: center;
   flex-wrap: wrap;
   gap: 20px;
-  padding: 26px 30px;
-  background: linear-gradient(135deg, rgba(46, 242, 184, 0.08) 0%, rgba(12, 16, 23, 0.85) 100%);
-  border: 1px solid rgba(46, 242, 184, 0.22);
-  border-radius: 18px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  padding: 24px 28px;
+  background: linear-gradient(135deg, rgba(46, 242, 184, 0.06) 0%, rgba(13, 19, 26, 0.95) 100%);
+  border: 1px solid rgba(46, 242, 184, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .mf-catalog-header-text {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .mf-catalog-badge {
@@ -721,7 +721,7 @@ html, body {
 }
 
 .mf-catalog-title {
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 900;
   color: #ffffff;
   margin: 0;
@@ -729,72 +729,32 @@ html, body {
 }
 
 .mf-catalog-subtitle {
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--text-secondary);
   max-width: 640px;
   line-height: 1.5;
   margin: 0;
 }
 
-.mf-catalog-stats-pills {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.mf-stat-pill {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 18px;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  min-width: 88px;
-}
-
-.mf-stat-num {
-  font-size: 19px;
-  font-weight: 800;
-  font-family: var(--font-mono);
-}
-
-.mf-stat-lbl {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-top: 2px;
-}
-
-/* Catalog Toolbar */
-.mf-catalog-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
+/* Catalog Search Box */
 .mf-catalog-search-wrap {
   position: relative;
   display: flex;
   align-items: center;
-  background: var(--bg-card);
+  background: rgba(6, 10, 15, 0.85);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  padding: 10px 14px;
-  flex: 1;
-  max-width: 440px;
+  padding: 10px 16px;
+  min-width: 260px;
+  max-width: 360px;
+  width: 100%;
   color: var(--text-secondary);
-  transition: all 0.18s ease;
+  transition: all 0.2s ease;
 }
 
 .mf-catalog-search-wrap:focus-within {
-  border-color: rgba(46, 242, 184, 0.4);
-  box-shadow: 0 0 16px rgba(46, 242, 184, 0.12);
+  border-color: rgba(46, 242, 184, 0.45);
+  box-shadow: 0 0 18px rgba(46, 242, 184, 0.15);
   color: var(--mint);
 }
 
@@ -827,17 +787,27 @@ html, body {
   color: #ffffff;
 }
 
+/* Catalog Filter Bar */
+.mf-catalog-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
 .mf-catalog-filter-tabs {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .catalog-filter-pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 15px;
+  gap: 8px;
+  padding: 8px 18px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
@@ -846,7 +816,7 @@ html, body {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.16s ease;
+  transition: all 0.18s ease;
 }
 
 .catalog-filter-pill .pill-count {
@@ -855,7 +825,7 @@ html, body {
   justify-content: center;
   font-size: 11px;
   background: rgba(255, 255, 255, 0.08);
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 999px;
   font-family: var(--font-mono);
 }
@@ -863,24 +833,27 @@ html, body {
 .catalog-filter-pill:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .catalog-filter-pill.active {
   background: var(--mint-pill-bg);
-  border-color: rgba(46, 242, 184, 0.35);
+  border-color: rgba(46, 242, 184, 0.4);
   color: var(--mint);
+  box-shadow: 0 0 14px rgba(46, 242, 184, 0.12);
 }
 
 .catalog-filter-pill.active .pill-count {
-  background: rgba(46, 242, 184, 0.2);
+  background: rgba(46, 242, 184, 0.22);
   color: var(--mint);
 }
 
 /* Catalog Games Grid */
 .mf-catalog-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  gap: 22px;
+  width: 100%;
 }
 
 .mf-catalog-card {
@@ -897,9 +870,9 @@ html, body {
 
 .mf-catalog-card:hover {
   background: var(--bg-card-hover);
-  border-color: rgba(46, 242, 184, 0.35);
-  transform: translateY(-4px);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 24px rgba(46, 242, 184, 0.12);
+  border-color: rgba(46, 242, 184, 0.4);
+  transform: translateY(-5px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 24px rgba(46, 242, 184, 0.14);
 }
 
 .mf-card-cover-wrap {
@@ -919,45 +892,65 @@ html, body {
 }
 
 .mf-catalog-card:hover .mf-card-cover-img {
-  transform: scale(1.04);
+  transform: scale(1.05);
 }
 
 .mf-card-badge {
   position: absolute;
   top: 12px;
   left: 12px;
-  padding: 4px 9px;
+  padding: 4px 10px;
   border-radius: 6px;
   font-size: 10.5px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: rgba(8, 12, 20, 0.78);
+  letter-spacing: 0.05em;
+  background: rgba(8, 12, 20, 0.85);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: #ffffff;
   z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.mf-card-tag {
+.mf-card-hover-overlay {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 4px 9px;
-  border-radius: 6px;
-  font-size: 10.5px;
+  inset: 0;
+  background: rgba(7, 11, 16, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.22s ease;
+  z-index: 3;
+}
+
+.mf-catalog-card:hover .mf-card-hover-overlay {
+  opacity: 1;
+}
+
+.mf-play-pill {
+  padding: 9px 20px;
+  background: var(--mint);
+  color: #061510;
+  font-size: 12.5px;
   font-weight: 800;
-  background: rgba(46, 242, 184, 0.16);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(46, 242, 184, 0.35);
-  color: var(--mint);
-  z-index: 2;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  border-radius: 999px;
+  box-shadow: 0 0 20px rgba(46, 242, 184, 0.6);
+  letter-spacing: 0.04em;
+  transform: translateY(6px);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mf-catalog-card:hover .mf-play-pill {
+  transform: translateY(0);
 }
 
 .mf-card-content {
-  padding: 18px 20px;
+  padding: 16px 20px 20px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -968,13 +961,7 @@ html, body {
 .mf-card-header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.mf-card-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  gap: 6px;
 }
 
 .mf-card-title {
@@ -985,50 +972,11 @@ html, body {
   letter-spacing: -0.01em;
 }
 
-.mf-card-subtitle {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--mint);
-  margin: 0;
-}
-
 .mf-card-desc {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.45;
   margin: 0;
-}
-
-.mf-card-stats-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  padding: 9px 12px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  text-align: center;
-}
-
-.mf-card-stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.mf-card-stat-item .lbl {
-  color: var(--text-muted);
-  font-size: 10px;
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-}
-
-.mf-card-stat-item .val {
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 12.5px;
-  font-family: var(--font-mono);
 }
 
 .mf-card-btn {

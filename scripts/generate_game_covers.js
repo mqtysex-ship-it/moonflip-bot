@@ -18,17 +18,17 @@ function createBaseCanvas(themeColor, secondaryColor) {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
 
-  // Background deep gradient
-  const bgGrad = ctx.createRadialGradient(W / 2, H * 0.45, 20, W / 2, H / 2, W * 0.7);
-  bgGrad.addColorStop(0, '#101926');
-  bgGrad.addColorStop(0.5, '#0a0f18');
+  // Deep space-obsidian background
+  const bgGrad = ctx.createRadialGradient(W / 2, H * 0.45, 10, W / 2, H / 2, W * 0.75);
+  bgGrad.addColorStop(0, '#111927');
+  bgGrad.addColorStop(0.5, '#0b1018');
   bgGrad.addColorStop(1, '#05070c');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Subtle isometric / perspective grid in background
+  // Subtle isometric grid lines
   ctx.save();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
   ctx.lineWidth = 1;
   const gridSize = 32;
   for (let x = 0; x < W; x += gridSize) {
@@ -45,11 +45,11 @@ function createBaseCanvas(themeColor, secondaryColor) {
   }
   ctx.restore();
 
-  // Ambient central glow
+  // Ambient aura glow
   ctx.save();
-  const glow = ctx.createRadialGradient(W * 0.5, H * 0.45, 10, W * 0.5, H * 0.45, 220);
-  glow.addColorStop(0, themeColor + '33');
-  glow.addColorStop(0.6, secondaryColor + '15');
+  const glow = ctx.createRadialGradient(W * 0.52, H * 0.45, 20, W * 0.52, H * 0.45, 240);
+  glow.addColorStop(0, themeColor + '38');
+  glow.addColorStop(0.55, secondaryColor + '18');
   glow.addColorStop(1, 'transparent');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
@@ -60,18 +60,18 @@ function createBaseCanvas(themeColor, secondaryColor) {
 
 function drawVignetteAndBorder(ctx, themeColor) {
   // Vignette overlay
-  const vig = ctx.createRadialGradient(W / 2, H / 2, W * 0.35, W / 2, H / 2, W * 0.65);
+  const vig = ctx.createRadialGradient(W / 2, H / 2, W * 0.35, W / 2, H / 2, W * 0.68);
   vig.addColorStop(0, 'transparent');
-  vig.addColorStop(1, 'rgba(5, 7, 12, 0.85)');
+  vig.addColorStop(1, 'rgba(5, 7, 12, 0.88)');
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, W, H);
 
-  // Modern border
+  // Clean border
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.lineWidth = 2;
   ctx.strokeRect(1, 1, W - 2, H - 2);
 
-  // Top highlight edge
+  // Top glowing highlight edge
   const edgeGrad = ctx.createLinearGradient(0, 0, W, 0);
   edgeGrad.addColorStop(0, 'transparent');
   edgeGrad.addColorStop(0.2, themeColor + '66');
@@ -86,26 +86,24 @@ function drawVignetteAndBorder(ctx, themeColor) {
   ctx.stroke();
 }
 
-function drawBadge(ctx, text, color, x = 28, y = 34) {
+function drawBadge(ctx, text, color, x = 28, y = 36) {
   ctx.save();
-  ctx.font = 'bold 12px sans-serif';
+  ctx.font = 'bold 11px sans-serif';
   const textWidth = ctx.measureText(text).width;
   const padX = 10;
-  const padY = 5;
-  const badgeW = textWidth + padX * 2;
+  const badgeW = textWidth + padX * 2 + 10;
   const badgeH = 22;
 
-  // Badge background
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  ctx.fillStyle = 'rgba(8, 12, 19, 0.82)';
   ctx.beginPath();
   ctx.roundRect(x, y - 14, badgeW, badgeH, 6);
   ctx.fill();
 
-  ctx.strokeStyle = color + '88';
+  ctx.strokeStyle = color + '80';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Glow dot
+  // Glowing dot
   ctx.fillStyle = color;
   ctx.shadowColor = color;
   ctx.shadowBlur = 8;
@@ -116,7 +114,23 @@ function drawBadge(ctx, text, color, x = 28, y = 34) {
   // Text
   ctx.shadowBlur = 0;
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(text, x + 18, y);
+  ctx.fillText(text, x + 20, y);
+  ctx.restore();
+}
+
+function drawTitleAndSubtitle(ctx, title, subtitle, color) {
+  ctx.save();
+  ctx.font = '900 38px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 18;
+  ctx.fillText(title, 32, H - 54);
+
+  ctx.shadowBlur = 0;
+  ctx.font = '700 13px sans-serif';
+  ctx.fillStyle = color;
+  ctx.letterSpacing = '0.04em';
+  ctx.fillText(subtitle.toUpperCase(), 32, H - 28);
   ctx.restore();
 }
 
@@ -125,15 +139,13 @@ function drawBadge(ctx, text, color, x = 28, y = 34) {
 // ---------------------------------------------------------------------------
 function generateMinesCover() {
   const { canvas, ctx } = createBaseCanvas('#2ef2b8', '#00f0ff');
-
-  // Draw 5x5 Grid representation in perspective
   const cx = W / 2;
   const cy = H / 2 - 10;
 
-  // Draw 5x5 isometric tiles
+  // 5x5 isometric tiles
   const rows = 5;
   const cols = 5;
-  const tileW = 54;
+  const tileW = 56;
   const tileH = 34;
 
   for (let r = 0; r < rows; r++) {
@@ -141,14 +153,12 @@ function generateMinesCover() {
       const isoX = cx + (c - r) * (tileW * 0.52);
       const isoY = cy - 20 + (c + r) * (tileH * 0.55);
 
-      // Determine tile state for visual variety
       const isGem = (r === 1 && c === 2) || (r === 2 && c === 1) || (r === 3 && c === 3) || (r === 0 && c === 4);
       const isBomb = (r === 3 && c === 0) || (r === 1 && c === 4);
 
       ctx.save();
       ctx.translate(isoX, isoY);
 
-      // Diamond tile shape
       ctx.beginPath();
       ctx.moveTo(0, -tileH / 2);
       ctx.lineTo(tileW / 2, 0);
@@ -157,13 +167,13 @@ function generateMinesCover() {
       ctx.closePath();
 
       if (isGem) {
-        ctx.fillStyle = 'rgba(46, 242, 184, 0.22)';
+        ctx.fillStyle = 'rgba(46, 242, 184, 0.25)';
         ctx.strokeStyle = '#2ef2b8';
         ctx.lineWidth = 1.6;
         ctx.shadowColor = '#2ef2b8';
         ctx.shadowBlur = 12;
       } else if (isBomb) {
-        ctx.fillStyle = 'rgba(244, 63, 94, 0.2)';
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.22)';
         ctx.strokeStyle = '#f43f5e';
         ctx.lineWidth = 1.4;
         ctx.shadowColor = '#f43f5e';
@@ -176,7 +186,6 @@ function generateMinesCover() {
       ctx.fill();
       ctx.stroke();
 
-      // Gem or bomb icon on top
       if (isGem) {
         ctx.shadowBlur = 16;
         ctx.shadowColor = '#2ef2b8';
@@ -196,46 +205,34 @@ function generateMinesCover() {
         ctx.arc(0, 0, 7, 0, Math.PI * 2);
         ctx.fill();
       }
-
       ctx.restore();
     }
   }
 
-  // Large center glowing emerald gem
+  // Giant glowing emerald gem floating in center
   ctx.save();
   ctx.shadowColor = '#2ef2b8';
-  ctx.shadowBlur = 32;
-  const gemGrad = ctx.createLinearGradient(cx - 30, cy - 80, cx + 30, cy);
+  ctx.shadowBlur = 36;
+  const gemGrad = ctx.createLinearGradient(cx - 30, cy - 85, cx + 30, cy - 5);
   gemGrad.addColorStop(0, '#ffffff');
-  gemGrad.addColorStop(0.3, '#2ef2b8');
+  gemGrad.addColorStop(0.35, '#2ef2b8');
   gemGrad.addColorStop(1, '#059669');
   ctx.fillStyle = gemGrad;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - 85);
-  ctx.lineTo(cx + 34, cy - 50);
-  ctx.lineTo(cx + 22, cy - 10);
-  ctx.lineTo(cx - 22, cy - 10);
-  ctx.lineTo(cx - 34, cy - 50);
+  ctx.moveTo(cx, cy - 90);
+  ctx.lineTo(cx + 36, cy - 52);
+  ctx.lineTo(cx + 24, cy - 8);
+  ctx.lineTo(cx - 24, cy - 8);
+  ctx.lineTo(cx - 36, cy - 52);
   ctx.closePath();
   ctx.fill();
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.2;
   ctx.stroke();
   ctx.restore();
 
-  drawBadge(ctx, 'PROVABLY FAIR • 98.5% RTP', '#2ef2b8', 28, 42);
-
-  // Title and subtitle
-  ctx.save();
-  ctx.font = '900 36px sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('MINES', 30, H - 54);
-
-  ctx.font = '600 14px sans-serif';
-  ctx.fillStyle = '#2ef2b8';
-  ctx.fillText('5×5 Dynamic Grid • Safe Gems Multiplier', 30, H - 28);
-  ctx.restore();
-
+  drawBadge(ctx, 'ORIGINAL', '#2ef2b8', 28, 38);
+  drawTitleAndSubtitle(ctx, 'MINES', 'Gem Hunt & Cash Out', '#2ef2b8');
   drawVignetteAndBorder(ctx, '#2ef2b8');
   return canvas.toBuffer('image/png');
 }
@@ -246,15 +243,15 @@ function generateMinesCover() {
 function generateCrashCover() {
   const { canvas, ctx } = createBaseCanvas('#2ef2b8', '#3b82f6');
 
-  // Draw exponential curved ascent line
+  // Exponential ascent curve
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(60, H - 70);
   ctx.bezierCurveTo(W * 0.4, H - 75, W * 0.65, H * 0.6, W * 0.76, H * 0.28);
   ctx.strokeStyle = '#2ef2b8';
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 4.5;
   ctx.shadowColor = '#2ef2b8';
-  ctx.shadowBlur = 24;
+  ctx.shadowBlur = 26;
   ctx.stroke();
 
   // Glow under the curve
@@ -262,40 +259,40 @@ function generateCrashCover() {
   ctx.lineTo(60, H - 70);
   ctx.closePath();
   const fillGrad = ctx.createLinearGradient(0, H * 0.28, 0, H - 70);
-  fillGrad.addColorStop(0, 'rgba(46, 242, 184, 0.25)');
+  fillGrad.addColorStop(0, 'rgba(46, 242, 184, 0.28)');
   fillGrad.addColorStop(1, 'rgba(46, 242, 184, 0.0)');
   ctx.fillStyle = fillGrad;
   ctx.fill();
   ctx.restore();
 
-  // Draw stylized rocket at the tip of the curve
+  // Rocket
   const rx = W * 0.76;
   const ry = H * 0.28;
-  const angle = -0.65; // ~37 degrees up
+  const angle = -0.65;
 
   ctx.save();
   ctx.translate(rx, ry);
   ctx.rotate(angle);
 
-  // Rocket exhaust flame
+  // Flame
   ctx.shadowColor = '#fbbf24';
-  ctx.shadowBlur = 28;
-  const flameGrad = ctx.createLinearGradient(-35, 0, -8, 0);
+  ctx.shadowBlur = 32;
+  const flameGrad = ctx.createLinearGradient(-38, 0, -8, 0);
   flameGrad.addColorStop(0, 'rgba(251, 191, 36, 0)');
   flameGrad.addColorStop(0.5, '#f59e0b');
   flameGrad.addColorStop(1, '#ffffff');
   ctx.fillStyle = flameGrad;
   ctx.beginPath();
-  ctx.moveTo(-10, -7);
-  ctx.lineTo(-44, 0);
-  ctx.lineTo(-10, 7);
+  ctx.moveTo(-10, -8);
+  ctx.lineTo(-48, 0);
+  ctx.lineTo(-10, 8);
   ctx.closePath();
   ctx.fill();
 
   // Rocket body
   ctx.shadowColor = '#2ef2b8';
-  ctx.shadowBlur = 18;
-  const rGrad = ctx.createLinearGradient(-15, 0, 32, 0);
+  ctx.shadowBlur = 20;
+  const rGrad = ctx.createLinearGradient(-15, 0, 34, 0);
   rGrad.addColorStop(0, '#0f172a');
   rGrad.addColorStop(0.5, '#e2e8f0');
   rGrad.addColorStop(1, '#ffffff');
@@ -333,26 +330,15 @@ function generateCrashCover() {
 
   // Multiplier readout near rocket
   ctx.save();
-  ctx.font = '900 28px sans-serif';
+  ctx.font = '900 32px sans-serif';
   ctx.fillStyle = '#2ef2b8';
   ctx.shadowColor = '#2ef2b8';
-  ctx.shadowBlur = 16;
-  ctx.fillText('14.82×', rx - 140, ry + 10);
+  ctx.shadowBlur = 20;
+  ctx.fillText('14.82×', rx - 145, ry + 10);
   ctx.restore();
 
-  drawBadge(ctx, '24/7 MULTIPLAYER • 60 FPS', '#2ef2b8', 28, 42);
-
-  // Title and subtitle
-  ctx.save();
-  ctx.font = '900 36px sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('CRASH', 30, H - 54);
-
-  ctx.font = '600 14px sans-serif';
-  ctx.fillStyle = '#2ef2b8';
-  ctx.fillText('Continuous Orbital Flight • Cash Out Before Supernova', 30, H - 28);
-  ctx.restore();
-
+  drawBadge(ctx, 'MULTIPLAYER', '#2ef2b8', 28, 38);
+  drawTitleAndSubtitle(ctx, 'CRASH', 'Orbital Rocket Flight', '#2ef2b8');
   drawVignetteAndBorder(ctx, '#2ef2b8');
   return canvas.toBuffer('image/png');
 }
@@ -363,37 +349,31 @@ function generateCrashCover() {
 function generateBlackjackCover() {
   const { canvas, ctx } = createBaseCanvas('#f59e0b', '#10b981');
 
-  // Draw 2 Playing Cards (Ace of Spades + King of Spades)
   function drawCard(x, y, rot, val, suit, isGold = false) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rot);
 
-    const cardW = 90;
-    const cardH = 135;
+    const cardW = 95;
+    const cardH = 142;
 
-    // Card shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
     ctx.shadowBlur = 24;
     ctx.shadowOffsetY = 8;
 
-    // Card background
     ctx.fillStyle = isGold ? '#1a1f2c' : '#0f172a';
     ctx.beginPath();
     ctx.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 10);
     ctx.fill();
 
-    // Card border
     ctx.shadowBlur = 0;
     ctx.strokeStyle = isGold ? '#fbbf24' : 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Inner foil border
     ctx.strokeStyle = isGold ? 'rgba(251, 191, 36, 0.35)' : 'rgba(255, 255, 255, 0.08)';
     ctx.strokeRect(-cardW / 2 + 6, -cardH / 2 + 6, cardW - 12, cardH - 12);
 
-    // Value and Suit
     ctx.font = 'bold 22px sans-serif';
     ctx.fillStyle = isGold ? '#fbbf24' : '#ffffff';
     ctx.fillText(val, -cardW / 2 + 12, -cardH / 2 + 26);
@@ -401,22 +381,19 @@ function generateBlackjackCover() {
     ctx.font = '20px sans-serif';
     ctx.fillText(suit, -cardW / 2 + 13, -cardH / 2 + 48);
 
-    // Big central emblem
-    ctx.font = '36px sans-serif';
-    ctx.fillText(suit, -16, 12);
+    ctx.font = '38px sans-serif';
+    ctx.fillText(suit, -17, 14);
 
     ctx.restore();
   }
 
-  // Draw two overlapping cards
   drawCard(W * 0.65, H * 0.44, -0.16, 'A', '♠', true);
-  drawCard(W * 0.75, H * 0.47, 0.12, 'K', '♠', false);
+  drawCard(W * 0.76, H * 0.47, 0.12, 'K', '♠', false);
 
-  // Casino Chips stack
   function drawChip(cx, cy, color, accent) {
     ctx.save();
     ctx.shadowColor = color;
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 14;
 
     ctx.beginPath();
     ctx.ellipse(cx, cy, 38, 22, 0, 0, Math.PI * 2);
@@ -440,19 +417,8 @@ function generateBlackjackCover() {
   drawChip(W * 0.42, H * 0.58, '#b45309', '#fde047');
   drawChip(W * 0.42, H * 0.52, '#1e293b', '#94a3b8');
 
-  drawBadge(ctx, 'CASINO CLASSIC • 99.5% RTP', '#fbbf24', 28, 42);
-
-  // Title and subtitle
-  ctx.save();
-  ctx.font = '900 36px sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('BLACKJACK', 30, H - 54);
-
-  ctx.font = '600 14px sans-serif';
-  ctx.fillStyle = '#fbbf24';
-  ctx.fillText('Beat The Dealer • Double Down • 3:2 Natural Payout', 30, H - 28);
-  ctx.restore();
-
+  drawBadge(ctx, 'TABLE GAME', '#fbbf24', 28, 38);
+  drawTitleAndSubtitle(ctx, 'BLACKJACK', 'Classic 21 • Beat The Dealer', '#fbbf24');
   drawVignetteAndBorder(ctx, '#fbbf24');
   return canvas.toBuffer('image/png');
 }
@@ -462,12 +428,9 @@ function generateBlackjackCover() {
 // ---------------------------------------------------------------------------
 function generateKenoCover() {
   const { canvas, ctx } = createBaseCanvas('#00f0ff', '#8b5cf6');
-
-  // Holographic 40-Ball Matrix in perspective
   const cx = W * 0.65;
   const cy = H * 0.42;
 
-  // Draw glowing lottery balls
   const ballPositions = [
     { x: cx - 80, y: cy - 40, num: '07', hit: true, col: '#2ef2b8' },
     { x: cx - 20, y: cy - 55, num: '14', hit: false, col: '#38bdf8' },
@@ -482,20 +445,20 @@ function generateKenoCover() {
     ctx.translate(b.x, b.y);
 
     ctx.shadowColor = b.col;
-    ctx.shadowBlur = b.hit ? 24 : 12;
+    ctx.shadowBlur = b.hit ? 26 : 12;
 
-    const bGrad = ctx.createRadialGradient(-6, -6, 2, 0, 0, 24);
+    const bGrad = ctx.createRadialGradient(-6, -6, 2, 0, 0, 26);
     bGrad.addColorStop(0, '#ffffff');
-    bGrad.addColorStop(0.3, b.col);
+    bGrad.addColorStop(0.32, b.col);
     bGrad.addColorStop(1, '#09101d');
     ctx.fillStyle = bGrad;
     ctx.beginPath();
-    ctx.arc(0, 0, 24, 0, Math.PI * 2);
+    ctx.arc(0, 0, 25, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.shadowBlur = 0;
     ctx.strokeStyle = b.hit ? '#ffffff' : b.col;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.6;
     ctx.stroke();
 
     ctx.font = 'bold 15px sans-serif';
@@ -506,7 +469,7 @@ function generateKenoCover() {
     ctx.restore();
   }
 
-  // Draw matrix grid backdrop behind orbs
+  // Futuristic perspective radar grid
   ctx.save();
   ctx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
   ctx.lineWidth = 1;
@@ -522,19 +485,8 @@ function generateKenoCover() {
   }
   ctx.restore();
 
-  drawBadge(ctx, '20-BALL DRAW • UP TO 1,000×', '#00f0ff', 28, 42);
-
-  // Title and subtitle
-  ctx.save();
-  ctx.font = '900 36px sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('KENO', 30, H - 54);
-
-  ctx.font = '600 14px sans-serif';
-  ctx.fillStyle = '#00f0ff';
-  ctx.fillText('40-Number Matrix • Custom Risk Multipliers', 30, H - 28);
-  ctx.restore();
-
+  drawBadge(ctx, 'LOTTERY', '#00f0ff', 28, 38);
+  drawTitleAndSubtitle(ctx, 'KENO', 'Lucky Numbers Draw', '#00f0ff');
   drawVignetteAndBorder(ctx, '#00f0ff');
   return canvas.toBuffer('image/png');
 }
@@ -544,18 +496,16 @@ function generateKenoCover() {
 // ---------------------------------------------------------------------------
 function generateSlotsCover() {
   const { canvas, ctx } = createBaseCanvas('#ec4899', '#fbbf24');
-
-  // 3-Reel Slots Window
   const cx = W * 0.65;
   const cy = H * 0.45;
-  const reelW = 64;
-  const reelH = 120;
+  const reelW = 66;
+  const reelH = 124;
   const gap = 12;
 
-  // Frame backdrop
+  // Frame
   ctx.save();
   ctx.shadowColor = '#fbbf24';
-  ctx.shadowBlur = 24;
+  ctx.shadowBlur = 26;
   ctx.fillStyle = '#0f172a';
   ctx.beginPath();
   ctx.roundRect(cx - (reelW * 3 + gap * 2) / 2 - 12, cy - reelH / 2 - 12, reelW * 3 + gap * 2 + 24, reelH + 24, 14);
@@ -579,10 +529,9 @@ function generateSlotsCover() {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Bold glowing Neon 7
     ctx.shadowColor = '#f43f5e';
-    ctx.shadowBlur = 20;
-    ctx.font = '900 48px sans-serif';
+    ctx.shadowBlur = 22;
+    ctx.font = '900 50px sans-serif';
     ctx.fillStyle = '#f43f5e';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -594,9 +543,9 @@ function generateSlotsCover() {
     ctx.restore();
   }
 
-  // Marquee Payline Bar
+  // Payline
   ctx.save();
-  ctx.strokeStyle = 'rgba(46, 242, 184, 0.7)';
+  ctx.strokeStyle = 'rgba(46, 242, 184, 0.75)';
   ctx.lineWidth = 3;
   ctx.setLineDash([8, 4]);
   ctx.beginPath();
@@ -605,19 +554,8 @@ function generateSlotsCover() {
   ctx.stroke();
   ctx.restore();
 
-  drawBadge(ctx, 'PROGRESSIVE JACKPOT • 500×', '#ec4899', 28, 42);
-
-  // Title and subtitle
-  ctx.save();
-  ctx.font = '900 36px sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('SLOTS', 30, H - 54);
-
-  ctx.font = '600 14px sans-serif';
-  ctx.fillStyle = '#ec4899';
-  ctx.fillText('Vegas Cyber 777 • Diamonds & Wild Moons', 30, H - 28);
-  ctx.restore();
-
+  drawBadge(ctx, 'CLASSIC', '#ec4899', 28, 38);
+  drawTitleAndSubtitle(ctx, 'SLOTS', 'Vegas Cyber 777 Spins', '#ec4899');
   drawVignetteAndBorder(ctx, '#ec4899');
   return canvas.toBuffer('image/png');
 }
@@ -627,74 +565,60 @@ function generateSlotsCover() {
 // ---------------------------------------------------------------------------
 function generateCoinflipCover() {
   const { canvas, ctx } = createBaseCanvas('#fbbf24', '#2ef2b8');
-
-  // 3D Spinning Gold & Mint Coin
   const cx = W * 0.65;
   const cy = H * 0.44;
 
   ctx.save();
   ctx.translate(cx, cy);
 
-  // Dynamic motion blur streak
-  ctx.strokeStyle = 'rgba(251, 191, 36, 0.25)';
+  // Motion streak
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.28)';
   ctx.lineWidth = 8;
   ctx.beginPath();
-  ctx.arc(0, 0, 78, -Math.PI * 0.7, Math.PI * 0.2);
+  ctx.arc(0, 0, 80, -Math.PI * 0.7, Math.PI * 0.2);
   ctx.stroke();
 
   // 3D coin edge
   ctx.shadowColor = '#fbbf24';
-  ctx.shadowBlur = 28;
+  ctx.shadowBlur = 30;
   for (let offset = 8; offset >= 0; offset--) {
     ctx.beginPath();
-    ctx.ellipse(offset * 0.8, offset * 0.8, 54, 54, 0, 0, Math.PI * 2);
+    ctx.ellipse(offset * 0.8, offset * 0.8, 56, 56, 0, 0, Math.PI * 2);
     ctx.fillStyle = offset === 0 ? '#fbbf24' : '#b45309';
     ctx.fill();
   }
 
-  // Coin face gradient
-  const coinGrad = ctx.createLinearGradient(-40, -40, 40, 40);
+  // Coin face
+  const coinGrad = ctx.createLinearGradient(-42, -42, 42, 42);
   coinGrad.addColorStop(0, '#fef08a');
   coinGrad.addColorStop(0.4, '#eab308');
   coinGrad.addColorStop(1, '#a16207');
   ctx.fillStyle = coinGrad;
   ctx.beginPath();
-  ctx.arc(0, 0, 50, 0, Math.PI * 2);
+  ctx.arc(0, 0, 52, 0, Math.PI * 2);
   ctx.fill();
 
-  // Embossed Moonflip Crescent Logo on coin
+  // Embossed Moonflip Crescent Logo
   ctx.shadowColor = '#000000';
   ctx.shadowBlur = 6;
   ctx.fillStyle = '#1e293b';
   ctx.beginPath();
-  ctx.arc(4, 0, 26, 0, Math.PI * 2);
+  ctx.arc(4, 0, 28, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#fbbf24';
   ctx.beginPath();
-  ctx.arc(10, 0, 22, 0, Math.PI * 2);
+  ctx.arc(11, 0, 24, 0, Math.PI * 2);
   ctx.fill();
-
   ctx.restore();
 
-  drawBadge(ctx, 'INSTANT 1.96× • 50/50 ODDS', '#fbbf24', 28, 42);
-
-  // Title and subtitle
-  ctx.save();
-  ctx.font = '900 36px sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('COINFLIP', 30, H - 54);
-
-  ctx.font = '600 14px sans-serif';
-  ctx.fillStyle = '#fbbf24';
-  ctx.fillText('High-Speed 50/50 Toss • Heads or Tails PvP', 30, H - 28);
-  ctx.restore();
-
+  drawBadge(ctx, 'PVP & SOLO', '#fbbf24', 28, 38);
+  drawTitleAndSubtitle(ctx, 'COINFLIP', 'Heads or Tails Toss', '#fbbf24');
   drawVignetteAndBorder(ctx, '#fbbf24');
   return canvas.toBuffer('image/png');
 }
 
-// Generate all 6 covers
-console.log('Generating high-resolution game covers...');
+// Generate and write all 6 covers
+console.log('Generating high-resolution clean game covers...');
 
 fs.writeFileSync(path.join(ASSETS_DIR, 'game-mines.png'), generateMinesCover());
 console.log('✓ game-mines.png');
@@ -714,4 +638,4 @@ console.log('✓ game-slots.png');
 fs.writeFileSync(path.join(ASSETS_DIR, 'game-coinflip.png'), generateCoinflipCover());
 console.log('✓ game-coinflip.png');
 
-console.log('All 6 game covers generated successfully!');
+console.log('All 6 clean game covers generated successfully!');
