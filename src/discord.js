@@ -4,8 +4,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getBalance, claimDaily, addTokens, getLeaderboard } from './games/economy.js';
 import { addXp, getUserLevelData, LEVEL_TIERS } from './games/levels.js';
-import { start5x5Mines, handle5x5MinesInteraction, showMinesSetupModal } from './games/minesGame.js';
+import { start5x5Mines, handle5x5MinesInteraction, showMinesSetupModal, showMinesLeaderboard } from './games/minesGame.js';
 import { continuousCrash, showCrashModal } from './games/continuousCrash.js';
+import { showCrashLeaderboard } from './games/crashLeaderboard.js';
 import { playModernKeno, showKenoModal, handleKenoInteraction } from './games/kenoGame.js';
 import { playSlots, showSlotsModal } from './games/slotsGame.js';
 import { playCoinflip, showCoinflipModal } from './games/coinflipGame.js';
@@ -227,35 +228,44 @@ export async function getDiscordClient() {
           return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        // Web Arena 1-Click Launch Button
-        if (id === 'launch_web_arena') {
+        // Web Arena 1-Click Launch Buttons (5x5 Mines & Orbital Crash)
+        if (
+          id === 'launch_web_arena' ||
+          id === 'launch_web_crash' ||
+          id.startsWith('crash_bet_') ||
+          id.startsWith('crash_quickauto_') ||
+          id === 'crash_modal_btn'
+        ) {
           const token = createWebPlaySession(interaction.user);
           const baseUrl = getPublicBaseUrl(interaction);
-          const playUrl = `${baseUrl}/play?token=${token}`;
+          const isCrash = id === 'launch_web_crash' || id.startsWith('crash_bet_') || id.startsWith('crash_quickauto_') || id === 'crash_modal_btn';
+          const crashUrl = `${baseUrl}/play?game=crash&token=${token}`;
+          const minesUrl = `${baseUrl}/play?game=mines&token=${token}`;
 
           const embed = new EmbedBuilder()
-            .setColor(0x00f0ff)
-            .setTitle('🎮  MOONFLIP CASINO — WEB ARENA')
+            .setColor(isCrash ? 0xff9900 : 0x00f0ff)
+            .setTitle(isCrash ? '🚀  MOONFLIP ORBITAL CRASH — WEB ARENA' : '💣  MOONFLIP 5x5 MINES — WEB ARENA')
             .setDescription(
-              `> **Real-Time Interactive 5x5 Mines Web Client**\n\n` +
-              `Click directly on the 5x5 board with 3D tile flips, sound effects, particle cascades, and instant cashouts synced with your Discord wallet!\n\n` +
+              `> **Real-Time Interactive Web Client with Instant Discord Sync** ⚡\n\n` +
+              `Your private gaming window is ready! Click the button below to open the **${isCrash ? 'Orbital Crash' : '5x5 Mines'}** game window directly in your browser with your wallet synced.\n\n` +
               `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
               `👤 **Player**: <@${interaction.user.id}>\n` +
               `🪙 **Current Wallet**: \`${getBalance(interaction.user.id).toLocaleString()} 🪙\`\n` +
-              `⚡ **Features**: 3D Tile Flips • Live Audio Synthesizer • Particle Canvas • Instant Cashout\n` +
+              `🎮 **Game Mode**: **\`${isCrash ? '🚀 Orbital Crash (60 FPS Canvas)' : '💣 5x5 Mines (3D Matrix)'}\`**\n` +
+              `⚡ **Features**: 60 FPS Physics • Studio Web Audio Synthesizer • Live Leaderboard\n` +
               `🔒 **Session**: 60-minute cryptographically secured login token\n` +
               `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-              `👉 **Click the button below to launch the arena in your browser!**`
+              `👉 **Click the button below to launch the window in your browser!**`
             )
-            .setThumbnail('https://cdn-icons-png.flaticon.com/512/1055/1055687.png')
-            .setFooter({ text: 'Provably Fair • Instant Settlement • Moonflip Arena' })
+            .setThumbnail(isCrash ? 'https://cdn-icons-png.flaticon.com/512/3205/3205047.png' : 'https://cdn-icons-png.flaticon.com/512/1055/1055687.png')
+            .setFooter({ text: 'Provably Fair • Instant Settlement • Moonflip Web Arena' })
             .setTimestamp();
 
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-              .setLabel('🚀 Launch Mines Arena')
+              .setLabel(isCrash ? '🚀 Open Orbital Crash Window' : '💣 Open 5x5 Mines Window')
               .setStyle(ButtonStyle.Link)
-              .setURL(playUrl)
+              .setURL(isCrash ? crashUrl : minesUrl)
           );
 
           return await interaction.reply({
@@ -441,6 +451,12 @@ export async function getDiscordClient() {
         }
 
         // 5x5 Mines Game
+        if (id === 'mines_leaderboard_btn') {
+          return await showMinesLeaderboard(interaction);
+        }
+        if (id === 'lb_crash_modal' || id === 'crash_leaderboard_btn') {
+          return await showCrashLeaderboard(interaction);
+        }
         if (
           id.startsWith('start_m5_') ||
           id.startsWith('m5_tile_') ||
@@ -451,28 +467,6 @@ export async function getDiscordClient() {
         }
         if (id === 'start_mines_100') return await start5x5Mines(interaction, 100, 3);
         if (id === 'start_mines_500') return await start5x5Mines(interaction, 500, 5);
-
-        // Orbital Crash Game (Launch Presets, Replay, Auto-Cashout Targets, Live Cashout, Modal)
-        if (id.startsWith('crash_bet_')) {
-          const amount = parseInt(id.replace('crash_bet_', ''), 10) || 100;
-          return await continuousCrash.handleBet(interaction, amount);
-        }
-        if (id.startsWith('crash_quickauto_')) {
-          const parts = id.split('_');
-          const bet = parseInt(parts[2], 10) || 100;
-          const autoCode = parseInt(parts[3], 10) || 200;
-          return await continuousCrash.handleBet(interaction, bet, autoCode / 100);
-        }
-        if (id.startsWith('crash_target_')) {
-          const targetCode = parseInt(id.replace('crash_target_', ''), 10) || 200;
-          return await continuousCrash.handleCashout(interaction, targetCode / 100);
-        }
-        if (id === 'crash_live_cashout' || id === 'crash_cashout') {
-          return await continuousCrash.handleCashout(interaction);
-        }
-        if (id === 'crash_modal_btn') {
-          return await showCrashModal(interaction);
-        }
 
         // Modern 20-Ball Keno (Interactive Board + Multi-Risk + Quick Presets)
         if (

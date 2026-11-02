@@ -60,7 +60,10 @@ export function createWebServer() {
   const app = express();
 
   app.use(express.json());
-  app.use(express.static(path.join(__dirname, 'public')));
+  app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: 0,
+    etag: false,
+  }));
 
   // Web Casino Arena route
   app.get('/play', (req, res) => {

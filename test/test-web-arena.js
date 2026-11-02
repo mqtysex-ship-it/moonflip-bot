@@ -21,8 +21,8 @@ async function runTests() {
     const playRes = await fetch(`${baseUrl}/play`);
     assert.strictEqual(playRes.status, 200);
     const htmlText = await playRes.text();
-    assert(htmlText.includes('MOONFLIP'));
-    assert(htmlText.includes('5x5 Mines Web Arena'));
+    assert(htmlText.includes('Moonflip') || htmlText.includes('MOONFLIP'));
+    assert(htmlText.includes('Web Arena'));
     console.log('✓ Test 1 Passed: GET /play served correctly.');
 
     // 2. Verify static assets /play/style.css and /play/app.js

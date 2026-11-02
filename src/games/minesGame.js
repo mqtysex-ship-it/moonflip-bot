@@ -12,6 +12,7 @@ import { generateMinesBombs, calculateMinesMultiplier, secureRandomFloat, secure
 import { getBalance, deductTokens, addTokens } from './economy.js';
 import { buildMinesAttachment } from '../canvas/gameCardRenderer.js';
 import { createWebPlaySession, getPublicBaseUrl } from '../web/playApi.js';
+import { getMinesLeaderboard } from './minesLeaderboard.js';
 
 export const activeMinesGames = new Map();
 
@@ -349,35 +350,39 @@ export function render5x5Board(
 export async function start5x5Mines(interaction) {
   const token = createWebPlaySession(interaction.user);
   const baseUrl = getPublicBaseUrl(interaction);
-  const playUrl = `${baseUrl}/play?token=${token}`;
+  const playUrl = `${baseUrl}/play?game=mines&token=${token}`;
   const balance = getBalance(interaction.user.id);
 
   const embed = new EmbedBuilder()
     .setColor(0x00f0ff)
-    .setTitle('🎮  MOONFLIP 5x5 MINES — WEB ARÉNA')
+    .setTitle('🎮  MOONFLIP 5x5 MINES — WEB ARENA')
     .setDescription(
-      `> **Hra 5x5 Mines se nyní hraje výhradně v naší Web Aréně!** 💎💣\n\n` +
-      `Žádné klikání na desítky tlačítek v Discord chatu a žádné lagy – plně interaktivní 3D herní pole ve stylu Stake.com / Rainbet s reálnými zvuky a bleskovou odezvou.\n\n` +
+      `> **5x5 Mines is played exclusively in our high-precision Web Arena!** 💎💣\n\n` +
+      `Zero chat latency and no spamming dozens of Discord buttons — experience full 3D real-time interactive Stake.com / Rainbet style gameplay with authentic sounds and instant Cashout.\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `👤 **Hráč**: <@${interaction.user.id}>\n` +
-      `🪙 **Váš zůstatek**: \`${balance.toLocaleString()} 🪙\`\n` +
-      `⚡ **Funkce**: 3D animace • Zvuky diamantů a bomb • Reálné klikání • Okamžitý Cash Out\n` +
-      `🔒 **Přihlášení**: Automatické bez hesel (propojeno s Discordem)\n` +
+      `👤 **Player**: <@${interaction.user.id}>\n` +
+      `🪙 **Your Balance**: \`${balance.toLocaleString()} 🪙\`\n` +
+      `⚡ **Features**: 3D Animations • Real Gems & Explosions • Precision Physics • Instant Cash Out\n` +
+      `🔒 **Authentication**: 1-Click Discord Auto-Login (No passwords needed)\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `👉 **Klikněte na zelené tlačítko níže a spusťte arénu v prohlížeči!**`
+      `👉 **Click the green button below to launch the Web Arena in your browser!**`
     )
     .setThumbnail('https://cdn-icons-png.flaticon.com/512/1055/1055687.png')
-    .setFooter({ text: 'Moonflip Web Arena • Synchronizováno s Discord peněženkou' })
+    .setFooter({ text: 'Moonflip Web Arena • Synchronized with Discord Wallet' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setLabel('🚀 Spustit 5x5 Mines ve Web Aréně')
+      .setLabel('🚀 Launch 5x5 Mines in Web Arena')
       .setStyle(ButtonStyle.Link)
       .setURL(playUrl),
     new ButtonBuilder()
+      .setCustomId('mines_leaderboard_btn')
+      .setLabel('🏆 Mines Leaderboard')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
       .setCustomId('eco_balance')
-      .setLabel('💰 Zůstatek')
+      .setLabel('💰 Balance')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -391,6 +396,67 @@ export async function start5x5Mines(interaction) {
     return await interaction.editReply({ embeds: [embed], components: [row], files: [], attachments: [], content: null });
   }
   return await interaction.reply({
+    embeds: [embed],
+    components: [row],
+    flags: MessageFlags.Ephemeral,
+  });
+}
+
+export async function showMinesLeaderboard(interaction) {
+  const lb = getMinesLeaderboard();
+  const topMults = (lb.topMultipliers || []).slice(0, 5);
+  const topProfits = (lb.topPayouts || []).slice(0, 5);
+
+  let multList = '';
+  const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+  for (let i = 0; i < topMults.length; i++) {
+    const entry = topMults[i];
+    const medal = medals[i] || `#${i + 1}`;
+    multList += `${medal} **${entry.username}** — **\`${entry.multiplier.toFixed(2)}×\`** *(+${entry.profit.toLocaleString()} 🪙 • ${entry.bombs}💣)*\n`;
+  }
+  if (!multList) multList = '*No multipliers recorded yet.*';
+
+  let profitList = '';
+  for (let i = 0; i < topProfits.length; i++) {
+    const entry = topProfits[i];
+    const medal = medals[i] || `#${i + 1}`;
+    profitList += `${medal} **${entry.username}** — **\`+${entry.profit.toLocaleString()} 🪙\`** *(at ${entry.multiplier.toFixed(2)}× • wager ${entry.wager.toLocaleString()} 🪙)*\n`;
+  }
+  if (!profitList) profitList = '*No wins recorded yet.*';
+
+  const embed = new EmbedBuilder()
+    .setColor(0xf1c40f)
+    .setTitle('🏆  5x5 MINES — HALL OF FAME & LEADERBOARD')
+    .setDescription(
+      `> **Official Hall of Fame: Highest Multipliers & Biggest Wins in 5x5 Mines!** 💎💣\n\n` +
+      `🔥 **TOP MULTIPLIERS**\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `${multList}\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `💰 **BIGGEST PAYOUTS**\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `${profitList}\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+    )
+    .setFooter({ text: 'Moonflip Mines • Real-Time Synchronized' })
+    .setTimestamp();
+
+  const token = createWebPlaySession(interaction.user);
+  const baseUrl = getPublicBaseUrl(interaction);
+  const playUrl = `${baseUrl}/play?game=mines&token=${token}`;
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel('🚀 Play 5x5 Mines')
+      .setStyle(ButtonStyle.Link)
+      .setURL(playUrl),
+    new ButtonBuilder()
+      .setCustomId('eco_balance')
+      .setLabel('💰 My Balance')
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return interaction.reply({
     embeds: [embed],
     components: [row],
     flags: MessageFlags.Ephemeral,

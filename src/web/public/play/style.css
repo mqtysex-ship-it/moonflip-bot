@@ -1244,6 +1244,445 @@ body.casino-theme {
 }
 
 /* ==========================================================================
+   MINES LEADERBOARD & HALL OF FAME STYLES (STAKE TIER)
+   ========================================================================== */
+
+.nav-btn-highlight {
+  border-color: rgba(255, 215, 0, 0.3) !important;
+}
+
+.nav-btn-highlight:hover {
+  border-color: #ffd700 !important;
+  color: #ffd700 !important;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
+}
+
+.live-leaderboard-stage {
+  margin-top: 24px;
+  background: var(--bg-chassis);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-chassis);
+  box-shadow: var(--shadow-chassis);
+  overflow: hidden;
+}
+
+.lb-stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #0f212e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.lb-stage-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trophy-pulse-crest {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.25);
+}
+
+.lb-section-heading {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+  margin: 0;
+}
+
+.lb-section-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.lb-stage-tabs,
+.lb-tabs-bar {
+  display: flex;
+  gap: 6px;
+  background: #1a2c38;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.lb-stage-tab,
+.lb-tab-btn {
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.lb-stage-tab:hover,
+.lb-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.lb-stage-tab.active,
+.lb-tab-btn.active {
+  background: #2f4553;
+  color: #00f0ff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.lb-stage-card {
+  padding: 12px 16px;
+  overflow-x: auto;
+}
+
+.leaderboard-card {
+  max-width: 680px;
+  width: 95%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.leaderboard-scroll-area {
+  overflow-y: auto;
+  max-height: 480px;
+  padding: 12px 18px;
+}
+
+.lb-tabs-bar {
+  margin: 14px 20px 0 20px;
+}
+
+.lb-footer-badge {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-right: auto;
+}
+
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.lb-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.lb-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  vertical-align: middle;
+}
+
+.lb-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lb-rank {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+}
+
+.lb-rank.rank-1 {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #0f212e;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.lb-rank.rank-2 {
+  background: linear-gradient(135deg, #f0f0f0, #a8a8a8);
+  color: #0f212e;
+  box-shadow: 0 0 10px rgba(200, 200, 200, 0.3);
+}
+
+.lb-rank.rank-3 {
+  background: linear-gradient(135deg, #e69550, #9c5520);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(205, 127, 50, 0.3);
+}
+
+.lb-rank.rank-default {
+  background: #1a2c38;
+  color: var(--text-muted);
+}
+
+.lb-player-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lb-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #0f212e;
+}
+
+.lb-username {
+  font-weight: 700;
+  color: #ffffff;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-mult-chip {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+.lb-mult-chip.mult-gold {
+  background: rgba(255, 215, 0, 0.15);
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.35);
+}
+
+.lb-mult-chip.mult-cyan {
+  background: rgba(0, 240, 255, 0.15);
+  color: #00f0ff;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+}
+
+.lb-mult-chip.mult-green {
+  background: rgba(0, 231, 1, 0.15);
+  color: #00e701;
+  border: 1px solid rgba(0, 231, 1, 0.3);
+}
+
+.lb-profit {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: #00e701;
+}
+
+.lb-wager-bombs {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.lb-time {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.lb-loading,
+.lb-empty {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ==========================================================================
+   GAME SWITCHER & ORBITAL CRASH ARENA STYLES
+   ========================================================================== */
+
+.game-nav-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #0f212e;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-left: 14px;
+}
+
+.btn-game-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-game-switch:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.btn-game-switch.active {
+  background: #2f4553;
+  color: #00f0ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-game-switch.active[data-game="crash"] {
+  color: #ffaa00;
+}
+
+.crash-auto-pills {
+  margin-top: 8px;
+}
+
+.crash-auto-pill {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}
+
+.crash-matrix-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.crash-radar-frame {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  min-height: 440px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 75% 25%, rgba(20, 35, 55, 0.6) 0%, rgba(10, 18, 26, 0.95) 75%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crash-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.crash-center-readout {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  transform: translateZ(0);
+}
+
+.crash-live-mult {
+  font-family: var(--font-mono);
+  font-size: 4.8rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: 0 0 25px rgba(0, 240, 255, 0.45);
+  letter-spacing: -1px;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
+}
+
+.crash-live-status {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.crash-live-mult.mult-crashed {
+  color: #ff3344 !important;
+  text-shadow: 0 0 35px rgba(255, 51, 68, 0.8) !important;
+}
+
+.crash-live-mult.mult-cashed {
+  color: #00e701 !important;
+  text-shadow: 0 0 35px rgba(0, 231, 1, 0.7) !important;
+}
+
+.crash-live-mult.mult-gold {
+  color: #ffd700 !important;
+  text-shadow: 0 0 35px rgba(255, 215, 0, 0.7) !important;
+}
+
+.crash-live-mult.mult-purple {
+  color: #d946ef !important;
+  text-shadow: 0 0 40px rgba(217, 70, 239, 0.8) !important;
+}
+
+.crash-glow {
+  background: radial-gradient(circle, rgba(255, 170, 0, 0.3) 0%, transparent 70%) !important;
+}
+
+/* Crash Button States */
+.btn-launch {
+  background: linear-gradient(180deg, #ff9900 0%, #e67300 100%) !important;
+  box-shadow: 0 4px 15px rgba(255, 153, 0, 0.4) !important;
+}
+
+.btn-launch:hover {
+  background: linear-gradient(180deg, #ffaa1a 0%, #f07d05 100%) !important;
+  box-shadow: 0 6px 20px rgba(255, 153, 0, 0.5) !important;
+}
+
+.btn-flight-cashout {
+  background: linear-gradient(180deg, #00e701 0%, #00b301 100%) !important;
+  box-shadow: 0 4px 18px rgba(0, 231, 1, 0.4) !important;
+  animation: pulseFlightCashout 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseFlightCashout {
+  0%, 100% { box-shadow: 0 4px 15px rgba(0, 231, 1, 0.4); transform: scale(1); }
+  50% { box-shadow: 0 6px 25px rgba(0, 231, 1, 0.7); transform: scale(1.015); }
+}
+
+.btn-flight-crashed {
+  background: #2b3945 !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
    RESPONSIVE DESIGN (DESKTOP & MOBILE COMFORT)
    ========================================================================== */
 

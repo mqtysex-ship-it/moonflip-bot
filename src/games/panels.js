@@ -45,31 +45,31 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
 
     const embed = new EmbedBuilder()
       .setColor(0x00f0ff)
-      .setTitle('💣  MOONFLIP 5x5 MINES — WEB ARÉNA')
+      .setTitle('💣  MOONFLIP 5x5 MINES — WEB ARENA')
       .setDescription(
-        `> **Naše nejoblíbenější hra se hraje výhradně v interaktivní Web Aréně!** 💎💣\n` +
-        `> Zažijte skutečné 3D otáčení dlaždic, zvuky drahokamů a bomb, okamžitý výběr zisku a bleskovou odezvu bez lagů ve stylu Stake.com / Rainbet.\n\n` +
-        `### 🚀 Jak jednoduše hrát (4 snadné kroky):\n` +
-        `1️⃣ **Klikněte na zelené tlačítko** ➔ \`🚀 Spustit Web Arénu\` níže (nebo napište \`/play\`).\n` +
-        `2️⃣ **Žádná registrace ani hesla** ➔ Web se otevře v prohlížeči (na PC i mobilu) a jste **automaticky přihlášeni** se svým Discord účtem a svými tokeny.\n` +
-        `3️⃣ **Klikáte přímo na herní pole** ➔ Hledejte diamanty, vyhýbejte se minám a sledujte stoupající násobitel.\n` +
-        `4️⃣ **Kdykoliv vyberte zisk** ➔ Tlačítkem **CASH OUT** okamžitě připíšete výhru do své Discord peněženky (\`/balance\`).\n\n` +
-        `*Provably Fair • Automatické propojení s Discordem • Podpora PC & Mobil*`
+        `> **Our flagship game is played exclusively in the interactive Web Arena!** 💎💣\n` +
+        `> Experience authentic 3D tile flips, gem and bomb sound effects, instant Cashout, and zero-latency Stake.com / Rainbet style performance.\n\n` +
+        `### 🚀 How to Play (4 Simple Steps):\n` +
+        `1️⃣ **Click the green button** ➔ \`🚀 Launch Web Arena\` below (or type \`/play\`).\n` +
+        `2️⃣ **No registration or passwords** ➔ Opens in your browser (PC & Mobile) with **instant 1-click Discord login** and synced balance.\n` +
+        `3️⃣ **Click tiles directly on the grid** ➔ Uncover gems, dodge mines, and watch your multiplier soar.\n` +
+        `4️⃣ **Cash Out anytime** ➔ Hit **CASH OUT** to lock in your profit directly to your Discord wallet (\`/balance\`).\n\n` +
+        `*Provably Fair • 1-Click Discord Auto-Sync • PC & Mobile Supported*`
       )
       .setFooter({ text: 'Moonflip Casino • Web Arena Exclusive • 18+ Only' });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('launch_web_arena')
-        .setLabel('🚀 Spustit Web Arénu (5x5 Mines)')
+        .setLabel('🚀 Launch Web Arena (5x5 Mines)')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId('eco_balance')
-        .setLabel('💰 Zkontrolovat zůstatek')
+        .setLabel('💰 Check Balance')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId('eco_daily')
-        .setLabel('🎁 Denní odměna (+500)')
+        .setLabel('🎁 Daily Reward (+500)')
         .setStyle(ButtonStyle.Secondary)
     );
 

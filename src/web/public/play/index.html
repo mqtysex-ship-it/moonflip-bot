@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Moonflip — 5x5 Mines Web Arena</title>
+  <title>Moonflip — Web Arena (5x5 Mines & Orbital Crash)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/style.css">
+  <link rel="stylesheet" href="/play/style.css?v=2.1">
 </head>
 <body class="casino-theme">
 
@@ -32,6 +32,18 @@
           <span class="brand-tag">ORIGINALS</span>
         </div>
       </a>
+
+      <!-- Game Switcher (5x5 Mines vs Orbital Crash) -->
+      <div class="game-nav-switcher">
+        <button type="button" class="btn-game-switch active" id="btnSwitchMines" data-game="mines">
+          <span class="game-icon">💣</span>
+          <span class="game-name">5x5 Mines</span>
+        </button>
+        <button type="button" class="btn-game-switch" id="btnSwitchCrash" data-game="crash">
+          <span class="game-icon">🚀</span>
+          <span class="game-name">Orbital Crash</span>
+        </button>
+      </div>
     </div>
 
     <!-- Live Multiplier Ribbon (Stake-Style Ribbon) -->
@@ -44,6 +56,14 @@
     </div>
 
     <div class="nav-right">
+      <!-- Leaderboard Trigger -->
+      <button class="nav-icon-btn nav-btn-highlight" id="btnOpenLeaderboard" title="Hall of Fame & Leaderboard">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="#ffd700">
+          <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+        </svg>
+        <span class="btn-label-desktop">Leaderboard</span>
+      </button>
+
       <!-- Provably Fair Modal Trigger -->
       <button class="nav-icon-btn" id="btnOpenFairness" title="Provably Fair Verification">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -81,9 +101,10 @@
   <!-- Main Game Stage Chassis -->
   <main class="casino-stage">
     
-    <div class="game-chassis">
+    <!-- 1. 5x5 MINES GAME CHASSIS -->
+    <div class="game-chassis" id="minesChassis">
       
-      <!-- LEFT CONTROL DECK (The Betting Engine) -->
+      <!-- LEFT CONTROL DECK (Mines Betting Engine) -->
       <aside class="control-deck">
         
         <!-- Game Mode Switcher -->
@@ -262,6 +283,200 @@
 
     </div>
 
+    <!-- 2. ORBITAL CRASH GAME CHASSIS -->
+    <div class="game-chassis" id="crashChassis" style="display: none;">
+      
+      <!-- LEFT CONTROL DECK (Crash Betting Engine) -->
+      <aside class="control-deck">
+        
+        <!-- Game Mode Switcher -->
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-crash-mode="manual">Manual</button>
+          <button class="mode-tab" data-crash-mode="auto">Auto</button>
+        </div>
+
+        <div class="deck-form">
+          
+          <!-- Bet Amount Section -->
+          <div class="deck-field">
+            <div class="field-header">
+              <label for="crashWagerInput">Bet Amount</label>
+              <span class="field-aux" id="crashMaxBetNote">Balance: <strong id="crashAuxBalance">1,000</strong></span>
+            </div>
+            
+            <div class="stake-input-group">
+              <span class="group-addon-left">🪙</span>
+              <input type="number" id="crashWagerInput" min="10" max="1000000" step="10" value="100" autocomplete="off" spellcheck="false">
+              <div class="group-addon-right">
+                <button type="button" class="btn-math" id="btnCrashHalf">½</button>
+                <div class="addon-divider"></div>
+                <button type="button" class="btn-math" id="btnCrashDouble">2×</button>
+                <div class="addon-divider"></div>
+                <button type="button" class="btn-math btn-max" id="btnCrashMax">MAX</button>
+              </div>
+            </div>
+
+            <!-- Quick Chips Bar -->
+            <div class="quick-chips">
+              <button type="button" class="chip-btn crash-chip-btn" data-val="100">100</button>
+              <button type="button" class="chip-btn crash-chip-btn" data-val="250">250</button>
+              <button type="button" class="chip-btn crash-chip-btn" data-val="500">500</button>
+              <button type="button" class="chip-btn crash-chip-btn" data-val="1000">1k</button>
+              <button type="button" class="chip-btn crash-chip-btn" data-val="5000">5k</button>
+            </div>
+          </div>
+
+          <!-- Auto Cashout Target Section -->
+          <div class="deck-field">
+            <div class="field-header">
+              <label for="crashAutoCashoutInput">Auto Cashout</label>
+              <span class="field-aux text-cyan" id="crashAutoNote">Optional Target</span>
+            </div>
+
+            <div class="stake-input-group">
+              <span class="group-addon-left">🎯</span>
+              <input type="number" id="crashAutoCashoutInput" min="1.01" max="1000" step="0.1" placeholder="e.g. 2.00" autocomplete="off">
+              <div class="group-addon-right">
+                <button type="button" class="btn-math" id="btnCrashClearAuto">✕</button>
+              </div>
+            </div>
+
+            <!-- Segmented Quick Target Multipliers -->
+            <div class="mines-pills crash-auto-pills">
+              <button type="button" class="mine-pill crash-auto-pill" data-target="1.5">1.5×</button>
+              <button type="button" class="mine-pill crash-auto-pill" data-target="2.0">2×</button>
+              <button type="button" class="mine-pill crash-auto-pill" data-target="3.0">3×</button>
+              <button type="button" class="mine-pill crash-auto-pill" data-target="5.0">5×</button>
+              <button type="button" class="mine-pill crash-auto-pill" data-target="10.0">10×</button>
+            </div>
+          </div>
+
+          <!-- Dynamic Odds & Flight Telemetry Card -->
+          <div class="telemetry-card">
+            <div class="telemetry-row">
+              <div class="tele-item">
+                <span class="tele-label">Zone</span>
+                <span class="tele-val text-cyan" id="crashAltitudeZone">LIFTOFF</span>
+              </div>
+              <div class="tele-item">
+                <span class="tele-label">Win Rate</span>
+                <span class="tele-val text-emerald" id="crashWinRate">49.0%</span>
+              </div>
+              <div class="tele-item">
+                <span class="tele-label">House Edge</span>
+                <span class="tele-val text-gold">2.0%</span>
+              </div>
+            </div>
+            <div class="telemetry-subrow">
+              <span class="tele-sub-label">Estimated Payout:</span>
+              <span class="tele-sub-val" id="crashEstPayout">200 🪙</span>
+            </div>
+          </div>
+
+          <!-- PRIMARY ACTION BUTTON (Launch Flight / Cash Out) -->
+          <div class="cta-wrapper">
+            <button class="btn-stake-cta btn-bet" id="crashActionButton">
+              <span class="cta-label" id="crashActionTitle">Launch Flight</span>
+              <span class="cta-sub" id="crashActionSub">100 🪙</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Casing Footer Metadata -->
+        <div class="deck-footer">
+          <div class="fairness-badge" id="btnOpenCrashFairness">
+            <span class="pulsing-emerald-dot"></span>
+            <span>Provably Fair Verified</span>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- CENTER ARENA: THE RADAR FLIGHT STAGE -->
+      <section class="arena-matrix-stage crash-matrix-stage">
+        
+        <!-- Live Floating Status HUD -->
+        <div class="matrix-hud" id="crashHud">
+          <div class="hud-left">
+            <span class="hud-badge ready" id="crashHudBadge">Ready</span>
+            <span class="hud-message" id="crashHudMessage">Set your wager and click <strong>Launch Flight</strong>.</span>
+          </div>
+          <div class="hud-right" id="crashHudProfitBox" style="display:none;">
+            <div class="hud-stat">
+              <span class="hud-stat-lbl">Multiplier</span>
+              <span class="hud-stat-val text-cyan" id="crashHudMultVal">1.00×</span>
+            </div>
+            <div class="hud-stat">
+              <span class="hud-stat-lbl">Profit</span>
+              <span class="hud-stat-val text-emerald" id="crashHudProfitVal">+0 🪙</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Radar Canvas Container -->
+        <div class="matrix-grid-frame crash-radar-frame">
+          <canvas id="crashCanvas" class="crash-canvas"></canvas>
+
+          <!-- Floating Large Center Multiplier Readout -->
+          <div class="crash-center-readout" id="crashCenterReadout">
+            <div class="crash-live-mult" id="crashLiveMult">1.00×</div>
+            <div class="crash-live-status" id="crashLiveStatus">STANDBY</div>
+          </div>
+
+          <!-- Victory / Cashout Modal Overlay for Crash -->
+          <div class="victory-modal" id="crashVictoryModal">
+            <div class="modal-card">
+              <div class="modal-gem-glow crash-glow"></div>
+              <div class="modal-badge-wrapper">
+                <span class="modal-badge" id="crashModalBadge">FLIGHT CASHOUT</span>
+              </div>
+              <div class="modal-mult" id="crashModalMult">2.45×</div>
+              <div class="modal-payout-box">
+                <span class="modal-payout-label">TOTAL PAYOUT</span>
+                <span class="modal-payout-amount" id="crashModalWinAmount">+245 🪙</span>
+              </div>
+              <p class="modal-subtext">Winnings credited to your Discord wallet.</p>
+              <div class="modal-actions">
+                <button type="button" class="btn-modal-primary" id="btnCrashModalAgain">FLY AGAIN</button>
+                <button type="button" class="btn-modal-secondary" id="btnCrashModalClose">CLOSE</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- BOTTOM LIVE LEADERBOARD / HALL OF FAME ARENA -->
+    <section class="live-leaderboard-stage">
+      <div class="lb-stage-header">
+        <div class="lb-stage-title-group">
+          <div class="trophy-pulse-crest">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffd700">
+              <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="lb-section-heading">Web Arena Leaderboard & Hall of Fame</h2>
+            <span class="lb-section-sub">Verified crypto-grade winnings & high-stakes multipliers</span>
+          </div>
+        </div>
+        <div class="lb-stage-tabs">
+          <button type="button" class="lb-stage-tab active" data-stage-tab="mines-multipliers">💣 Mines Mults</button>
+          <button type="button" class="lb-stage-tab" data-stage-tab="crash-multipliers">🚀 Crash Mults</button>
+          <button type="button" class="lb-stage-tab" data-stage-tab="payouts">💰 Highest Wins</button>
+          <button type="button" class="lb-stage-tab" data-stage-tab="players">👑 Top Players</button>
+          <button type="button" class="lb-stage-tab" data-stage-tab="recent">⚡ Live Wins</button>
+        </div>
+      </div>
+
+      <div class="lb-stage-card" id="lbStageContent">
+        <div class="lb-loading">Loading live leaderboard...</div>
+      </div>
+    </section>
+
   </main>
 
   <!-- PROVABLY FAIR VERIFICATION MODAL -->
@@ -279,7 +494,7 @@
 
       <div class="fairness-body">
         <p class="fairness-desc">
-          Moonflip uses a cryptographically verifiable random seed generator. The outcome of each round is determined before you click the first tile and cannot be altered by either the server or client.
+          Moonflip uses a cryptographically verifiable random seed generator. The outcome of each round is determined before launch and cannot be altered by either the server or client.
         </p>
 
         <div class="fairness-input-block">
@@ -298,7 +513,7 @@
 
         <div class="fairness-input-block">
           <label>Algorithm</label>
-          <span class="algorithm-tag">HMAC-SHA256 • Fisher-Yates Shuffle Matrix</span>
+          <span class="algorithm-tag">HMAC-SHA256 • Exponential Flight Curve</span>
         </div>
       </div>
 
@@ -308,6 +523,40 @@
     </div>
   </div>
 
-  <script src="/play/app.js"></script>
+  <!-- LEADERBOARD & HALL OF FAME MODAL -->
+  <div class="fairness-modal-backdrop leaderboard-modal-backdrop" id="leaderboardModal">
+    <div class="fairness-card leaderboard-card">
+      <div class="fairness-header">
+        <div class="fairness-title-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffd700">
+            <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+          </svg>
+          <h3>Moonflip — Hall of Fame</h3>
+        </div>
+        <button class="btn-close-modal" id="btnCloseLeaderboard">&times;</button>
+      </div>
+
+      <div class="lb-tabs-bar">
+        <button type="button" class="lb-tab-btn active" data-tab="mines-multipliers">💣 Mines Mults</button>
+        <button type="button" class="lb-tab-btn" data-tab="crash-multipliers">🚀 Crash Mults</button>
+        <button type="button" class="lb-tab-btn" data-tab="payouts">💰 Highest Wins</button>
+        <button type="button" class="lb-tab-btn" data-tab="players">👑 Top Players</button>
+        <button type="button" class="lb-tab-btn" data-tab="recent">⚡ Recent Wins</button>
+      </div>
+
+      <div class="leaderboard-scroll-area">
+        <div class="lb-table-wrap" id="lbModalContent">
+          <div class="lb-loading">Loading rankings...</div>
+        </div>
+      </div>
+
+      <div class="fairness-footer">
+        <span class="lb-footer-badge">⚡ Real-time synced with Discord wallet</span>
+        <button type="button" class="btn-modal-primary" id="btnDoneLeaderboard">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/play/app.js?v=2.1"></script>
 </body>
 </html>

@@ -424,39 +424,37 @@ export function buildCrashLobbyPanel() {
   });
 
   const embed = new EmbedBuilder()
-    .setColor(0x2ecc71)
-    .setTitle('🚀  MOONFLIP ORBITAL CRASH — REAL-TIME TELEMETRY')
+    .setColor(0xff9900)
+    .setTitle('🚀  MOONFLIP ORBITAL CRASH — WEB ARENA')
     .setDescription(
-      `> Strap into the **Moonflip Orbital Rocket Cockpit**! Watch the real-time exponential trajectory radar climb through the atmosphere and **Cash Out** before hull detonation!\n\n` +
-      `### 🛰️ Altitude Zones & Cockpit Controls:\n` +
-      `✦ **🛫 Liftoff & Stratosphere (\`1.01x – 1.99x\`)**: High-frequency orbital ascent\n` +
-      `✦ **🚀 High Orbit (\`2.00x – 4.99x\`)**: Double to quintuple your token wager\n` +
-      `✦ **☄️ Deep Space & Supernova (\`5.00x – 50.0x+\`)**: Massive high-altitude multipliers\n` +
-      `✦ **🎯 Live Auto-Cashout**: Lock in a target (\`2.0x\`, \`3.0x\`, \`5.0x\`, \`10x\`, or any custom multiplier) before or during flight for zero-latency ejection!\n\n` +
-      `📜 **Recent Orbital Flights**: ${formatCrashHistory()}`
+      `> **Our flagship high-speed game is played live in the interactive Web Arena!** 🚀🌌\n` +
+      `> Experience hardware-accelerated 60 FPS exponential rocket trajectory, dynamic Web Audio thruster acceleration, auto-cashout targets, and instant Discord wallet settlement.\n\n` +
+      `### 🚀 How to Play (4 Simple Steps):\n` +
+      `1️⃣ **Click the green button** ➔ \`🚀 Launch Web Arena (Orbital Crash)\` below (or type \`/crash\` or \`/play\`).\n` +
+      `2️⃣ **No registration or passwords** ➔ Opens in your browser (PC & Mobile) with **instant 1-click Discord login** and synced balance.\n` +
+      `3️⃣ **Choose wager & target** ➔ Set your bet amount and an optional Auto-Cashout target multiplier.\n` +
+      `4️⃣ **Cash Out anytime** ➔ Hit **CASH OUT** before hull detonation to lock in your profit directly to your Discord wallet (\`/balance\`).\n\n` +
+      `📜 **Recent Orbital Flights**: ${formatCrashHistory()}\n\n` +
+      `*Provably Fair • 60 FPS Canvas Engine • 1-Click Discord Auto-Sync • PC & Mobile Supported*`
     )
-    .setFooter({ text: 'Moonflip Casino • Instant Zero-Lag Cockpit • Provably Fair' });
+    .setFooter({ text: 'Moonflip Casino • Web Arena Exclusive • 18+ Only' });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('crash_bet_100')
-      .setLabel('🚀 Launch (100 🪙)')
+      .setCustomId('launch_web_crash')
+      .setLabel('🚀 Launch Web Arena (Orbital Crash)')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId('crash_bet_250')
-      .setLabel('🚀 Launch (250 🪙)')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('crash_bet_500')
-      .setLabel('🔥 High Orbit (500 🪙)')
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId('crash_modal_btn')
-      .setLabel('🎯 Custom / Auto-Cash')
+      .setCustomId('eco_balance')
+      .setLabel('💰 Check Balance')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('eco_balance')
-      .setLabel('💰 Balance')
+      .setCustomId('rules_btn_provably_fair')
+      .setLabel('🎲 Provably Fair')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId('lb_crash_modal')
+      .setLabel('🏆 Hall of Fame')
       .setStyle(ButtonStyle.Secondary)
   );
 
