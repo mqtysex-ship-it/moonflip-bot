@@ -196,9 +196,19 @@ async function broadcastWinToDiscord({ game, username, userId, avatarUrl, wager,
     const guild = client.guilds.cache.first();
     if (!guild) return;
 
-    const targetKeyword = game === 'crash' ? 'crash' : 'mines';
+    // Never post win announcements to game rooms (#mines, #crash)!
+    // Win broadcasts are routed exclusively to a dedicated wins feed channel (e.g. #live-wins, #big-wins, #casino-feed).
+    // If no dedicated wins channel exists, do not broadcast to Discord.
     const channel = guild.channels.cache.find(
-      (c) => c.isTextBased?.() && c.name?.toLowerCase().includes(targetKeyword)
+      (c) =>
+        c.isTextBased?.() &&
+        !c.name?.toLowerCase().includes('mines') &&
+        !c.name?.toLowerCase().includes('crash') &&
+        (c.name?.toLowerCase().includes('live-wins') ||
+          c.name?.toLowerCase().includes('big-wins') ||
+          c.name?.toLowerCase().includes('casino-feed') ||
+          c.name?.toLowerCase().includes('arena-wins') ||
+          c.name?.toLowerCase().includes('wins'))
     );
     if (!channel) return;
 
