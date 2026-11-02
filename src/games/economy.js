@@ -2,10 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { EventEmitter } from 'events';
+import { getDataDirectory } from '../dataDirectory.js';
+import { randomUUID } from 'node:crypto';
+import { databasePool } from '../database.js';
+import { PostgresEconomy } from './postgresEconomy.js';
+export const databaseEconomy = databasePool ? new PostgresEconomy(databasePool) : null;
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.resolve(__dirname, '../../data');
+const DATA_DIR = getDataDirectory();
 const DATA_FILE = path.join(DATA_DIR, 'economy.json');
 const TEMP_FILE = path.join(DATA_DIR, 'economy.tmp.json');
 
@@ -14,7 +20,7 @@ export const economyEvents = new EventEmitter();
 economyEvents.setMaxListeners(200);
 
 // Ensure data directory exists once at startup
-if (!fs.existsSync(DATA_DIR)) {
+if (!databaseEconomy && !fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
@@ -27,6 +33,7 @@ let pendingSave = false;
  * Loads database once at startup into memory for 0ms O(1) reads.
  */
 function initDb() {
+  if (databaseEconomy) return;
   if (fs.existsSync(DATA_FILE)) {
     try {
       const raw = fs.readFileSync(DATA_FILE, 'utf-8');
@@ -85,6 +92,7 @@ function scheduleSave(delayMs = 80) {
  * Synchronous flush used only on process exit or initial creation.
  */
 export function flushDbSync() {
+  if (databaseEconomy) return;
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
@@ -97,6 +105,7 @@ export function flushDbSync() {
 }
 
 export function saveEconomyDb() {
+  if (databaseEconomy) throw new Error('Database users must be updated through transactional economy operations');
   scheduleSave();
 }
 
@@ -115,6 +124,7 @@ const DAILY_AMOUNT = 500;
 const DAILY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export function getEconomyStats() {
+  if (databaseEconomy) return databaseEconomy.getEconomyStats();
   let totalTokens = 0;
   let totalWagered = 0;
   let totalGamesPlayed = 0;
@@ -133,6 +143,7 @@ export function getEconomyStats() {
 }
 
 export function getEconomyPlayers() {
+  if (databaseEconomy) return databaseEconomy.getEconomyPlayers();
   return Object.entries(db.users || {}).map(([userId, data]) => ({
     userId,
     username: data.username || null,
@@ -148,6 +159,7 @@ export function getEconomyPlayers() {
 
 export function setUserMeta(userId, username, avatarUrl) {
   if (!userId) return;
+  if (databaseEconomy) return databaseEconomy.setUserMeta(userId, username, avatarUrl);
   const user = getUser(userId);
   let changed = false;
   if (username && user.username !== username) {
@@ -178,6 +190,7 @@ function emitEconomyChange(userId, action, amount) {
 }
 
 export function getUser(userId) {
+  if (databaseEconomy) return databaseEconomy.getUser(userId);
   if (!db.users[userId]) {
     db.users[userId] = {
       balance: STARTING_BALANCE,
@@ -196,14 +209,17 @@ export function getUser(userId) {
 }
 
 export function getAllUsers() {
+  if (databaseEconomy) return databaseEconomy.getAllUsers();
   return db.users;
 }
 
 export function getBalance(userId) {
+  if (databaseEconomy) return databaseEconomy.getUser(userId).then(user => user.balance);
   return getUser(userId).balance;
 }
 
-export function deductTokens(userId, amount) {
+export function deductTokens(userId, amount, operationId = randomUUID()) {
+  if (databaseEconomy) return databaseEconomy.changeBalance(operationId, userId, 'bet', amount).then(result => { emitDatabaseBalance(userId, 'deduct', amount, result.balance); return true; });
   const cleanAmount = Math.max(0, Math.floor(amount) || 0);
   const user = getUser(userId);
   if (user.balance < cleanAmount) {
@@ -217,7 +233,8 @@ export function deductTokens(userId, amount) {
   return true;
 }
 
-export function addTokens(userId, amount, countAsWin = true) {
+export function addTokens(userId, amount, countAsWin = true, operationId = randomUUID()) {
+  if (databaseEconomy) return databaseEconomy.changeBalance(operationId, userId, countAsWin ? 'win' : 'credit', amount).then(result => { emitDatabaseBalance(userId, 'add', amount, result.balance); return result.balance; });
   const cleanAmount = Math.max(0, Math.floor(amount) || 0);
   const user = getUser(userId);
   user.balance += cleanAmount;
@@ -229,7 +246,8 @@ export function addTokens(userId, amount, countAsWin = true) {
   return user.balance;
 }
 
-export function setBalance(userId, amount) {
+export function setBalance(userId, amount, operationId = randomUUID()) {
+  if (databaseEconomy) return databaseEconomy.adjust(operationId, userId, 'set', amount).then(result => { emitDatabaseBalance(userId, 'set', amount, result.balance); return result.balance; });
   const user = getUser(userId);
   user.balance = Math.max(0, Math.floor(amount) || 0);
   scheduleSave();
@@ -237,7 +255,11 @@ export function setBalance(userId, amount) {
   return user.balance;
 }
 
-export function transferTokens(fromUserId, toUserId, amount) {
+export function transferTokens(fromUserId, toUserId, amount, operationId = randomUUID()) {
+  if (databaseEconomy) return databaseEconomy.transfer(operationId, fromUserId, toUserId, amount).then(result => {
+    emitDatabaseBalance(fromUserId, 'transfer_out', amount, result.senderBalance); emitDatabaseBalance(toUserId, 'transfer_in', amount, result.receiverBalance);
+    return {success:true, senderBalance:result.senderBalance, receiverBalance:result.receiverBalance};
+  }).catch(error => { if (error.message === 'insufficient balance') return {success:false,error:'Insufficient balance.'}; throw error; });
   const cleanAmount = Math.floor(amount) || 0;
   if (cleanAmount <= 0) return { success: false, error: 'Amount must be greater than 0.' };
   const sender = getUser(fromUserId);
@@ -252,7 +274,12 @@ export function transferTokens(fromUserId, toUserId, amount) {
   return { success: true, senderBalance: sender.balance, receiverBalance: receiver.balance };
 }
 
-export function claimDaily(userId) {
+export function claimDaily(userId, operationId = randomUUID()) {
+  if (databaseEconomy) return databaseEconomy.claimDaily(operationId, userId).then(result => {
+    if (result.success) { emitDatabaseBalance(userId, 'daily', DAILY_AMOUNT, result.balance); return {success:true,amount:DAILY_AMOUNT,newBalance:result.balance}; }
+    const remaining = Math.max(0, new Date(result.availableAt).getTime() - Date.now());
+    return {success:false,remainingHours:Math.floor(remaining/3600000),remainingMinutes:Math.floor((remaining%3600000)/60000)};
+  });
   const user = getUser(userId);
   const now = Date.now();
   const elapsed = now - (user.lastDaily || 0);
@@ -281,8 +308,13 @@ export function claimDaily(userId) {
 }
 
 export function getLeaderboard(limit = 10) {
+  if (databaseEconomy) return databaseEconomy.getLeaderboard(limit);
   return Object.entries(db.users)
     .map(([userId, data]) => ({ userId, ...data }))
     .sort((a, b) => b.balance - a.balance)
     .slice(0, limit);
+}
+
+export function emitDatabaseBalance(userId, action, amount, balance) {
+  economyEvents.emit('balanceChanged', {userId,action,amount,balance,timestamp:Date.now()});
 }

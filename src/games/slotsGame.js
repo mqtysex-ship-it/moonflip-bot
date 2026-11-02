@@ -160,7 +160,7 @@ export async function playSlots(interaction, betAmount = 100) {
       .catch(() => {});
   }
 
-  const prevBalance = getBalance(userId);
+  const prevBalance = (await getBalance(userId));
 
   if (prevBalance < cleanBet) {
     const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this spin requires **\`${cleanBet.toLocaleString()} 🪙\`**.\n> 💡 *Tip: Use \`/daily\` to claim 500 free tokens or click **⚙️ Custom Spin** to bet smaller amounts (min 10 🪙).*`;
@@ -174,7 +174,7 @@ export async function playSlots(interaction, betAmount = 100) {
 
   try {
     // 1. Atomic upfront settlement (0ms in-memory)
-    deductTokens(userId, cleanBet);
+    (await deductTokens(userId, cleanBet));
 
     const result = spinSlots();
     const [f1, f2, f3] = result.reels;
@@ -182,10 +182,10 @@ export async function playSlots(interaction, betAmount = 100) {
     const profit = winAmount - cleanBet;
 
     if (winAmount > 0) {
-      addTokens(userId, winAmount, true);
+      (await addTokens(userId, winAmount, true));
     }
 
-    const newBalance = getBalance(userId);
+    const newBalance = (await getBalance(userId));
 
     const r1_locked = [getRandomSymbol(), f1, getRandomSymbol()];
     const r2_locked = [getRandomSymbol(), f2, getRandomSymbol()];

@@ -1,0 +1,161 @@
+// Database operations are deliberately asynchronous; callers must await the
+// committed result before acknowledging a wager, transfer, or payout.
+function amount(value, name, minimum = 0) {
+  if (!Number.isSafeInteger(value) || value < minimum) throw new Error(`Invalid ${name}`);
+  return value;
+}
+function number(value, name) {
+  const result = Number(value);
+  return amount(result, name);
+}
+function identity(value, name) {
+  if (typeof value !== 'string' || !value) throw new Error(`Invalid ${name}`);
+  return value;
+}
+export class PostgresEconomy {
+  constructor(pool) {
+    if (!pool || typeof pool.query !== 'function') throw new Error('Database pool required');
+    this.pool = pool;
+  }
+  async changeBalance(operationId, userId, kind, value) {
+    identity(operationId, 'operation'); identity(userId, 'user'); amount(value, 'amount');
+    if (!['bet', 'win', 'credit'].includes(kind)) throw new Error('Invalid wallet operation');
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query('select * from moonflip_private.apply_wallet_delta($1::uuid,$2,$3,$4::bigint)',
+        [operationId, userId, kind, kind === 'bet' ? -value : value]);
+      const row = result.rows[0];
+      if (row.applied && kind === 'bet') await client.query(
+        'UPDATE moonflip_private.wallets SET total_bet = total_bet + $2, games_played = games_played + 1 WHERE discord_user_id = $1', [userId, value]);
+      if (row.applied && kind === 'win') await client.query(
+        'UPDATE moonflip_private.wallets SET total_won = total_won + $2 WHERE discord_user_id = $1', [userId, value]);
+      await client.query('COMMIT');
+      return { balance: number(row.balance_after, 'balance'), applied: row.applied };
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally { client.release(); }
+  }
+  async getAllUsers() {
+    const result = await this.pool.query('SELECT * FROM moonflip_private.wallets ORDER BY discord_user_id');
+    return Object.fromEntries(result.rows.map(row => [row.discord_user_id, {
+      balance: number(row.balance, 'balance'), totalBet: number(row.total_bet, 'total bet'), totalWon: number(row.total_won, 'total won'),
+      gamesPlayed: number(row.games_played, 'games played'), lastDaily: row.last_daily ? new Date(row.last_daily).getTime() : 0,
+      xp: number(row.xp, 'xp'), level: number(row.level, 'level'), createdAt: new Date(row.created_at).getTime(),
+      username: row.username, avatarUrl: row.avatar_url,
+    }]));
+  }
+  async getLeaderboard(limit = 10) {
+    amount(limit, 'limit');
+    const users = await this.getAllUsers();
+    return Object.entries(users).map(([userId, data]) => ({ userId, ...data })).sort((a, b) => b.balance - a.balance).slice(0, limit);
+  }
+  async settleRound(roundId, userId, payout) {
+    identity(roundId, 'round'); identity(userId, 'user'); amount(payout, 'payout');
+    const result = await this.pool.query('select * from moonflip_private.settle_game_round($1::uuid,$2,$3::bigint)', [roundId, userId, payout]);
+    const row = result.rows[0];
+    return { balance: number(row.balance_after, 'balance'), applied: row.applied };
+  }
+  async getEconomyStats() {
+    const result = await this.pool.query(`SELECT coalesce(sum(balance), 0) AS total_tokens,
+      coalesce(sum(total_bet), 0) AS total_wagered, coalesce(sum(games_played), 0) AS total_games,
+      count(*) AS total_users FROM moonflip_private.wallets`);
+    const row = result.rows[0];
+    return { totalTokens: number(row.total_tokens, 'total tokens'), totalWagered: number(row.total_wagered, 'total wagered'),
+      totalGamesPlayed: number(row.total_games, 'total games'), totalUsers: number(row.total_users, 'total users') };
+  }
+  async getEconomyPlayers() {
+    const result = await this.pool.query(`SELECT discord_user_id, balance, total_bet, total_won, games_played,
+      last_daily, created_at, username, avatar_url FROM moonflip_private.wallets ORDER BY balance DESC, discord_user_id`);
+    return result.rows.map(row => ({ userId: row.discord_user_id, balance: number(row.balance, 'balance'),
+      totalBet: number(row.total_bet, 'total bet'), totalWon: number(row.total_won, 'total won'),
+      gamesPlayed: number(row.games_played, 'games played'), lastDaily: row.last_daily ? new Date(row.last_daily).getTime() : null,
+      createdAt: new Date(row.created_at).getTime(), username: row.username, avatarUrl: row.avatar_url }));
+  }
+  async getUser(userId) {
+    identity(userId, 'user');
+    const result = await this.pool.query(`INSERT INTO moonflip_private.wallets (discord_user_id) VALUES ($1)
+      ON CONFLICT (discord_user_id) DO UPDATE SET discord_user_id = EXCLUDED.discord_user_id
+      RETURNING discord_user_id, balance, total_bet, total_won, games_played, last_daily, xp, level, created_at, username, avatar_url`, [userId]);
+    const row = result.rows[0];
+    return { userId: row.discord_user_id, balance: number(row.balance, 'balance'), totalBet: number(row.total_bet, 'total bet'),
+      totalWon: number(row.total_won, 'total won'), gamesPlayed: number(row.games_played, 'games played'),
+      lastDaily: row.last_daily ? new Date(row.last_daily).getTime() : 0, xp: number(row.xp, 'xp'), level: number(row.level, 'level'),
+      createdAt: new Date(row.created_at).getTime(), username: row.username, avatarUrl: row.avatar_url };
+  }
+  async setUserMeta(userId, username, avatarUrl) {
+    identity(userId, 'user');
+    if (username != null && typeof username !== 'string') throw new Error('Invalid username');
+    if (avatarUrl != null && typeof avatarUrl !== 'string') throw new Error('Invalid avatar URL');
+    await this.getUser(userId);
+    await this.pool.query(`UPDATE moonflip_private.wallets SET username = COALESCE(NULLIF($2, ''), username),
+      avatar_url = COALESCE(NULLIF($3, ''), avatar_url), updated_at = now() WHERE discord_user_id = $1`,
+      [userId, username ?? null, avatarUrl ?? null]);
+  }
+  async startRound(roundId, userId, game, wager, state) {
+    identity(roundId, 'round'); identity(userId, 'user'); identity(game, 'game'); amount(wager, 'wager', 1);
+    const result = await this.pool.query('select * from moonflip_private.start_game_round($1::uuid,$2,$3,$4::bigint,$5::jsonb)',
+      [roundId, userId, game, wager, JSON.stringify(state)]);
+    const row = result.rows[0];
+    return { balance: number(row.balance_after, 'balance'), applied: row.applied };
+  }
+  async advanceRound(operationId, roundId, userId, version, state, payout) {
+    identity(operationId, 'operation'); identity(roundId, 'round'); identity(userId, 'user'); amount(version, 'version');
+    if (payout !== null) amount(payout, 'payout');
+    const result = await this.pool.query('select * from moonflip_private.advance_game_round($1::uuid,$2::uuid,$3,$4::bigint,$5::jsonb,$6::bigint)',
+      [operationId, roundId, userId, version, JSON.stringify(state), payout]);
+    const row = result.rows[0];
+    return { version: number(row.version, 'version'), balance: number(row.balance_after, 'balance'), applied: row.applied };
+  }
+  async transfer(operationId, sender, receiver, value) {
+    identity(operationId, 'operation'); identity(sender, 'sender'); identity(receiver, 'receiver');
+    if (sender === receiver) throw new Error('Invalid transfer');
+    amount(value, 'transfer amount', 1);
+    const result = await this.pool.query('select * from moonflip_private.transfer_wallet_tokens($1::uuid,$2,$3,$4::bigint)',
+      [operationId, sender, receiver, value]);
+    const row = result.rows[0];
+    return { senderBalance: number(row.sender_balance, 'balance'), receiverBalance: number(row.receiver_balance, 'balance'), applied: row.applied };
+  }
+  async claimDaily(operationId, userId) {
+    identity(operationId, 'operation'); identity(userId, 'user');
+    const result = await this.pool.query('select * from moonflip_private.claim_wallet_daily($1::uuid,$2)', [operationId, userId]);
+    const row = result.rows[0];
+    return { balance: number(row.balance_after, 'balance'), applied: row.applied, success: row.success, availableAt: row.available_at };
+  }
+  async addXp(operationId, userId, value) {
+    identity(operationId, 'operation'); identity(userId, 'user'); amount(value, 'xp');
+    const result = await this.pool.query('select * from moonflip_private.add_wallet_xp($1::uuid,$2,$3::bigint)', [operationId, userId, value]);
+    const row = result.rows[0];
+    return { balance: number(row.balance_after, 'balance'), xp: number(row.xp_after, 'xp'),
+      level: number(row.level_after, 'level'), bonus: number(row.token_bonus, 'bonus'), applied: row.applied };
+  }
+  async adjust(operationId, userId, action, value) {
+    identity(operationId, 'operation'); identity(userId, 'user'); amount(value, 'amount');
+    if (!['add', 'deduct', 'set'].includes(action)) throw new Error('Invalid action');
+    const result = await this.pool.query('select * from moonflip_private.adjust_wallet($1::uuid,$2,$3,$4::bigint)', [operationId, userId, action, value]);
+    const row = result.rows[0];
+    return { previousBalance: number(row.old_balance, 'balance'), balance: number(row.new_balance, 'balance'), applied: row.applied };
+  }
+  async loadRound(roundId, userId) {
+    identity(roundId, 'round'); identity(userId, 'user');
+    const result = await this.pool.query(`SELECT round_id, discord_user_id, game_type, wager, game_state, status, version, balance_after_wager
+      FROM moonflip_private.game_rounds WHERE round_id = $1::uuid AND discord_user_id = $2`, [roundId, userId]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return { roundId: row.round_id, userId: row.discord_user_id, game: row.game_type,
+      wager: number(row.wager, 'wager'), state: row.game_state, status: row.status, version: number(row.version, 'version'),
+      balanceAfterWager: number(row.balance_after_wager, 'balance') };
+  }
+  async loadTransition(operationId, roundId, userId) {
+    identity(operationId, 'operation'); identity(roundId, 'round'); identity(userId, 'user');
+    const result = await this.pool.query(`SELECT round_id, discord_user_id, next_state, payout, resulting_version, balance_after
+      FROM moonflip_private.game_transitions WHERE operation_id = $1::uuid AND round_id = $2::uuid AND discord_user_id = $3`,
+      [operationId, roundId, userId]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return { roundId: row.round_id, userId: row.discord_user_id, state: row.next_state,
+      payout: row.payout === null ? null : number(row.payout, 'payout'),
+      version: number(row.resulting_version, 'version'), balance: number(row.balance_after, 'balance') };
+  }
+}

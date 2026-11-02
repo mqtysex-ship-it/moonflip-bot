@@ -1154,7 +1154,7 @@ async function dispatchAdvancedEmbed() {
 async function triggerDeploy(type) {
   showToast(`Deploying ${type} to Discord...`, 'info');
   try {
-    const res = await fetch(`/api/deploy/${type}`, { method: 'POST' });
+    const res = await fetch(`/api/deploy/${type}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     const data = await res.json();
     if (data.success) {
       showToast(data.message, 'success');
@@ -1170,7 +1170,7 @@ async function triggerDeploy(type) {
 async function triggerHardenRoles() {
   showToast('Locking down permissions & securing roles...', 'info');
   try {
-    const res = await fetch('/api/roles/fix-permissions', { method: 'POST' });
+    const res = await fetch('/api/roles/fix-permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     const data = await res.json();
     if (data.success) {
       showToast(data.message, 'success');

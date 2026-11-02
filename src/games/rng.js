@@ -178,7 +178,7 @@ export function drawKenoNumbers(totalBalls = 40, drawCount = 10) {
   const balls = Array.from({ length: totalBalls }, (_, i) => i + 1);
   for (let i = balls.length - 1; i > 0; i--) {
     const j = secureRandomInt(0, i);
-    [balls[i], balls[j]] = [balls[i], balls[i]];
+    [balls[i], balls[j]] = [balls[j], balls[i]];
   }
   return balls.slice(0, drawCount).sort((a, b) => a - b);
 }

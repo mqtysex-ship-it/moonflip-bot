@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import { PostgresEconomy } from '../src/games/postgresEconomy.js';
+
+const calls = [];
+const pool = { async query(sql, params) {
+  calls.push({ sql, params });
+  if (sql.includes('start_game_round')) return { rows: [{ balance_after: '800', applied: true }] };
+  if (sql.includes('advance_game_round')) return { rows: [{ version: '1', balance_after: '900', applied: false }] };
+  if (sql.includes('transfer_wallet_tokens')) return { rows: [{ sender_balance: '700', receiver_balance: '1300', applied: true }] };
+  if (sql.includes('claim_wallet_daily')) return { rows: [{ balance_after: '1500', applied: true, success: true, available_at: new Date('2026-11-03T00:00:00Z') }] };
+  if (sql.includes('add_wallet_xp')) return { rows: [{ balance_after: '1100', xp_after: '0', level_after: 2, token_bonus: '100', applied: true }] };
+  if (sql.includes('adjust_wallet')) return { rows: [{ old_balance: '1000', new_balance: '1200', applied: true }] };
+  if (sql.includes('RETURNING discord_user_id')) return { rows: [{ discord_user_id: '123456789', balance: '1200', total_bet: '200', total_won: '50', games_played: '2', last_daily: null, xp: '5', level: 2, created_at: new Date('2026-01-01T00:00:00Z'), username: 'Player', avatar_url: null }] };
+  if (sql.includes('UPDATE moonflip_private.wallets SET username')) return { rows: [] };
+  if (sql.includes('FROM moonflip_private.game_transitions')) return { rows: [{ round_id: 'round', discord_user_id: '123456789', next_state: { revealed: [3] }, payout: '200', resulting_version: '1', balance_after: '1000' }] };
+  if (sql.includes('FROM moonflip_private.game_rounds')) return { rows: [{ round_id: 'round', discord_user_id: '123456789', game_type: 'mines', wager: '200', game_state: { bombs: [1] }, status: 'active', version: '2', balance_after_wager: '800' }] };
+  throw new Error('unexpected query');
+} };
+const db = new PostgresEconomy(pool);
+const reads = new PostgresEconomy({ async query(sql) {
+  if (sql.includes('sum(balance)')) return { rows: [{ total_tokens: '1200', total_wagered: '200', total_games: '2', total_users: '1' }] };
+  return { rows: [{ discord_user_id: '123456789', balance: '1200', total_bet: '200', total_won: '50', games_played: '2', last_daily: null, created_at: new Date('2026-01-01T00:00:00Z'), username: 'Player', avatar_url: null }] };
+} });
+assert.deepEqual(await reads.getEconomyStats(), { totalTokens: 1200, totalWagered: 200, totalGamesPlayed: 2, totalUsers: 1 });
+assert.deepEqual(await reads.getEconomyPlayers(), [{ userId: '123456789', balance: 1200, totalBet: 200, totalWon: 50, gamesPlayed: 2, lastDaily: null, createdAt: Date.parse('2026-01-01T00:00:00Z'), username: 'Player', avatarUrl: null }]);
+const round = '00000000-0000-4000-8000-000000000201';
+const op = '00000000-0000-4000-8000-000000000202';
+assert.deepEqual(await db.startRound(round, '123456789', 'mines', 200, { bombs: [1] }), { balance: 800, applied: true });
+assert.deepEqual(await db.advanceRound(op, round, '123456789', 0, { revealed: [2] }, null), { version: 1, balance: 900, applied: false });
+assert.deepEqual(await db.transfer(op, '123456789', '234567891', 300), { senderBalance: 700, receiverBalance: 1300, applied: true });
+assert.deepEqual(await db.claimDaily(op, '123456789'), { balance: 1500, applied: true, success: true, availableAt: new Date('2026-11-03T00:00:00Z') });
+assert.deepEqual(await db.addXp(op, '123456789', 100), { balance: 1100, xp: 0, level: 2, bonus: 100, applied: true });
+assert.deepEqual(await db.adjust(op, '123456789', 'add', 200), { previousBalance: 1000, balance: 1200, applied: true });
+assert.deepEqual(await db.getUser('123456789'), { userId: '123456789', balance: 1200, totalBet: 200, totalWon: 50, gamesPlayed: 2, lastDaily: 0, xp: 5, level: 2, createdAt: Date.parse('2026-01-01T00:00:00Z'), username: 'Player', avatarUrl: null });
+await db.setUserMeta('123456789', 'Player', 'https://example.com/avatar.png');
+assert.deepEqual(await db.loadRound(round, '123456789'), { roundId: 'round', userId: '123456789', game: 'mines', wager: 200, state: { bombs: [1] }, status: 'active', version: 2, balanceAfterWager: 800 });
+assert.deepEqual(await db.loadTransition(op, round, '123456789'), { roundId: 'round', userId: '123456789', state: { revealed: [3] }, payout: 200, version: 1, balance: 1000 });
+assert.equal(calls[0].params[1], '123456789');
+await assert.rejects(db.startRound(round, '123456789', 'mines', -1, {}), /wager/);
+await assert.rejects(db.transfer(op, '123456789', '123456789', 1), /transfer/);
+await assert.rejects(db.advanceRound(op, round, '123456789', 0, {}, -1), /payout/);
+await assert.rejects(db.adjust(op, '123456789', 'invalid', 200), /action/);
+assert.deepEqual(calls[9].params, [round, '123456789']);
+assert.equal(calls.length, 11, 'invalid input must not reach database');
+console.log('Postgres economy adapter passed');

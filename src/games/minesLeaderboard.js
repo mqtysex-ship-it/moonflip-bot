@@ -1,15 +1,18 @@
+import { databasePool } from '../database.js';
+import { readDocument, updateDocument } from '../documentStore.js';
 import fs from 'fs';
+import { getDataDirectory } from '../dataDirectory.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.resolve(__dirname, '../../data');
+const DATA_DIR = getDataDirectory();
 const LEADERBOARD_FILE = path.join(DATA_DIR, 'mines_leaderboard.json');
 const TEMP_FILE = path.join(DATA_DIR, 'mines_leaderboard.tmp.json');
 
 // Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
+if (!databasePool && !fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
@@ -196,6 +199,7 @@ function scheduleSave(delayMs = 100) {
 }
 
 export function flushLeaderboardSync() {
+  if (databasePool) return;
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
@@ -208,7 +212,7 @@ export function flushLeaderboardSync() {
 }
 
 // Initialize on module load
-initLeaderboardDb();
+if (!databasePool) initLeaderboardDb();
 
 process.on('exit', () => {
   if (saveTimer || pendingSave) {
@@ -219,7 +223,15 @@ process.on('exit', () => {
 /**
  * Records a successful cashout or perfect clear win into the leaderboard.
  */
-export function recordMinesWin({
+export function recordMinesWin(input) {
+  if (databasePool) return updateDocument('mines_leaderboard', { wins: [], players: {} }, data => recordMinesWinInto(data, input));
+  const result = recordMinesWinInto(store, input);
+  scheduleSave();
+  return result;
+}
+
+function recordMinesWinInto(target, {
+  id,
   userId,
   username,
   avatarUrl,
@@ -231,6 +243,7 @@ export function recordMinesWin({
   profit,
   timestamp = Date.now(),
 }) {
+  if (id && target.recordedIds?.[id]) return target.wins.find(win => win.id === id) ?? { id };
   const cleanWager = Math.max(10, Math.floor(Number(wager)) || 100);
   const cleanBombs = Math.min(24, Math.max(1, Math.floor(Number(bombs)) || 3));
   const cleanGems = Math.max(1, Math.floor(Number(gemsFound)) || 1);
@@ -239,7 +252,7 @@ export function recordMinesWin({
   const cleanProfit = Math.max(0, Math.floor(Number(profit)) || (cleanPayout - cleanWager));
 
   const winRecord = {
-    id: `win_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: id || `win_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     userId: userId || 'guest',
     username: username || 'Guest Player',
     avatarUrl: avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png',
@@ -252,16 +265,16 @@ export function recordMinesWin({
     timestamp,
   };
 
-  store.wins.unshift(winRecord);
+  target.wins.unshift(winRecord);
   // Cap raw wins log to latest 500
-  if (store.wins.length > 500) {
-    store.wins.pop();
+  if (target.wins.length > 500) {
+    target.wins.pop();
   }
 
   // Update aggregated player profile
   const pKey = userId || `guest_${username || 'unknown'}`;
-  if (!store.players[pKey]) {
-    store.players[pKey] = {
+  if (!target.players[pKey]) {
+    target.players[pKey] = {
       userId: pKey,
       username: username || 'Guest Player',
       avatarUrl: avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png',
@@ -275,7 +288,7 @@ export function recordMinesWin({
     };
   }
 
-  const p = store.players[pKey];
+  const p = target.players[pKey];
   p.username = username || p.username;
   if (avatarUrl) p.avatarUrl = avatarUrl;
   p.totalWins += 1;
@@ -286,7 +299,7 @@ export function recordMinesWin({
   p.highestProfit = Math.max(p.highestProfit, cleanProfit);
   p.lastWinAt = timestamp;
 
-  scheduleSave();
+  if (id) { target.recordedIds ??= {}; target.recordedIds[id] = true; }
   return winRecord;
 }
 
@@ -294,23 +307,28 @@ export function recordMinesWin({
  * Returns structured leaderboard categories for API and embeds.
  */
 export function getMinesLeaderboard(limit = 20) {
+  if (databasePool) return readDocument('mines_leaderboard', { wins: [], players: {} }).then(data => formatMinesLeaderboard(data, limit));
+  return formatMinesLeaderboard(store, limit);
+}
+
+function formatMinesLeaderboard(data, limit = 20) {
   // 1. Top Multipliers: unique or top multiplier wins
-  const topMultipliers = [...store.wins]
+  const topMultipliers = [...data.wins]
     .sort((a, b) => b.multiplier - a.multiplier || b.profit - a.profit)
     .slice(0, limit);
 
   // 2. Biggest Payouts: top single profit wins
-  const topPayouts = [...store.wins]
+  const topPayouts = [...data.wins]
     .sort((a, b) => b.profit - a.profit || b.multiplier - a.multiplier)
     .slice(0, limit);
 
   // 3. Top Players: by total profit
-  const topPlayers = Object.values(store.players)
+  const topPlayers = Object.values(data.players)
     .sort((a, b) => b.totalProfit - a.totalProfit || b.highestMultiplier - a.highestMultiplier)
     .slice(0, limit);
 
   // 4. Recent Wins: live recent feed
-  const recentWins = [...store.wins]
+  const recentWins = [...data.wins]
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, limit);
 

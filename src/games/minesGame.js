@@ -102,7 +102,7 @@ function buildRevealedGridAscii(state, explodedIdx = null) {
  * - On Game Over: displays the full 5x5 revealed board inside the Embed and returns
  *   1 ActionRow of instant Replay / 2x / Bomb Cycle / Custom buttons (100% single-message!).
  */
-export function render5x5Board(
+export async function render5x5Board(
   state,
   user,
   gameOver = false,
@@ -126,7 +126,7 @@ export function render5x5Board(
     safeGemsLeft > 0
       ? calculateMinesMultiplier(TOTAL_TILES, state.bombs, state.revealedIndices.size + 1)
       : state.multiplier;
-  const balance = getBalance(user.id);
+  const balance = (await getBalance(user.id));
 
   const prefixNotice = autoNotice ? `> ${autoNotice}\n\n` : '';
 
@@ -348,10 +348,10 @@ export function render5x5Board(
  * Mines is now played exclusively in the Web Arena for optimal 3D real-time performance.
  */
 export async function start5x5Mines(interaction) {
-  const token = createWebPlaySession(interaction.user);
+  const token = (await createWebPlaySession(interaction.user));
   const baseUrl = getPublicBaseUrl(interaction);
   const playUrl = `${baseUrl}/play?game=mines&token=${token}`;
-  const balance = getBalance(interaction.user.id);
+  const balance = (await getBalance(interaction.user.id));
 
   const embed = new EmbedBuilder()
     .setColor(0x00f0ff)
@@ -403,7 +403,7 @@ export async function start5x5Mines(interaction) {
 }
 
 export async function showMinesLeaderboard(interaction) {
-  const lb = getMinesLeaderboard();
+  const lb = (await getMinesLeaderboard());
   const topMults = (lb.topMultipliers || []).slice(0, 5);
   const topProfits = (lb.topPayouts || []).slice(0, 5);
 
@@ -441,7 +441,7 @@ export async function showMinesLeaderboard(interaction) {
     .setFooter({ text: 'Moonflip Mines • Real-Time Synchronized' })
     .setTimestamp();
 
-  const token = createWebPlaySession(interaction.user);
+  const token = (await createWebPlaySession(interaction.user));
   const baseUrl = getPublicBaseUrl(interaction);
   const playUrl = `${baseUrl}/play?game=mines&token=${token}`;
 

@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {PostgresEconomy} from '../src/games/postgresEconomy.js';
+const calls=[];
+let applied=true, fail=false;
+const client={async query(sql,args){calls.push({sql,args});if(sql.includes('apply_wallet_delta')) {if(fail)throw new Error('insufficient balance');return {rows:[{balance_after:'900',applied}]};}return {rows:[]};},release(){calls.push({sql:'RELEASE'});}};
+const economy=new PostgresEconomy({query(){},async connect(){return client;}});
+assert.equal(typeof economy.changeBalance,'function','database wallet mutations must be implemented');
+await economy.changeBalance('00000000-0000-4000-8000-000000000001','123','bet',100);
+assert(calls.some(x=>x.sql.includes('total_bet = total_bet +')));
+assert(calls.findIndex(x=>x.sql==='COMMIT')>calls.findIndex(x=>x.sql.includes('total_bet =')));
+calls.length=0;applied=false;
+await economy.changeBalance('00000000-0000-4000-8000-000000000001','123','bet',100);
+assert(!calls.some(x=>x.sql.includes('UPDATE moonflip_private.wallets')),'retry must not increment statistics twice');
+calls.length=0;fail=true;
+await assert.rejects(economy.changeBalance('00000000-0000-4000-8000-000000000002','123','bet',100),/insufficient balance/);
+assert(calls.some(x=>x.sql==='ROLLBACK'));
+assert(!calls.some(x=>x.sql==='COMMIT'));
+console.log('Database balance transaction and retry guards passed');

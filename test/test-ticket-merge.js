@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { mergeTicketChanges } from '../src/tickets/ticketPersistence.js';
+const before = { counter: 1, activeTickets: { first: { claimedBy: null } } };
+const desired = structuredClone(before);
+desired.activeTickets.first.claimedBy = 'staff';
+const current = structuredClone(before);
+current.counter = 2;
+current.activeTickets.second = { claimedBy: null };
+mergeTicketChanges(before, desired, current);
+assert.equal(current.counter, 2);
+assert.equal(current.activeTickets.first.claimedBy, 'staff');
+assert.deepEqual(current.activeTickets.second, { claimedBy: null });
+const conflicting = structuredClone(before);
+conflicting.activeTickets.first.claimedBy = 'other-staff';
+assert.throws(() => mergeTicketChanges(before, desired, conflicting), /changed concurrently/);
+console.log('Ticket changes preserve unrelated concurrent records and reject conflicts');

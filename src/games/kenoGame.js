@@ -433,11 +433,11 @@ export function buildKenoComponents(session, drawnSlice = [], isAnimating = fals
 /**
  * Renders the Interactive Keno Ticket Builder / Customization Embed.
  */
-function buildKenoBuilderEmbed(session, user, notice = null) {
+async function buildKenoBuilderEmbed(session, user, notice = null) {
   const riskObj = KENO_PAYTABLES[normalizeRisk(session.riskMode)] || KENO_PAYTABLES.medium;
   const picksArr = Array.from(session.picks).sort((a, b) => a - b);
   const pickCount = picksArr.length;
-  const balance = getBalance(user.id);
+  const balance = (await getBalance(user.id));
 
   const picksFormatted =
     picksArr.length > 0
@@ -482,7 +482,7 @@ function buildKenoBuilderEmbed(session, user, notice = null) {
 export async function openKenoBuilder(interaction, notice = null) {
   const session = getOrCreateKenoSession(interaction.user.id);
   session.lastDrawn = [];
-  const embed = buildKenoBuilderEmbed(session, interaction.user, notice);
+  const embed = (await buildKenoBuilderEmbed(session, interaction.user, notice));
   const components = buildKenoComponents(session, [], false);
 
   const isEphemeralCard =
@@ -672,7 +672,7 @@ export async function playModernKeno(
   const riskObj = KENO_PAYTABLES[resolvedRisk] || KENO_PAYTABLES.medium;
 
   const cleanBet = Math.max(10, Math.floor(betAmount) || 100);
-  const prevBalance = getBalance(userId);
+  const prevBalance = (await getBalance(userId));
 
   if (prevBalance < cleanBet) {
     const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this Keno ticket requires **\`${cleanBet.toLocaleString()} 🪙\`**.\n> 💡 *Tip: Use \`/daily\` to claim 500 free tokens or click **⚙️ Custom Game** to bet smaller amounts (min 10 🪙).*`;
@@ -716,7 +716,7 @@ export async function playModernKeno(
 
   try {
     // 1. Atomic upfront balance settlement (0ms in-memory)
-    deductTokens(userId, cleanBet);
+    (await deductTokens(userId, cleanBet));
 
     const picksArray = Array.from(playerPicks).sort((a, b) => a - b);
     const pickCount = picksArray.length;
@@ -736,10 +736,10 @@ export async function playModernKeno(
     const profit = payout - cleanBet;
 
     if (payout > 0) {
-      addTokens(userId, payout, true);
+      (await addTokens(userId, payout, true));
     }
 
-    const newBalance = getBalance(userId);
+    const newBalance = (await getBalance(userId));
 
     if (payout > cleanBet) {
       session.streak = (session.streak || 0) + 1;

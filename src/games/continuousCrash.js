@@ -242,7 +242,7 @@ function buildCrashRadarAscii(state) {
 /**
  * Builds the live Cockpit Embed during or after a flight.
  */
-function buildCrashCockpitEmbed(state, user, autoNotice = null) {
+async function buildCrashCockpitEmbed(state, user, autoNotice = null) {
   const mult = state.currentMultiplier;
   const isCrashed = state.crashed && !state.cashedOut;
   const isCashed = state.cashedOut;
@@ -254,7 +254,7 @@ function buildCrashCockpitEmbed(state, user, autoNotice = null) {
   const prefixNotice = autoNotice ? `> ${autoNotice}\n` : '';
 
   if (isCashed || isCrashed) {
-    const newBalance = getBalance(user.id);
+    const newBalance = (await getBalance(user.id));
     const profit = isCashed ? state.winAmount - state.betAmount : -state.betAmount;
     const color = isCashed ? (state.cashoutMult >= 5.0 ? 0xf1c40f : 0x2ecc71) : 0xe74c3c;
 
@@ -527,10 +527,10 @@ class ContinuousCrashEngine {
         if (!oldFlight.cashedOut && !oldFlight.crashed) {
           if (oldFlight.currentMultiplier > 1.0) {
             const autoWin = Math.floor(oldFlight.betAmount * oldFlight.currentMultiplier);
-            addTokens(userId, autoWin, true);
+            (await addTokens(userId, autoWin, true));
             autoNotice = `✅ **Auto-Eject**: Settled your previous active flight at **${oldFlight.currentMultiplier.toFixed(2)}x** for **+${autoWin.toLocaleString()} 🪙**!`;
           } else {
-            addTokens(userId, oldFlight.betAmount, false);
+            (await addTokens(userId, oldFlight.betAmount, false));
             autoNotice = `🔄 **Launchpad Reset**: Refunded your untouched **${oldFlight.betAmount.toLocaleString()} 🪙** launch and ignited a fresh rocket!`;
           }
         }
@@ -547,7 +547,7 @@ class ContinuousCrashEngine {
             : null;
       }
 
-      const prevBalance = getBalance(userId);
+      const prevBalance = (await getBalance(userId));
       if (prevBalance < cleanAmount) {
         const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this launch requires **\`${cleanAmount.toLocaleString()} 🪙\`**.\n> 💡 *Tip: Use \`/daily\` to claim 500 free tokens or click **🚀 Bet Next Round** to bet custom amounts (min 10 🪙).*`;
         if (interaction.replied || interaction.deferred) {
@@ -557,7 +557,7 @@ class ContinuousCrashEngine {
       }
 
       // Deduct tokens upfront (0ms in-memory)
-      deductTokens(userId, cleanAmount);
+      (await deductTokens(userId, cleanAmount));
       prefs.betAmount = cleanAmount;
       prefs.autoCashout = targetAuto;
 
@@ -588,7 +588,7 @@ class ContinuousCrashEngine {
       activeCrashFlights.set(userId, state);
 
       // Frame 0 (0ms — Liftoff at 1.00x via interaction.update or interaction.reply -> 0 PATCH rate limit cost!)
-      const initialEmbed = buildCrashCockpitEmbed(state, interaction.user, autoNotice);
+      const initialEmbed = (await buildCrashCockpitEmbed(state, interaction.user, autoNotice));
       const initialRows = buildFlightActionRow(state);
 
       const isEphemeralCard =
@@ -657,13 +657,13 @@ class ContinuousCrashEngine {
       state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
 
       activeCrashFlights.delete(state.userId);
-      addTokens(state.userId, state.winAmount, true);
+      (await addTokens(state.userId, state.winAmount, true));
 
       const prefs = getOrCreateUserPrefs(state.userId);
       prefs.streak = (prefs.streak || 0) + 1;
       recordCrashHistory(state.crashPoint);
 
-      const finalEmbed = buildCrashCockpitEmbed(state, state.user);
+      const finalEmbed = (await buildCrashCockpitEmbed(state, state.user));
       const replayRows = buildReplayActionRow(state);
 
       await state.interaction
@@ -684,7 +684,7 @@ class ContinuousCrashEngine {
       prefs.streak = 0;
       recordCrashHistory(state.crashPoint);
 
-      const crashEmbed = buildCrashCockpitEmbed(state, state.user);
+      const crashEmbed = (await buildCrashCockpitEmbed(state, state.user));
       const replayRows = buildReplayActionRow(state);
 
       await state.interaction
@@ -695,7 +695,7 @@ class ContinuousCrashEngine {
 
     // 3. Continue Ascent — Update Live Cockpit Frame
     state.currentMultiplier = nextMult;
-    const flightEmbed = buildCrashCockpitEmbed(state, state.user);
+    const flightEmbed = (await buildCrashCockpitEmbed(state, state.user));
     const flightRows = buildFlightActionRow(state);
 
     const editPromise = state.interaction
@@ -738,7 +738,7 @@ class ContinuousCrashEngine {
       const prefs = getOrCreateUserPrefs(userId);
       prefs.autoCashout = state.autoCashout;
 
-      const updatedEmbed = buildCrashCockpitEmbed(state, interaction.user);
+      const updatedEmbed = (await buildCrashCockpitEmbed(state, interaction.user));
       const updatedRows = buildFlightActionRow(state);
       return interaction.update({ embeds: [updatedEmbed], components: updatedRows }).catch(() => {});
     }
@@ -755,13 +755,13 @@ class ContinuousCrashEngine {
 
     state.cashoutMult = state.currentMultiplier;
     state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
-    addTokens(userId, state.winAmount, true);
+    (await addTokens(userId, state.winAmount, true));
 
     const prefs = getOrCreateUserPrefs(userId);
     prefs.streak = (prefs.streak || 0) + 1;
     recordCrashHistory(state.crashPoint);
 
-    const finalEmbed = buildCrashCockpitEmbed(state, interaction.user);
+    const finalEmbed = (await buildCrashCockpitEmbed(state, interaction.user));
     const replayRows = buildReplayActionRow(state);
     const inFlightEdit = state.currentEditPromise;
 

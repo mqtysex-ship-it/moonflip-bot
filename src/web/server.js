@@ -1,10 +1,12 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { AttachmentBuilder, EmbedBuilder, PermissionFlagsBits, ActivityType } from 'discord.js';
 import { getDiscordClient, fetchGuild } from '../discord.js';
 import {
+  databaseEconomy,
   getUser,
   getAllUsers,
   addTokens,
@@ -18,10 +20,13 @@ import { setupTicketPanel, loadDepartments, saveDepartments } from '../tickets/t
 import { deployGamePanels } from '../games/panels.js';
 import { getAnnouncementsBannerGif } from '../games/animator.js';
 import { setupPlayApi } from './playApi.js';
+import { getDataDirectory } from '../dataDirectory.js';
+import { databasePool } from '../database.js';
+import { readDocument, writeDocument, updateDocument } from '../documentStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.resolve(__dirname, '../../data');
+const DATA_DIR = getDataDirectory();
 const TICKETS_FILE = path.join(DATA_DIR, 'tickets.json');
 const ECONOMY_FILE = path.join(DATA_DIR, 'economy.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
@@ -56,10 +61,38 @@ console.error = (...args) => {
 
 const DEFAULT_GUILD_ID = '1566215806956601466';
 
-export function createWebServer() {
+export function createWebServer({ economyStore = databaseEconomy } = {}) {
   const app = express();
+  const readStats = () => economyStore ? economyStore.getEconomyStats() : getEconomyStats();
+  const readPlayers = () => economyStore ? economyStore.getEconomyPlayers() : getEconomyPlayers();
 
   app.use(express.json());
+  app.get('/health', async (req, res) => {
+    try { if (databasePool) await databasePool.query('select 1'); res.json({ ok: true, storage: databasePool ? 'supabase' : 'local' }); }
+    catch { res.status(503).json({ ok: false }); }
+  });
+  // The player arena is public; every other dashboard page and API requires
+  // credentials. Fail closed until an administrator configures a password.
+  app.use((req, res, next) => {
+    if (req.path === '/play' || req.path.startsWith('/play/') ||
+        req.path === '/api/play' || req.path.startsWith('/api/play/')) return next();
+    const password = process.env.DASHBOARD_PASSWORD;
+    if (!password) return res.status(503).send('Dashboard is unavailable until DASHBOARD_PASSWORD is configured.');
+    const encoded = req.headers.authorization?.match(/^Basic\s+(.+)$/i)?.[1];
+    let supplied = '';
+    try { supplied = encoded ? Buffer.from(encoded, 'base64').toString('utf8') : ''; } catch {}
+    const expected = `admin:${password}`;
+    const actualHash = crypto.createHash('sha256').update(supplied).digest();
+    const expectedHash = crypto.createHash('sha256').update(expected).digest();
+    if (!crypto.timingSafeEqual(actualHash, expectedHash)) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="Moonflip Dashboard", charset="UTF-8"');
+      return res.status(401).send('Dashboard authentication required.');
+    }
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !req.is('application/json')) {
+      return res.status(415).send('Dashboard changes require application/json.');
+    }
+    next();
+  });
   app.use(express.static(path.join(__dirname, 'public'), {
     maxAge: 0,
     etag: true,
@@ -80,7 +113,8 @@ export function createWebServer() {
   setupPlayApi(app);
 
   // Helper to load ticket data
-  function loadTicketsData() {
+  async function loadTicketsData() {
+    if (databasePool) return readDocument('tickets', { counter: 0, activeTickets: {} });
     try {
       if (fs.existsSync(TICKETS_FILE)) {
         return JSON.parse(fs.readFileSync(TICKETS_FILE, 'utf-8'));
@@ -89,7 +123,8 @@ export function createWebServer() {
     return { counter: 0, activeTickets: {} };
   }
 
-  function saveTicketsData(data) {
+  async function saveTicketsData(data) {
+    if (databasePool) return writeDocument('tickets', data);
     try {
       fs.writeFileSync(TICKETS_FILE, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
@@ -107,7 +142,8 @@ export function createWebServer() {
   }
 
   // Helper to load settings data
-  function loadSettingsData() {
+  async function loadSettingsData() {
+    if (databasePool) return readDocument('settings', {});
     try {
       if (fs.existsSync(SETTINGS_FILE)) {
         return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
@@ -116,7 +152,8 @@ export function createWebServer() {
     return {};
   }
 
-  function saveSettingsData(data) {
+  async function saveSettingsData(data) {
+    if (databasePool) return writeDocument('settings', data);
     try {
       fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
@@ -170,12 +207,13 @@ export function createWebServer() {
   function broadcastEconomyUpdate(changeData) {
     latestBroadcastChange = changeData;
     if (broadcastTimer) return;
-    broadcastTimer = setTimeout(() => {
+    broadcastTimer = setTimeout(async () => {
       broadcastTimer = null;
       if (sseClients.size === 0) return;
 
-      const stats = getEconomyStats();
-      const players = getEconomyPlayers();
+      let stats, players;
+      try { [stats, players] = await Promise.all([readStats(), readPlayers()]); }
+      catch (err) { console.error('[Economy dashboard read error]', err.message); return; }
       const payload = {
         type: 'economyUpdate',
         change: latestBroadcastChange,
@@ -200,7 +238,10 @@ export function createWebServer() {
   });
 
   // GET /api/economy/live - Real-time Server-Sent Events (SSE) Stream
-  app.get('/api/economy/live', (req, res) => {
+  app.get('/api/economy/live', async (req, res) => {
+    let stats, players;
+    try { [stats, players] = await Promise.all([readStats(), readPlayers()]); }
+    catch (err) { return res.status(503).json({ error: 'Economy unavailable' }); }
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
@@ -212,8 +253,8 @@ export function createWebServer() {
     // Send immediate snapshot on connection
     const initialPayload = {
       type: 'initial',
-      stats: getEconomyStats(),
-      players: getEconomyPlayers(),
+      stats,
+      players,
       timestamp: Date.now(),
     };
     res.write(`event: economy\ndata: ${JSON.stringify(initialPayload)}\n\n`);
@@ -236,10 +277,10 @@ export function createWebServer() {
   });
 
   // 2. GET /api/stats - Aggregated metrics
-  app.get('/api/stats', (req, res) => {
+  app.get('/api/stats', async (req, res) => {
     try {
-      const tickets = loadTicketsData();
-      const ecoStats = getEconomyStats();
+      const tickets = await loadTicketsData();
+      const ecoStats = await readStats();
 
       res.json({
         economy: ecoStats,
@@ -254,9 +295,9 @@ export function createWebServer() {
   });
 
   // 3. GET /api/economy/players - Leaderboard & players list
-  app.get('/api/economy/players', (req, res) => {
+  app.get('/api/economy/players', async (req, res) => {
     try {
-      res.json({ players: getEconomyPlayers() });
+      res.json({ players: await readPlayers() });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -266,20 +307,31 @@ export function createWebServer() {
   app.post('/api/economy/adjust', async (req, res) => {
     try {
       const { userId, action, amount } = req.body;
-      if (!userId || typeof amount !== 'number' || amount < 0) {
+      if (!userId || !Number.isSafeInteger(amount) || amount < 0) {
         return res.status(400).json({ error: 'Valid userId and positive amount are required.' });
       }
 
+      if (!['add', 'deduct', 'set'].includes(action)) {
+        return res.status(400).json({ error: 'Action must be "add", "deduct", or "set".' });
+      }
+
+      if (economyStore) {
+        const result = await economyStore.adjust(crypto.randomUUID(), userId, action, amount);
+        return res.json({ success: true, userId, previousBalance: result.previousBalance,
+          newBalance: result.balance, action, amount });
+      }
+
       let newBalance = 0;
-      const current = getUser(userId);
+      const current = await getUser(userId);
+      const previousBalance = current.balance;
 
       if (action === 'set') {
-        newBalance = setBalance(userId, amount);
+        newBalance = await setBalance(userId, amount);
       } else if (action === 'add') {
-        newBalance = addTokens(userId, amount);
+        newBalance = await addTokens(userId, amount);
       } else if (action === 'deduct') {
         const finalAmt = Math.max(0, current.balance - amount);
-        newBalance = setBalance(userId, finalAmt);
+        newBalance = await setBalance(userId, finalAmt);
       } else {
         return res.status(400).json({ error: 'Action must be "add", "deduct", or "set".' });
       }
@@ -287,7 +339,7 @@ export function createWebServer() {
       res.json({
         success: true,
         userId,
-        previousBalance: current.balance,
+        previousBalance,
         newBalance,
         action,
         amount,
@@ -300,7 +352,7 @@ export function createWebServer() {
   // 5. GET /api/tickets - Active tickets list
   app.get('/api/tickets', async (req, res) => {
     try {
-      const data = loadTicketsData();
+      const data = await loadTicketsData();
       const client = await getDiscordClient().catch(() => null);
       const guild = client?.guilds.cache.get(DEFAULT_GUILD_ID);
 
@@ -339,9 +391,13 @@ export function createWebServer() {
         await channel.delete('Closed via Web Dashboard').catch(() => {});
       }
 
-      const data = loadTicketsData();
-      delete data.activeTickets[channelId];
-      saveTicketsData(data);
+      if (databasePool) {
+        await updateDocument('tickets', { counter: 0, activeTickets: {} }, data => { delete data.activeTickets[channelId]; return data; });
+      } else {
+        const data = await loadTicketsData();
+        delete data.activeTickets[channelId];
+        await saveTicketsData(data);
+      }
 
       res.json({ success: true, message: `Ticket channel ${channelId} closed.` });
     } catch (err) {
@@ -567,9 +623,9 @@ export function createWebServer() {
   });
 
   // 13. GET /api/settings - Load bot and server settings
-  app.get('/api/settings', (req, res) => {
+  app.get('/api/settings', async (req, res) => {
     try {
-      const settings = loadSettingsData();
+      const settings = await loadSettingsData();
       res.json({ settings });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -580,7 +636,7 @@ export function createWebServer() {
   app.post('/api/settings', async (req, res) => {
     try {
       const newSettings = req.body;
-      saveSettingsData(newSettings);
+      await saveSettingsData(newSettings);
 
       // If presence or activity is customized, apply directly to bot client
       const client = await getDiscordClient().catch(() => null);
@@ -615,9 +671,9 @@ export function createWebServer() {
   });
 
   // 15. GET /api/tickets/departments - Get configurable ticket departments
-  app.get('/api/tickets/departments', (req, res) => {
+  app.get('/api/tickets/departments', async (req, res) => {
     try {
-      const departments = loadDepartments();
+      const departments = await loadDepartments();
       res.json({ departments });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -625,14 +681,14 @@ export function createWebServer() {
   });
 
   // 16. POST /api/tickets/departments - Update ticket departments
-  app.post('/api/tickets/departments', (req, res) => {
+  app.post('/api/tickets/departments', async (req, res) => {
     try {
       const { departments } = req.body;
       if (!Array.isArray(departments) || departments.length === 0) {
         return res.status(400).json({ error: 'Departments array is required.' });
       }
 
-      saveDepartments(departments);
+      await saveDepartments(departments);
       res.json({ success: true, message: 'Ticket departments saved!' });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -663,10 +719,9 @@ export function createWebServer() {
   });
 
   // 18. GET /api/charts - Economy distribution & analytics
-  app.get('/api/charts', (req, res) => {
+  app.get('/api/charts', async (req, res) => {
     try {
-      const eco = loadEconomyData();
-      const users = Object.values(eco.users || {});
+      const users = economyStore ? await readPlayers() : Object.values(loadEconomyData().users || {});
 
       // 1. Wealth brackets
       const brackets = {

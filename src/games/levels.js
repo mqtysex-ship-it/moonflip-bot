@@ -1,4 +1,5 @@
-import { getUser, saveEconomyDb } from './economy.js';
+import { addTokens, getUser, saveEconomyDb, databaseEconomy, emitDatabaseBalance } from './economy.js';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Level progression math:
@@ -25,6 +26,8 @@ export const LEVEL_TIERS = [
 ];
 
 export function getUserLevelData(userId) {
+  if (databaseEconomy) return getUser(userId).then(user => ({ userId, xp: user.xp, level: user.level,
+    requiredXp: getRequiredXpForLevel(user.level), progressPercent: Math.min(100, Math.floor(user.xp / getRequiredXpForLevel(user.level) * 100)) }));
   const user = getUser(userId);
   if (user.xp === undefined) user.xp = 0;
   if (user.level === undefined) user.level = 1;
@@ -41,7 +44,13 @@ export function getUserLevelData(userId) {
   };
 }
 
-export function addXp(userId, amount) {
+export function addXp(userId, amount, operationId = randomUUID()) {
+  if (databaseEconomy) return databaseEconomy.addXp(operationId, userId, amount).then(result => {
+    if (result.applied && result.bonus) emitDatabaseBalance(userId, 'level_bonus', result.bonus, result.balance);
+    return { leveledUp: result.applied && result.bonus > 0, newLevel: result.level,
+      rewardedTier: LEVEL_TIERS.find(tier => tier.level === result.level) ?? null,
+      tokenBonus: result.bonus, currentXp: result.xp, requiredXp: getRequiredXpForLevel(result.level) };
+  });
   const user = getUser(userId);
   if (user.xp === undefined) user.xp = 0;
   if (user.level === undefined) user.level = 1;
@@ -72,7 +81,7 @@ export function addXp(userId, amount) {
   }
 
   if (leveledUp && tokenBonus > 0) {
-    user.balance += tokenBonus;
+    addTokens(userId, tokenBonus, false);
   }
 
   saveEconomyDb();

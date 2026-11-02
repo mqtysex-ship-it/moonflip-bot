@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { reconcileSources } from '../src/migration/reconcileSources.js';
+const user = { balance: 68, totalBet: 10, totalWon: 2, gamesPlayed: 1, lastDaily: 0, createdAt: 1, xp: 25, level: 2 };
+const local = { users: { '123': user, '456': { ...user, xp: undefined, level: undefined } } };
+const remote = { players: [{ userId: '123', balance: 1076, totalBet: 700, totalWon: 776, gamesPlayed: 7, lastDaily: null, createdAt: 2 }] };
+const result = reconcileSources(local, remote);
+assert.equal(result.snapshot.users['123'].balance, 1076);
+assert.equal(result.snapshot.users['123'].xp, 25);
+assert.equal(result.snapshot.users['123'].level, 2);
+assert.equal(result.snapshot.users['456'].xp, 0);
+assert.equal(result.snapshot.users['456'].level, 1);
+assert.equal(local.users['123'].balance, 68, 'Source must remain unchanged');
+assert.equal(result.decisions.length, 2);
+assert.throws(() => reconcileSources(local, {players:[{...remote.players[0],userId:'789'}]}), /missing local XP/);
+assert.throws(() => reconcileSources(local, {players:[{...remote.players[0],balance:-1}]}), /balance/);
+console.log('Source reconciliation preserves local XP, remote wallet, and input snapshots');

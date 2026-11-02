@@ -84,7 +84,7 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
   }
 
   const normalizedChoice = choice.toLowerCase().startsWith('t') ? 'tails' : 'heads';
-  const prevBalance = getBalance(userId);
+  const prevBalance = (await getBalance(userId));
 
   if (prevBalance < cleanBet) {
     const msg = `❌ **Insufficient balance!** You have **\`${prevBalance.toLocaleString()} 🪙\`**, but this flip requires **\`${cleanBet.toLocaleString()} 🪙\`**.\n> 💡 *Tip: Use \`/daily\` to claim 500 free tokens or click **⚙️ Custom Flip** to bet smaller amounts (min 10 🪙).*`;
@@ -98,7 +98,7 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
 
   try {
     // 1. Atomic upfront settlement (0ms in-memory)
-    deductTokens(userId, cleanBet);
+    (await deductTokens(userId, cleanBet));
 
     const prevStreak = userStreaks.get(userId) || 0;
     const outcome = flipCoin(normalizedChoice, cleanBet, prevStreak); // 'heads' or 'tails'
@@ -108,13 +108,13 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
     const profit = payout - cleanBet;
 
     if (won) {
-      addTokens(userId, payout, true);
+      (await addTokens(userId, payout, true));
       userStreaks.set(userId, (userStreaks.get(userId) || 0) + 1);
     } else {
       userStreaks.set(userId, 0);
     }
 
-    const newBalance = getBalance(userId);
+    const newBalance = (await getBalance(userId));
     const currentStreak = userStreaks.get(userId) || 0;
     recentFlips.unshift(outcome);
     if (recentFlips.length > 8) recentFlips.pop();

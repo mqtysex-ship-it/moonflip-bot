@@ -19,10 +19,9 @@ import { createWebPlaySession, getPublicBaseUrl } from './web/playApi.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure .env is loaded quietly from the project root if token not already set
-if (!process.env.DISCORD_BOT_TOKEN && !process.env.DISCORD_TOKEN) {
-  dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
-}
+// Load optional settings even when the Discord token comes from the environment.
+// dotenv preserves existing environment values unless override is requested.
+dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 
 let discordClient = null;
 let loginPromise = null;
@@ -62,6 +61,8 @@ export async function getDiscordClient() {
       discordClient = c;
       resolve(c);
 
+      if (process.env.MOONFLIP_MCP_ONLY === '1') return;
+
       // Auto-register slash commands & start continuous crash in parallel for each guild
       try {
         const guilds = await c.guilds.fetch();
@@ -84,6 +85,7 @@ export async function getDiscordClient() {
 
     // Interactive interaction listener (Slash commands, Modals & Buttons)
     client.on('interactionCreate', async (interaction) => {
+      if (process.env.MOONFLIP_MCP_ONLY === '1') return;
       // 1. Handle Slash Commands (/balance, /daily, /pay, /addtokens, etc.)
       if (interaction.isChatInputCommand()) {
         try {
@@ -188,7 +190,7 @@ export async function getDiscordClient() {
 
         // Leaderboard Button
         if (id === 'eco_leaderboard_btn') {
-          const top = getLeaderboard(10);
+          const top = (await getLeaderboard(10));
           const badges = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
           let list = '';
           for (let i = 0; i < top.length; i++) {
@@ -209,7 +211,7 @@ export async function getDiscordClient() {
         // Test Deposit (+1,000)
         if (id === 'eco_test_deposit_1000') {
           const amount = 1000;
-          const newBal = addTokens(interaction.user.id, amount, false);
+          const newBal = (await addTokens(interaction.user.id, amount, false));
           const receiptId = Math.random().toString(36).substring(2, 9).toUpperCase();
 
           const embed = new EmbedBuilder()
@@ -236,7 +238,7 @@ export async function getDiscordClient() {
           id.startsWith('crash_quickauto_') ||
           id === 'crash_modal_btn'
         ) {
-          const token = createWebPlaySession(interaction.user);
+          const token = (await createWebPlaySession(interaction.user));
           const baseUrl = getPublicBaseUrl(interaction);
           const isCrash = id === 'launch_web_crash' || id.startsWith('crash_bet_') || id.startsWith('crash_quickauto_') || id === 'crash_modal_btn';
           const crashUrl = `${baseUrl}/play?game=crash&token=${token}`;
@@ -250,7 +252,7 @@ export async function getDiscordClient() {
               `Your private gaming window is ready! Click the button below to open the **${isCrash ? 'Orbital Crash' : '5x5 Mines'}** game window directly in your browser with your wallet synced.\n\n` +
               `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
               `👤 **Player**: <@${interaction.user.id}>\n` +
-              `🪙 **Current Wallet**: \`${getBalance(interaction.user.id).toLocaleString()} 🪙\`\n` +
+              `🪙 **Current Wallet**: \`${(await getBalance(interaction.user.id)).toLocaleString()} 🪙\`\n` +
               `🎮 **Game Mode**: **\`${isCrash ? '🚀 Orbital Crash (60 FPS Canvas)' : '💣 5x5 Mines (3D Matrix)'}\`**\n` +
               `⚡ **Features**: 60 FPS Physics • Studio Web Audio Synthesizer • Live Leaderboard\n` +
               `🔒 **Session**: Permanent cryptographically signed Discord wallet link\n` +
@@ -358,7 +360,7 @@ export async function getDiscordClient() {
           await member.roles.add(verifiedRole, 'Moonflip Gateway: User accepted rules and completed verification');
 
           // Initialize user profile in virtual economy (grants starting 1,000 tokens if new)
-          const userEconomy = getUser(interaction.user.id);
+          const userEconomy = (await getUser(interaction.user.id));
           const balance = userEconomy?.balance ?? 1000;
 
           // Find channels for easy onboarding links
@@ -396,7 +398,7 @@ export async function getDiscordClient() {
 
         // Wallet & Daily
         if (id === 'eco_balance') {
-          const bal = getBalance(interaction.user.id);
+          const bal = (await getBalance(interaction.user.id));
           return await interaction.reply({
             content: `💳 **Wallet Balance**: \`${bal.toLocaleString()} 🪙\`\n> Need more? Use the **🎁 Daily (+500)** button to claim free tokens every 24 hours!`,
             flags: MessageFlags.Ephemeral,
@@ -404,7 +406,7 @@ export async function getDiscordClient() {
         }
 
         if (id === 'eco_rank_btn') {
-          const lvlData = getUserLevelData(interaction.user.id);
+          const lvlData = (await getUserLevelData(interaction.user.id));
           let currentTier = 'Novice Player';
           let tierColor = 0x3498db;
           for (const t of LEVEL_TIERS) {
@@ -436,7 +438,7 @@ export async function getDiscordClient() {
         }
 
         if (id === 'eco_daily') {
-          const res = claimDaily(interaction.user.id);
+          const res = (await claimDaily(interaction.user.id));
           if (res.success) {
             return await interaction.reply({
               content: `🎁 **Daily Reward Claimed!** You received **+${res.amount} 🪙**!\n💳 **New Balance**: \`${res.newBalance.toLocaleString()} 🪙\``,
@@ -552,6 +554,7 @@ export async function getDiscordClient() {
     const xpCooldowns = new Map();
 
     client.on('messageCreate', async (message) => {
+      if (process.env.MOONFLIP_MCP_ONLY === '1') return;
       if (message.author.bot || !message.guild) return;
 
       const userId = message.author.id;
@@ -562,7 +565,7 @@ export async function getDiscordClient() {
       xpCooldowns.set(userId, now);
 
       const xpGained = Math.floor(Math.random() * 11) + 15; // 15-25 XP
-      const result = addXp(userId, xpGained);
+      const result = (await addXp(userId, xpGained));
 
       if (result.leveledUp) {
         const lvlChannel = message.guild.channels.cache.find((c) =>

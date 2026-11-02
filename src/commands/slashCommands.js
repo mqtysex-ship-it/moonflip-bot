@@ -144,14 +144,6 @@ export async function registerGuildSlashCommands(guild) {
 export function isStaffOrOwner(interaction) {
   if (interaction.guild?.ownerId === interaction.user.id) return true;
   if (interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) return true;
-  if (
-    interaction.member?.roles?.cache?.some((r) => {
-      const n = r.name.toLowerCase();
-      return n.includes('admin') || n.includes('manager') || n.includes('owner');
-    })
-  ) {
-    return true;
-  }
   return false;
 }
 
@@ -161,7 +153,7 @@ export async function handleChatInputCommand(interaction) {
   // 1. /balance
   if (commandName === 'balance') {
     const targetUser = interaction.options.getUser('user') || interaction.user;
-    const stats = getUser(targetUser.id);
+    const stats = (await getUser(targetUser.id));
 
     const embed = new EmbedBuilder()
       .setColor(0xf1c40f)
@@ -184,7 +176,7 @@ export async function handleChatInputCommand(interaction) {
 
   // 2. /daily
   if (commandName === 'daily') {
-    const res = claimDaily(interaction.user.id);
+    const res = (await claimDaily(interaction.user.id));
     if (res.success) {
       const embed = new EmbedBuilder()
         .setColor(0x2ecc71)
@@ -219,7 +211,7 @@ export async function handleChatInputCommand(interaction) {
       return await showCrashLeaderboard(interaction);
     }
 
-    const top = getLeaderboard(10);
+    const top = (await getLeaderboard(10));
     const badges = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
     let list = '';
@@ -259,7 +251,7 @@ export async function handleChatInputCommand(interaction) {
       return interaction.reply({ content: '❌ You cannot send tokens to a bot account!', flags: MessageFlags.Ephemeral });
     }
 
-    const res = transferTokens(interaction.user.id, targetUser.id, amount);
+    const res = (await transferTokens(interaction.user.id, targetUser.id, amount));
     if (!res.success) {
       return interaction.reply({ content: `❌ Transfer failed: ${res.error}`, flags: MessageFlags.Ephemeral });
     }
@@ -282,7 +274,7 @@ export async function handleChatInputCommand(interaction) {
   // 5. /deposit-test
   if (commandName === 'deposit-test') {
     const amount = interaction.options.getInteger('amount');
-    const newBal = addTokens(interaction.user.id, amount);
+    const newBal = (await addTokens(interaction.user.id, amount));
     const receiptId = Math.random().toString(36).substring(2, 9).toUpperCase();
 
     const embed = new EmbedBuilder()
@@ -307,7 +299,7 @@ export async function handleChatInputCommand(interaction) {
   // 6. /rank
   if (commandName === 'rank') {
     const targetUser = interaction.options.getUser('user') || interaction.user;
-    const lvlData = getUserLevelData(targetUser.id);
+    const lvlData = (await getUserLevelData(targetUser.id));
 
     let currentTier = 'Novice Player';
     let tierColor = 0x3498db;
@@ -344,9 +336,9 @@ export async function handleChatInputCommand(interaction) {
 
   // 7. /levels
   if (commandName === 'levels') {
-    const rawUsers = getLeaderboard(50);
+    const rawUsers = (await getLeaderboard(50));
     const sortedByLvl = rawUsers
-      .map((u) => ({ ...u, ...getUserLevelData(u.userId) }))
+      .map((u) => ({ ...u, xp: u.xp ?? 0, level: u.level ?? 1 }))
       .sort((a, b) => b.level - a.level || b.xp - a.xp)
       .slice(0, 10);
 
@@ -385,8 +377,8 @@ export async function handleChatInputCommand(interaction) {
 
     const targetUser = interaction.options.getUser('user');
     const amount = interaction.options.getInteger('amount');
-    const prevBal = getBalance(targetUser.id);
-    const newBal = addTokens(targetUser.id, amount);
+    const prevBal = (await getBalance(targetUser.id));
+    const newBal = (await addTokens(targetUser.id, amount));
 
     const embed = new EmbedBuilder()
       .setColor(0x2ecc71)
@@ -416,8 +408,8 @@ export async function handleChatInputCommand(interaction) {
 
     const targetUser = interaction.options.getUser('user');
     const amount = interaction.options.getInteger('amount');
-    const prevBal = getBalance(targetUser.id);
-    const newBal = setBalance(targetUser.id, Math.max(0, prevBal - amount));
+    const prevBal = (await getBalance(targetUser.id));
+    const newBal = (await setBalance(targetUser.id, Math.max(0, prevBal - amount)));
 
     const embed = new EmbedBuilder()
       .setColor(0xe74c3c)
@@ -447,8 +439,8 @@ export async function handleChatInputCommand(interaction) {
 
     const targetUser = interaction.options.getUser('user');
     const amount = interaction.options.getInteger('amount');
-    const prevBal = getBalance(targetUser.id);
-    const newBal = setBalance(targetUser.id, amount);
+    const prevBal = (await getBalance(targetUser.id));
+    const newBal = (await setBalance(targetUser.id, amount));
 
     const embed = new EmbedBuilder()
       .setColor(0x9b59b6)
@@ -492,7 +484,7 @@ export async function handleChatInputCommand(interaction) {
   // 12. /play & /crash (Web Arena)
   if (commandName === 'play' || commandName === 'crash') {
     const isCrash = commandName === 'crash';
-    const token = createWebPlaySession(interaction.user);
+    const token = (await createWebPlaySession(interaction.user));
     const baseUrl = getPublicBaseUrl(interaction);
     const homeUrl = `${baseUrl}/play?token=${token}`;
     const crashUrl = `${baseUrl}/play?game=crash&token=${token}`;
@@ -506,7 +498,7 @@ export async function handleChatInputCommand(interaction) {
         `Your private gaming session is ready! Click any button below to launch **Moonflip** in your browser with your Discord identity and wallet synced.\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `👤 **Player**: <@${interaction.user.id}>\n` +
-        `🪙 **Current Wallet**: \`${getBalance(interaction.user.id).toLocaleString()} 🪙\`\n` +
+        `🪙 **Current Wallet**: \`${(await getBalance(interaction.user.id)).toLocaleString()} 🪙\`\n` +
         `🎮 **Featured Games**: 💣 **Mines** & 📈 **Crash**\n` +
         `🔒 **Session**: Permanent cryptographically signed Discord wallet link\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +

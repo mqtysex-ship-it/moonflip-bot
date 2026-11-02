@@ -10,13 +10,14 @@ import {
   MessageFlags,
 } from 'discord.js';
 import fs from 'fs';
+import { getDataDirectory } from '../dataDirectory.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getTicketBannerGif } from '../games/animator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.resolve(__dirname, '../../data');
+const DATA_DIR = getDataDirectory();
 const TICKETS_FILE = path.join(DATA_DIR, 'tickets.json');
 const DEPARTMENTS_FILE = path.join(DATA_DIR, 'departments.json');
 
