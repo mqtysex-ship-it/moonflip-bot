@@ -109,6 +109,7 @@
   // =========================================================================
 
   let instantGamesUi = null;
+  let rewardsUi = null;
   let audioCtx = null;
   let thrusterState = null;
 
@@ -126,25 +127,8 @@
   }
 
   const Sound = {
-    // Tactile UI click
-    click() {
-      if (!state.soundEnabled) return;
-      const ctx = getAudioContext();
-      if (!ctx || ctx.state !== 'running') return;
-      try {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1400, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(420, ctx.currentTime + 0.025);
-        gain.gain.setValueAtTime(0.065, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.025);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.025);
-      } catch {}
-    },
+    // Interface navigation and controls are intentionally silent.
+    click() {},
 
     // Musical gem chime with progressive streak pitch
     gem(streak = 1) {
@@ -1547,14 +1531,14 @@
   // 8. API CLIENT & REAL-TIME SSE STREAM
   // =========================================================================
 
-  async function api(endpoint, method = 'GET', data = null) {
+  async function api(endpoint, method = 'GET', data = null, options = {}) {
     const headers = {
       'Content-Type': 'application/json',
       'x-guest-id': guestId,
     };
     if (playToken) headers['x-play-token'] = playToken;
 
-    const opts = { method, headers };
+    const opts = { method, headers, signal: options.signal };
     if (data) opts.body = JSON.stringify({ ...data, token: playToken, guestId });
 
     const res = await fetch(`${API_BASE}${endpoint}`, opts);
@@ -2442,7 +2426,7 @@
       list = [...minesWins, ...crashWins, ...state.instantActivity].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     }
 
-    list = list.slice(0, 6);
+    list = list.filter(round => !instantGamesUi?.isHiddenRound(round.roundId)).slice(0, 6);
 
     if (list.length === 0) {
       el.liveActivityBody.innerHTML = '<tr><td colspan="5" class="lb-empty">No recent activity yet. Place a bet to appear live!</td></tr>';
@@ -2779,6 +2763,7 @@
       updateBalanceDisplay(data.balance);
       updateDiscordSyncUI();
       instantGamesUi?.profile();
+      rewardsUi?.profile();
 
       if (Array.isArray(data.history)) state.minesHistory = data.history;
       if (Array.isArray(data.crashHistory)) state.crashHistory = data.crashHistory;
@@ -3285,8 +3270,11 @@
   // 15. BOOTSTRAP
   // =========================================================================
 
-  instantGamesUi = window.createInstantGamesUI({api,updateBalance:updateBalanceDisplay,refreshProfile,state});
+  instantGamesUi = window.createInstantGamesUI({api,updateBalance:updateBalanceDisplay,refreshProfile,state,onPendingChange:()=>renderLiveActivityTable(state.activeStageTab)});
   document.querySelectorAll('[data-instant-game]').forEach(button=>button.addEventListener('click',()=>switchView(button.dataset.instantGame,true)));
+
+  rewardsUi = window.createRewardsUI({api,state,updateBalance:updateBalanceDisplay,refreshProfile});
+  document.getElementById('btnOpenRewards')?.addEventListener('click',()=>rewardsUi.open());
 
   buildGrid();
   updateMinesTelemetry();

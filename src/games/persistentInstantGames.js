@@ -37,11 +37,11 @@ export class PersistentInstantGames {
     } finally { client.release(); }
   }
   async activity() {
-    const result=await this.pool.query(`SELECT r.game_type,r.wager,r.payout,r.game_state,r.settled_at,w.username,w.avatar_url
+    const result=await this.pool.query(`SELECT r.round_id,r.game_type,r.wager,r.payout,r.game_state,r.settled_at,w.username,w.avatar_url
       FROM moonflip_private.game_rounds r JOIN moonflip_private.wallets w ON w.discord_user_id=r.discord_user_id
       WHERE r.game_type IN ('coinflip','plinko') AND r.status='settled' AND r.game_state ? 'result'
       ORDER BY r.settled_at DESC LIMIT 20`);
-    return result.rows.map(r=>({gameName:r.game_type==='coinflip'?'Coinflip':'Plinko',wager:Number(r.wager),
+    return result.rows.map(r=>({roundId:r.round_id,gameName:r.game_type==='coinflip'?'Coinflip':'Plinko',wager:Number(r.wager),
       payout:Number(r.payout),profit:Number(r.payout)-Number(r.wager),multiplier:r.game_state.result.multiplier,
       username:r.username || 'Player',avatarUrl:r.avatar_url,timestamp:new Date(r.settled_at).getTime()}));
   }

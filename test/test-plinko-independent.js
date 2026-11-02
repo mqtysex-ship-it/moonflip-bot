@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {uiHarness} from './helpers/instantUiHarness.js';
+const request={roundId:'00000000-0000-4000-8000-000000000123',wager:100,rows:8,risk:'high'};
+const restored=uiHarness({pending:request});
+assert.equal(restored.controller.isHiddenRound(request.roundId),true,'pending Plinko must stay hidden before opening its view');
+const responses=[];
+const slow=uiHarness({onPlay:request=>new Promise(resolve=>responses.push(()=>resolve({roundId:request.roundId,game:'plinko',rows:8,risk:'high',path:Array(8).fill(0),bucket:0,multiplier:.2,wager:100,payout:20,profit:-80,balance:920}))) });
+await slow.controller.show('plinko');slow.submit();slow.submit();await slow.flush();
+assert.equal(slow.calls.length,2,'a stalled request must not block later drops');
+responses.forEach(resolve=>resolve());await slow.flush();slow.step(2000);await slow.flush();
+console.log('Pending outcomes hidden across views and independent requests passed');

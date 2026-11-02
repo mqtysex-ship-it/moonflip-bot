@@ -14,7 +14,7 @@ export function setupInstantGameApi(app,{resolvePlayer,pool,economyEvents,onRoun
       if(result.applied) {
         try {
           economyEvents?.emit('balanceChanged',{userId:player.session.userId,balance:result.balance,action:game,amount:result.profit});
-          onRound?.({gameName:game==='coinflip'?'Coinflip':'Plinko',username:player.session.username,avatarUrl:player.session.avatarUrl,
+          onRound?.({roundId:result.roundId,gameName:game==='coinflip'?'Coinflip':'Plinko',username:player.session.username,avatarUrl:player.session.avatarUrl,
             wager:result.wager,payout:result.payout,profit:result.profit,multiplier:result.multiplier,timestamp:Date.now()});
         } catch(error) { console.error('[Instant game event]',error.message); }
       }

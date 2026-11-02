@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'moonflip-tests-'));
 const tests = [
-  'test-instant-games.js', 'test-instant-game-api.js', 'test-instant-ui.js',
+  'test-plinko-independent.js', 'test-plinko-flow.js', 'test-rewards-api.js', 'test-instant-games.js', 'test-instant-game-api.js', 'test-instant-ui.js',
   'test-document-store.js',
   'test-isolated-database-env.js', 'test-economy-no-database-fallback.js', 'test-persistent-mines.js', 'test-postgres-pool.js', 'test-postgres-economy.js', 'test-migration-snapshot.js', 'test-migration-import.js', 'test-mcp-isolation.js', 'test-dashboard-auth.js', 'test-discord-admin.js', 'test-crash-autocashout.js',
   'test-dashboard-balance.js', 'test-dashboard-database-adjust.js', 'test-level-balance-sync.js', 'test-mines-invalid-tile.js',

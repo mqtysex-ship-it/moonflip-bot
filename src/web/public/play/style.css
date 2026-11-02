@@ -3033,3 +3033,13 @@ html, body {
 @media (max-width:640px) { .instant-chassis { display:flex; flex-direction:column; margin-top:16px; }.instant-controls { border:0; padding:20px 16px; }.instant-controls h1 { margin-bottom:20px; }.instant-arena { padding:20px 12px; }.coin-stage { min-height:260px; }.instant-arena-header { margin-bottom:12px; }.instant-specs { padding-bottom:0; }.mf-game-tabs { overflow:auto; white-space:nowrap; }.instant-result strong { font-size:18px; } }
 @media (prefers-reduced-motion:reduce) { .instant-play { transition:none; } }
 @media (min-width:1151px) { .mf-catalog-grid { grid-template-columns:repeat(7,minmax(0,1fr)) !important; } }
+.rewards-card { width:min(420px,calc(100vw - 32px)); padding:24px; background:#111c25; border:1px solid #2b3b46; border-radius:12px; text-align:center; box-shadow:0 24px 64px #0008; }
+.rewards-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+.rewards-header h2 { font-size:18px; font-weight:700; margin:0; }
+.rewards-header button { border:0; border-radius:4px; background:transparent; color:#b2c2cf; font-size:24px; padding:0 5px; cursor:pointer; }
+.rewards-gift { display:flex; justify-content:center; margin:12px 0 20px; }
+.rewards-card h3 { font-size:14px; font-weight:500; color:#afc0cc; margin:0 0 12px; }
+.rewards-amount { display:flex; justify-content:center; align-items:center; gap:10px; }.rewards-amount strong { font-size:36px; letter-spacing:-.03em; }.rewards-amount span { color:#aebfcc; font-size:14px; }
+.rewards-caption { color:#aebfcc; font-size:13px; margin:12px 0 28px; }
+.rewards-status { min-height:36px; margin:14px 0 0; color:#b0c1ce; font-size:12px; line-height:1.5; }
+.rewards-card button:focus-visible { outline:2px solid var(--mint); outline-offset:3px; }

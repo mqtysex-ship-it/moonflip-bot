@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/style.css?v=8.0">
+  <link rel="stylesheet" href="/play/style.css?v=9.0">
 </head>
 <body class="moonflip-theme">
 
@@ -44,7 +44,7 @@
           <span>Leaderboard</span>
         </button>
 
-        <button type="button" class="mf-topnav-item" id="btnOpenFairness">
+        <button type="button" class="mf-topnav-item" id="btnOpenRewards">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 12 20 22 4 22 4 12"/>
             <rect x="2" y="7" width="20" height="5"/>
@@ -345,6 +345,10 @@
               </div>
             </div>
 
+<div class="mf-catalog-card" data-category="originals" data-title="plinko ball pegs risk rows" data-catalog-game="plinko" role="button" tabindex="0">
+      <div class="mf-card-cover-wrap"><img src="/play/assets/cover-plinko.svg" alt="Plinko" class="mf-card-cover-img" loading="lazy"></div>
+      <div class="mf-card-content"><div class="mf-card-header"><h3 class="mf-card-title">Plinko</h3></div><button type="button" class="mf-card-btn"><span>Play Plinko</span></button></div>
+    </div>
             <!-- COINFLIP CARD -->
             <div class="mf-catalog-card" data-catalog-game="coinflip" role="button" tabindex="0">
               <div class="mf-card-cover-wrap">
@@ -513,10 +517,6 @@
             </div>
           </div>
 
-<div class="mf-catalog-card" data-category="originals" data-title="plinko ball pegs risk rows" data-catalog-game="plinko" role="button" tabindex="0">
-      <div class="mf-card-cover-wrap"><img src="/play/assets/cover-plinko.svg" alt="Plinko" class="mf-card-cover-img" loading="lazy"></div>
-      <div class="mf-card-content"><div class="mf-card-header"><h3 class="mf-card-title">Plinko</h3></div><button type="button" class="mf-card-btn"><span>Play Plinko</span></button></div>
-    </div>
 <div class="mf-catalog-card" data-category="originals" data-title="plinko ball pegs risk rows" data-catalog-game="plinko" role="button" tabindex="0">
       <div class="mf-card-cover-wrap"><img src="/play/assets/cover-plinko.svg" alt="Plinko" class="mf-card-cover-img" loading="lazy"></div>
       <div class="mf-card-content"><div class="mf-card-header"><h3 class="mf-card-title">Plinko</h3></div><button type="button" class="mf-card-btn"><span>Play Plinko</span></button></div>
@@ -897,13 +897,11 @@
           <div id="plinkoOptions" hidden><div class="instant-field"><label for="plinkoRisk">Risk</label><select id="plinkoRisk"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div><div class="instant-field"><label for="plinkoRows">Rows</label><select id="plinkoRows"><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option></select></div></div>
           <button class="instant-play" id="instantPlay" type="submit">Flip coin</button>
           <p id="instantMessage" class="instant-message" role="status" aria-live="polite">Link your Discord wallet to play.</p>
-          <dl class="instant-specs"><div><dt>Balance</dt><dd id="instantBalance">—</dd></div><div><dt>House edge</dt><dd id="instantEdge">4%</dd></div><div id="coinflipPayout"><dt>Winning payout</dt><dd>1.92×</dd></div></dl>
-          <p class="instant-disclosure" id="instantDisclosure">Heads and tails each have a 50% chance. Payout includes your stake. Payouts round down to whole tokens.</p>
         </form>
         <div class="instant-arena">
           <div class="instant-arena-header"><span id="instantArenaLabel">Coinflip</span><span class="instant-wallet-label">Discord wallet</span></div>
           <div class="coin-stage" id="coinStage"><div class="coin-perspective"><div class="coin-3d" id="instantCoin"><div class="coin-face coin-heads"><span>◉</span><small>HEADS</small></div><div class="coin-face coin-tails"><span>☾</span><small>TAILS</small></div></div></div><p class="coin-hint">Make your call.</p></div>
-          <div class="plinko-stage" id="plinkoStage" hidden><svg id="plinkoBoard" viewBox="0 0 720 560" role="img" aria-label="Plinko peg board"></svg><div id="plinkoBucketDetail" class="plinko-detail">Select a payout bucket to see its multiplier and probability.</div></div>
+          <div class="plinko-stage" id="plinkoStage" hidden><svg id="plinkoBoard" viewBox="0 0 720 560" role="img" aria-label="Plinko peg board"></svg><div id="plinkoBucketDetail" class="plinko-detail"></div></div>
           <div class="instant-result" id="instantResult" role="status" aria-live="polite"><strong>Ready when you are</strong><span>Choose your bet to begin.</span></div>
           <div class="instant-history"><div class="instant-history-heading"><h2>Your recent rounds</h2><button type="button" id="instantRefresh">Refresh</button></div><div id="instantHistory">Link your Discord wallet to see your rounds.</div></div>
         </div>
@@ -980,35 +978,26 @@
       <div class="fairness-header">
         <div class="fairness-title-row">
           <span class="pulsing-emerald-dot"></span>
-          <h3>Cryptographic Provably Fair &amp; Discord Sync</h3>
+          <h3>Need a hand?</h3>
         </div>
         <button class="btn-close-modal" id="btnCloseFairness">&times;</button>
       </div>
-      <div class="fairness-body">
-        <p>Every Moonflip round on <strong>Mines</strong> and <strong>Crash</strong> is generated on the server using Node.js <code>crypto.randomBytes(4)</code> CSPRNG and settled directly against your Discord server balance.</p>
-        <div class="fairness-formula">
-          <code>Crash Point = 0.98 / (1 - U), Instant Bust = 3.5%</code>
-          <code>Mines Multiplier = 0.97 / P(Safe Gems Uncovered)</code>
-        </div>
-        <div class="fairness-specs">
-          <div class="spec-row">
-            <span>Discord Commands</span>
-            <strong>Use <code>/daily</code>, <code>/balance</code> &amp; <code>/play</code> in Discord</strong>
-          </div>
-          <div class="spec-row">
-            <span>Crash Betting Window</span>
-            <strong>6.0s Launchpad Countdown (Locked During Flight)</strong>
-          </div>
-          <div class="spec-row">
-            <span>Wallet Sync</span>
-            <strong>Instant Bidirectional Discord Economy Settlement</strong>
-          </div>
-        </div>
-      </div>
+      <div class="fairness-body"><p>Use <strong>/play</strong> in Discord to reconnect your wallet, or contact the server team for help.</p></div>
       <div class="fairness-footer">
         <button type="button" class="btn-modal-primary" id="btnDoneFairness">Got It</button>
       </div>
     </div>
+  </div>
+
+  <div class="fairness-modal" id="rewardsModal">
+    <section class="rewards-card" role="dialog" aria-modal="true" aria-labelledby="rewardsTitle">
+      <header class="rewards-header"><h2 id="rewardsTitle">Rewards</h2><button type="button" id="closeRewards" aria-label="Close rewards">&times;</button></header>
+      <div class="rewards-gift" aria-hidden="true"><svg width="64" height="64" viewBox="0 0 64 64" fill="none"><path d="M13 29h38v26H13z" fill="#214a40"/><path d="M9 21h46v12H9z" fill="#2bd7a6"/><path d="M29 21h6v34h-6z" fill="#93f6d5"/><path d="M32 21H21a7 7 0 1 1 7-7l4 7Zm0 0h11a7 7 0 1 0-7-7l-4 7Z" stroke="#93f6d5" stroke-width="3"/></svg></div>
+      <h3>Daily reward</h3><div class="rewards-amount"><img src="/play/assets/token.png" width="28" height="28" alt=""><strong>500</strong><span>tokens</span></div>
+      <p class="rewards-caption">A little extra, every day.</p>
+      <button type="button" class="instant-play" id="claimDailyReward" disabled>Claim 500 tokens</button>
+      <p id="rewardsStatus" class="rewards-status" role="status" aria-live="polite">Checking your reward…</p>
+    </section>
   </div>
 
   <!-- FULL LEADERBOARD MODAL -->
@@ -1094,7 +1083,8 @@
     </div>
   </div>
 
-  <script src="/play/instant-games.js?v=1.0"></script>
-  <script src="/play/app.js?v=8.0"></script>
+  <script src="/play/instant-games.js?v=2.0"></script>
+  <script src="/play/rewards.js?v=1.0"></script>
+  <script src="/play/app.js?v=9.0"></script>
 </body>
 </html>

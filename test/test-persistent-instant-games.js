@@ -46,10 +46,12 @@ if(process.env.MOONFLIP_DB_INTEGRATION !== '1') {
     const {default:express}=await import('express');
     const {EventEmitter}=await import('node:events');
     const {setupInstantGameApi}=await import('../src/web/instantGameApi.js');
+    const {setupRewardsApi}=await import('../src/web/rewardsApi.js');
     const events=new EventEmitter(),updates=[],activityEvents=[];
     events.on('balanceChanged',event=>updates.push(event));
     const app=express();app.use(express.json());
     setupInstantGameApi(app,{pool,economyEvents:events,onRound:r=>activityEvents.push(r),resolvePlayer:async()=>({authenticated:true,session:{userId:user,username:'Fixture'}})});
+    setupRewardsApi(app,{pool,economyEvents:events,resolvePlayer:async()=>({authenticated:true,session:{userId:user}})});
     const server=app.listen(0);await new Promise(r=>server.once('listening',r));
     try {
       const apiUrl=`http://127.0.0.1:${server.address().port}`;
@@ -64,10 +66,24 @@ if(process.env.MOONFLIP_DB_INTEGRATION !== '1') {
       assert.equal(updates[0].balance,first.balance);
       const feed=await(await fetch(apiUrl+'/api/play/instant/activity')).json();
       assert(feed.rounds.some(r=>r.gameName==='Coinflip'));
+      const before=Number((await pool.query('SELECT balance FROM moonflip_private.wallets WHERE discord_user_id=$1',[user])).rows[0].balance);
+      const claimBody=JSON.stringify({operationId:randomUUID()});
+      const claim=body=>fetch(apiUrl+'/api/play/rewards/claim',{method:'POST',headers:{'Content-Type':'application/json'},body});
+      const claims=await Promise.all(Array.from({length:4},async()=>{const response=await claim(claimBody);assert.equal(response.status,200);return response.json();}));
+      assert(claims.every(r=>r.success&&r.balance===before+500));
+      assert.equal(updates.length,2,'daily replay emits wallet credit only once');
+      const status=await(await fetch(apiUrl+'/api/play/rewards')).json();
+      assert.equal(status.available,false);assert(status.availableAt>status.serverNow);
+      const blocked=await(await claim(JSON.stringify({operationId:randomUUID()}))).json();assert.equal(blocked.success,false);
+      const {PostgresEconomy}=await import('../src/games/postgresEconomy.js');
+      const discordClaim=await new PostgresEconomy(pool).claimDaily(randomUUID(),user);
+      assert.equal(discordClaim.success,false,'Discord shares the web reward cooldown');
+      assert.equal(Number((await pool.query('SELECT balance FROM moonflip_private.wallets WHERE discord_user_id=$1',[user])).rows[0].balance),before+500);
     } finally {server.closeAllConnections();await new Promise(r=>server.close(r));}
-    console.log('PostgreSQL atomic settlement, concurrent retries, restart recovery, rollback and fail-closed checks passed');
+    console.log('PostgreSQL atomic settlement, concurrent retries, restart recovery, rollback daily rewards and fail-closed checks passed');
   } finally {
     if(inserted) await pool.query('DELETE FROM moonflip_private.game_rounds WHERE discord_user_id=ANY($1::text[])',[[user,other]]);
+    if(inserted) await pool.query('DELETE FROM moonflip_private.wallet_daily_claims WHERE discord_user_id=ANY($1::text[])',[[user,other]]);
     if(inserted) await pool.query('DELETE FROM moonflip_private.wallets WHERE discord_user_id=ANY($1::text[])',[[user,other]]);
     await closeDatabase();
   }
