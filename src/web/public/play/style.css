@@ -293,18 +293,21 @@ body.casino-theme {
 .casino-stage {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 24px;
+  justify-content: flex-start;
+  padding: 32px 24px 64px;
   width: 100%;
-  max-width: 1360px;
+  max-width: 1240px;
   margin: 0 auto;
+  gap: 32px;
 }
 
 .game-chassis {
   display: grid;
   grid-template-columns: 360px 1fr;
   width: 100%;
+  max-width: 1200px;
   background: var(--c-chassis);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: var(--radius-chassis);
@@ -1258,11 +1261,13 @@ body.casino-theme {
 }
 
 .live-leaderboard-stage {
-  margin-top: 24px;
-  background: var(--bg-chassis);
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--c-chassis);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-chassis);
-  box-shadow: var(--shadow-chassis);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
   overflow: hidden;
 }
 
