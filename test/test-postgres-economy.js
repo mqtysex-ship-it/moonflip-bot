@@ -43,3 +43,12 @@ await assert.rejects(db.adjust(op, '123456789', 'invalid', 200), /action/);
 assert.deepEqual(calls[9].params, [round, '123456789']);
 assert.equal(calls.length, 11, 'invalid input must not reach database');
 console.log('Postgres economy adapter passed');
+let activeQueries = 0;
+const activeStore = new PostgresEconomy({ async query(sql, params) {
+  activeQueries++;
+  assert.match(sql, /game_type = 'mines'/);
+  assert.deepEqual(params, ['123456789']);
+  return { rows: [{ round_id: 'round', discord_user_id: '123456789', game_type: 'mines', wager: '200', game_state: { bombs: 3 }, status: 'active', version: '2', balance_after_wager: '800' }] };
+} });
+assert.equal((await activeStore.loadActiveMines('123456789')).balanceAfterWager, 800);
+assert.equal(activeQueries, 1);

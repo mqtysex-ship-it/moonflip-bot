@@ -585,9 +585,7 @@ function operationUuid(roundId, action) {
 
 async function loadDatabaseMines(userId, gameId = null) {
   if (gameId) return databaseEconomy.loadRound(gameId, userId);
-  const result = await databasePool.query(`SELECT round_id FROM moonflip_private.game_rounds
-    WHERE discord_user_id = $1 AND game_type = 'mines' AND status = 'active' ORDER BY created_at DESC LIMIT 1`, [userId]);
-  return result.rows[0] ? databaseEconomy.loadRound(result.rows[0].round_id, userId) : null;
+  return databaseEconomy.loadActiveMines(userId);
 }
 
 function publicDatabaseMines(round) {

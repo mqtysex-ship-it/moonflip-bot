@@ -147,6 +147,17 @@ export class PostgresEconomy {
       wager: number(row.wager, 'wager'), state: row.game_state, status: row.status, version: number(row.version, 'version'),
       balanceAfterWager: number(row.balance_after_wager, 'balance') };
   }
+  async loadActiveMines(userId) {
+    identity(userId, 'user');
+    const result = await this.pool.query(`SELECT round_id, discord_user_id, game_type, wager, game_state, status, version, balance_after_wager
+      FROM moonflip_private.game_rounds WHERE discord_user_id = $1 AND game_type = 'mines' AND status = 'active'
+      ORDER BY created_at DESC LIMIT 1`, [userId]);
+    const row = result.rows[0];
+    if (!row) return null;
+    return { roundId: row.round_id, userId: row.discord_user_id, game: row.game_type,
+      wager: number(row.wager, 'wager'), state: row.game_state, status: row.status, version: number(row.version, 'version'),
+      balanceAfterWager: number(row.balance_after_wager, 'balance') };
+  }
   async loadTransition(operationId, roundId, userId) {
     identity(operationId, 'operation'); identity(roundId, 'round'); identity(userId, 'user');
     const result = await this.pool.query(`SELECT round_id, discord_user_id, next_state, payout, resulting_version, balance_after
