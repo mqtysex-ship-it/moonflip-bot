@@ -47,6 +47,14 @@ function addLog(level, msg) {
   if (recentLogs.length > MAX_LOGS) recentLogs.shift();
 }
 
+// Global process error handlers to prevent unhandled rejections from terminating daemon
+process.on('unhandledRejection', (reason) => {
+  console.error('[Web Server Unhandled Rejection]', reason?.message || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Web Server Uncaught Exception]', err?.message || err);
+});
+
 // Intercept console.log and console.error safely to capture logs for the dashboard
 const origLog = console.log;
 const origError = console.error;
