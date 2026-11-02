@@ -494,37 +494,40 @@ export async function handleChatInputCommand(interaction) {
     const isCrash = commandName === 'crash';
     const token = createWebPlaySession(interaction.user);
     const baseUrl = getPublicBaseUrl(interaction);
+    const homeUrl = `${baseUrl}/play?token=${token}`;
     const crashUrl = `${baseUrl}/play?game=crash&token=${token}`;
     const minesUrl = `${baseUrl}/play?game=mines&token=${token}`;
 
     const embed = new EmbedBuilder()
-      .setColor(isCrash ? 0xff9900 : 0x00f0ff)
-      .setTitle(isCrash ? '🚀  MOONFLIP ORBITAL CRASH — WEB ARENA' : '🎮  MOONFLIP CASINO — WEB ARENA')
+      .setColor(0x2ef2b8)
+      .setTitle(isCrash ? '🚀  MOONFLIP CRASH — WEB ARENA' : '🌙  MOONFLIP — DISCORD-POWERED MINIGAMES')
       .setDescription(
-        `> **Real-Time Interactive Web Client with Instant Discord Sync** ⚡\n\n` +
-        `Your private gaming window is ready! Click the button below to launch **${isCrash ? 'Orbital Crash' : 'the Web Arena'}** directly in your browser with your wallet synced.\n\n` +
+        `> **Real-Time Interactive Web Platform with Instant Discord Sync** ⚡\n\n` +
+        `Your private gaming session is ready! Click any button below to launch **Moonflip** in your browser with your Discord identity and wallet synced.\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `👤 **Player**: <@${interaction.user.id}>\n` +
         `🪙 **Current Wallet**: \`${getBalance(interaction.user.id).toLocaleString()} 🪙\`\n` +
-        `🎮 **Featured Games**: 🚀 **Orbital Crash (60 FPS Canvas)** & 💣 **5x5 Mines (3D Matrix)**\n` +
-        `⚡ **Features**: 60 FPS Physics • Studio Web Audio Synthesizer • Live Leaderboard\n` +
+        `🎮 **Featured Games**: 💣 **Mines** & 📈 **Crash**\n` +
         `🔒 **Session**: Permanent cryptographically signed Discord wallet link\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `👉 **Click the button below to open the game window!**`
+        `👉 **Click a button below to open Moonflip in your browser!**`
       )
-      .setThumbnail(isCrash ? 'https://cdn-icons-png.flaticon.com/512/3205/3205047.png' : 'https://cdn-icons-png.flaticon.com/512/1055/1055687.png')
       .setFooter({ text: 'Provably Fair • Instant Settlement • Moonflip Web Arena' })
       .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setLabel('🚀 Open Orbital Crash Window')
+        .setLabel('🌙 Open Moonflip Home')
         .setStyle(ButtonStyle.Link)
-        .setURL(crashUrl),
+        .setURL(homeUrl),
       new ButtonBuilder()
-        .setLabel('💣 Open 5x5 Mines Window')
+        .setLabel('💣 Play Mines')
         .setStyle(ButtonStyle.Link)
-        .setURL(minesUrl)
+        .setURL(minesUrl),
+      new ButtonBuilder()
+        .setLabel('📈 Play Crash')
+        .setStyle(ButtonStyle.Link)
+        .setURL(crashUrl)
     );
 
     return interaction.reply({

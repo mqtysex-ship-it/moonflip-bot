@@ -1,7 +1,7 @@
 /**
- * MOONFLIP CASINO — 5x5 MINES ARENA & 24/7 CONTINUOUS ORBITAL CRASH (v3.0)
- * High-Precision Luxury Gaming Engine, Zero-Lag 60FPS Canvas & Real-Time SSE Sync
- * 100% English Localization • Stateless Discord Wallet Persistence
+ * MOONFLIP — DISCORD-POWERED MINIGAMES (v4.0)
+ * Home Hub, 5x5 Mines & Continuous Crash Engine
+ * Mint-Neon Theme • Zero Clock-Skew 60FPS Canvas • Strict Countdown-Only Crash Betting
  */
 
 (function () {
@@ -25,9 +25,13 @@
     localStorage.setItem('moonflip_guest_id', guestId);
   }
 
+  const initialGameParam = urlParams.get('game');
+  const initialView = (initialGameParam === 'mines' || initialGameParam === 'crash') ? initialGameParam : 'home';
+
   const state = {
-    // Global player state
-    currentGame: urlParams.get('game') === 'crash' ? 'crash' : 'mines',
+    // Global Navigation & Player State
+    currentView: initialView, // 'home' | 'mines' | 'crash'
+    currentGame: initialGameParam === 'crash' ? 'crash' : 'mines',
     authenticated: false,
     userId: null,
     username: 'Guest',
@@ -36,7 +40,6 @@
     soundEnabled: localStorage.getItem('moonflip_sound_muted') !== 'true',
     minesHistory: [],
     crashHistory: [],
-    serverTimeOffset: 0,
 
     // Mines Game State
     wager: 100,
@@ -52,32 +55,32 @@
     roundId: 0,
     pendingTimeouts: [],
 
-    // Continuous 24/7 Crash Arena State
+    // Continuous 24/7 Crash State (Clock-Skew Immune)
     crashMode: 'manual', // 'manual' | 'auto'
     crashAutoBetActive: false,
     crashAutoBetLastRound: 0,
     crashWager: 100,
     crashAutoCashout: 2.0,
     crashPhase: 'BETTING', // 'BETTING' | 'IN_FLIGHT' | 'CRASHED'
-    crashRoundNumber: 1,
-    crashPhaseStartTime: Date.now(),
-    crashBettingDurationMs: 5000,
-    crashStartTime: Date.now(),
+    crashRoundNumber: 1042,
+    crashBettingDurationMs: 6000,
+    crashBaseElapsedMs: 0,
+    crashBaseRemainingMs: 6000,
+    crashSyncPerfNow: performance.now(),
     crashCurrentMult: 1.0,
     crashPoint: null,
     crashPlayers: [],
     crashMyBet: null,
-    crashMyQueuedBet: null,
     crashProcessing: false,
     crashLastCelebratedRound: 0,
     crashLastExplodedRound: 0,
     crashEjectMarkers: [],
 
-    // Leaderboard state
+    // Leaderboard & Activity State
     minesLeaderboard: null,
     crashLeaderboard: null,
     activeModalTab: 'mines-multipliers',
-    activeStageTab: 'mines-multipliers',
+    activeStageTab: 'recent',
   };
 
   function clearAllPendingTimeouts() {
@@ -128,8 +131,8 @@
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(1200, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.03);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.03);
+      gain.gain.setValueAtTime(0.07, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -155,8 +158,8 @@
       osc2.type = 'triangle';
       osc2.frequency.setValueAtTime(freq * 2, ctx.currentTime);
 
-      gain.gain.setValueAtTime(0.18, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      gain.gain.setValueAtTime(0.16, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.42);
 
       osc1.connect(gain);
       osc2.connect(gain);
@@ -164,8 +167,8 @@
 
       osc1.start();
       osc2.start();
-      osc1.stop(ctx.currentTime + 0.45);
-      osc2.stop(ctx.currentTime + 0.45);
+      osc1.stop(ctx.currentTime + 0.42);
+      osc2.stop(ctx.currentTime + 0.42);
     },
 
     bomb() {
@@ -177,9 +180,126 @@
       const subGain = ctx.createGain();
       sub.type = 'sine';
       sub.frequency.setValueAtTime(130, ctx.currentTime);
-      sub.frequency.exponentialRampToValueAtTime(25, ctx.currentTime + 0.6);
+      sub.frequency.exponentialRampToValueAtTime(25, ctx.currentTime + 0.55);
 
-      subGain.gain.setValueAtTime(0.4, ctx.currentTime);
+      subGain.gain.setValueAtTime(0.38, ctx.currentTime);
+      subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+
+      sub.connect(subGain);
+      subGain.connect(ctx.destination);
+      sub.start();
+      sub.stop(ctx.currentTime + 0.55);
+
+      const bufferSize = Math.floor(ctx.sampleRate * 0.4);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(850, ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.4);
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.32, ctx.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noise.start();
+    },
+
+    cashout() {
+      if (!state.soundEnabled) return;
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      const chord = [523.25, 659.25, 783.99, 1046.5, 1318.51];
+      chord.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.06);
+
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.setValueAtTime(0.16, ctx.currentTime + i * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.06 + 0.4);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(ctx.currentTime + i * 0.06);
+        osc.stop(ctx.currentTime + i * 0.06 + 0.42);
+      });
+    },
+
+    startThruster() {
+      if (!state.soundEnabled || state.currentView !== 'crash' || document.hidden) return;
+      const ctx = getAudioContext();
+      if (!ctx || ctx.state !== 'running') return;
+      this.stopThruster();
+
+      try {
+        thrusterOsc = ctx.createOscillator();
+        thrusterFilter = ctx.createBiquadFilter();
+        thrusterGain = ctx.createGain();
+
+        thrusterOsc.type = 'triangle';
+        thrusterOsc.frequency.setValueAtTime(68, ctx.currentTime);
+
+        thrusterFilter.type = 'lowpass';
+        thrusterFilter.frequency.setValueAtTime(190, ctx.currentTime);
+        thrusterFilter.Q.setValueAtTime(2.0, ctx.currentTime);
+
+        thrusterGain.gain.setValueAtTime(0.005, ctx.currentTime);
+        thrusterGain.gain.linearRampToValueAtTime(0.055, ctx.currentTime + 0.35);
+
+        thrusterOsc.connect(thrusterFilter);
+        thrusterFilter.connect(thrusterGain);
+        thrusterGain.connect(ctx.destination);
+
+        thrusterOsc.start();
+      } catch {}
+    },
+
+    updateThruster(mult) {
+      if (!state.soundEnabled || !thrusterOsc || !audioCtx || state.currentView !== 'crash') return;
+      try {
+        const targetFreq = Math.min(500, 68 + Math.log(Math.max(1, mult)) * 100);
+        const filterFreq = Math.min(1250, 190 + Math.log(Math.max(1, mult)) * 250);
+        thrusterOsc.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.08);
+        thrusterFilter.frequency.setTargetAtTime(filterFreq, audioCtx.currentTime, 0.08);
+      } catch {}
+    },
+
+    stopThruster() {
+      if (thrusterOsc) {
+        try { thrusterOsc.stop(); } catch {}
+        thrusterOsc = null;
+      }
+      thrusterFilter = null;
+      thrusterGain = null;
+    },
+
+    crashExplosion() {
+      this.stopThruster();
+      if (!state.soundEnabled || state.currentView !== 'crash' || document.hidden) return;
+      const ctx = getAudioContext();
+      if (!ctx || ctx.state !== 'running') return;
+
+      const sub = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      sub.type = 'sawtooth';
+      sub.frequency.setValueAtTime(135, ctx.currentTime);
+      sub.frequency.exponentialRampToValueAtTime(22, ctx.currentTime + 0.6);
+
+      subGain.gain.setValueAtTime(0.32, ctx.currentTime);
       subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
 
       sub.connect(subGain);
@@ -199,131 +319,12 @@
 
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(900, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.45);
+      filter.frequency.setValueAtTime(1000, ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(45, ctx.currentTime + 0.45);
 
       const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.35, ctx.currentTime);
+      noiseGain.gain.setValueAtTime(0.28, ctx.currentTime);
       noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
-
-      noise.connect(filter);
-      filter.connect(noiseGain);
-      noiseGain.connect(ctx.destination);
-      noise.start();
-    },
-
-    cashout() {
-      if (!state.soundEnabled) return;
-      const ctx = getAudioContext();
-      if (!ctx) return;
-
-      const chord = [523.25, 659.25, 783.99, 1046.5, 1318.51];
-      chord.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.065);
-
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.setValueAtTime(0.18, ctx.currentTime + i * 0.065);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.065 + 0.42);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(ctx.currentTime + i * 0.065);
-        osc.stop(ctx.currentTime + i * 0.065 + 0.45);
-      });
-    },
-
-    startThruster() {
-      if (!state.soundEnabled || state.currentGame !== 'crash' || document.hidden) return;
-      const ctx = getAudioContext();
-      if (!ctx || ctx.state !== 'running') return;
-      this.stopThruster();
-
-      try {
-        thrusterOsc = ctx.createOscillator();
-        thrusterFilter = ctx.createBiquadFilter();
-        thrusterGain = ctx.createGain();
-
-        thrusterOsc.type = 'triangle';
-        thrusterOsc.frequency.setValueAtTime(70, ctx.currentTime);
-
-        thrusterFilter.type = 'lowpass';
-        thrusterFilter.frequency.setValueAtTime(200, ctx.currentTime);
-        thrusterFilter.Q.setValueAtTime(2.2, ctx.currentTime);
-
-        thrusterGain.gain.setValueAtTime(0.005, ctx.currentTime);
-        thrusterGain.gain.linearRampToValueAtTime(0.065, ctx.currentTime + 0.35);
-
-        thrusterOsc.connect(thrusterFilter);
-        thrusterFilter.connect(thrusterGain);
-        thrusterGain.connect(ctx.destination);
-
-        thrusterOsc.start();
-      } catch {}
-    },
-
-    updateThruster(mult) {
-      if (!state.soundEnabled || !thrusterOsc || !audioCtx || state.currentGame !== 'crash') return;
-      try {
-        const targetFreq = Math.min(520, 70 + Math.log(Math.max(1, mult)) * 105);
-        const filterFreq = Math.min(1300, 200 + Math.log(Math.max(1, mult)) * 260);
-        thrusterOsc.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.08);
-        thrusterFilter.frequency.setTargetAtTime(filterFreq, audioCtx.currentTime, 0.08);
-      } catch {}
-    },
-
-    stopThruster() {
-      if (thrusterOsc) {
-        try {
-          thrusterOsc.stop();
-        } catch {}
-        thrusterOsc = null;
-      }
-      thrusterFilter = null;
-      thrusterGain = null;
-    },
-
-    crashExplosion() {
-      this.stopThruster();
-      if (!state.soundEnabled || state.currentGame !== 'crash' || document.hidden) return;
-      const ctx = getAudioContext();
-      if (!ctx || ctx.state !== 'running') return;
-
-      const sub = ctx.createOscillator();
-      const subGain = ctx.createGain();
-      sub.type = 'sawtooth';
-      sub.frequency.setValueAtTime(140, ctx.currentTime);
-      sub.frequency.exponentialRampToValueAtTime(22, ctx.currentTime + 0.65);
-
-      subGain.gain.setValueAtTime(0.35, ctx.currentTime);
-      subGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
-
-      sub.connect(subGain);
-      subGain.connect(ctx.destination);
-      sub.start();
-      sub.stop(ctx.currentTime + 0.65);
-
-      const bufferSize = Math.floor(ctx.sampleRate * 0.5);
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1100, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(45, ctx.currentTime + 0.5);
-
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.3, ctx.currentTime);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
 
       noise.connect(filter);
       filter.connect(noiseGain);
@@ -333,32 +334,32 @@
   };
 
   // =========================================================================
-  // 3. BESPOKE 3D VECTOR GRAPHICS (Luxury Gems & Deadly Naval Mines)
+  // 3. BESPOKE 3D VECTOR GRAPHICS (Mint-Emerald Gems & Naval Mines)
   // =========================================================================
 
   const SVG_GEM = `
     <svg class="diamond-3d-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <radialGradient id="gemInnerGlow" cx="50%" cy="40%" r="50%">
-          <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.8"/>
-          <stop offset="60%" stop-color="#00b4d8" stop-opacity="0.4"/>
-          <stop offset="100%" stop-color="#0077b6" stop-opacity="0"/>
+          <stop offset="0%" stop-color="#2ef2b8" stop-opacity="0.85"/>
+          <stop offset="60%" stop-color="#10b981" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#047857" stop-opacity="0"/>
         </radialGradient>
         <linearGradient id="facetCenter" x1="50" y1="42" x2="50" y2="88" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#00f0ff"/>
-          <stop offset="1" stop-color="#023e8a"/>
+          <stop stop-color="#2ef2b8"/>
+          <stop offset="1" stop-color="#047857"/>
         </linearGradient>
         <linearGradient id="facetLeft" x1="16" y1="42" x2="50" y2="88" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#0096c7"/>
-          <stop offset="1" stop-color="#03045e"/>
+          <stop stop-color="#10b981"/>
+          <stop offset="1" stop-color="#064e3b"/>
         </linearGradient>
         <linearGradient id="facetRight" x1="84" y1="42" x2="50" y2="88" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#48cae4"/>
-          <stop offset="1" stop-color="#0077b6"/>
+          <stop stop-color="#6ee7b7"/>
+          <stop offset="1" stop-color="#059669"/>
         </linearGradient>
         <linearGradient id="facetCrown" x1="50" y1="16" x2="50" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#caf0f8"/>
-          <stop offset="1" stop-color="#00b4d8"/>
+          <stop stop-color="#d1fae5"/>
+          <stop offset="1" stop-color="#2ef2b8"/>
         </linearGradient>
       </defs>
       <circle cx="50" cy="50" r="44" fill="url(#gemInnerGlow)"/>
@@ -366,8 +367,8 @@
       <polygon points="14,42 32,42 50,88" fill="url(#facetLeft)"/>
       <polygon points="86,42 68,42 50,88" fill="url(#facetRight)"/>
       <polygon points="34,16 66,16 68,42 32,42" fill="url(#facetCrown)"/>
-      <polygon points="20,24 34,16 32,42 14,42" fill="#48cae4"/>
-      <polygon points="80,24 66,16 68,42 86,42" fill="#ade8f4"/>
+      <polygon points="20,24 34,16 32,42 14,42" fill="#34d399"/>
+      <polygon points="80,24 66,16 68,42 86,42" fill="#a7f3d0"/>
       <polygon points="40,22 46,20 44,28 38,26" fill="#ffffff" opacity="0.9"/>
       <circle cx="60" cy="30" r="1.5" fill="#ffffff" opacity="0.75"/>
     </svg>
@@ -382,12 +383,12 @@
           <stop offset="100%" stop-color="#0a0e12"/>
         </radialGradient>
         <radialGradient id="sensorGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#ff1f44"/>
+          <stop offset="0%" stop-color="#ff4757"/>
           <stop offset="70%" stop-color="#b91c1c"/>
           <stop offset="100%" stop-color="#450a0a"/>
         </radialGradient>
         <linearGradient id="spikeMetal" x1="0" y1="0" x2="1" y2="1">
-          <stop stop-color="#ff3355"/>
+          <stop stop-color="#ff4757"/>
           <stop offset="1" stop-color="#450a0a"/>
         </linearGradient>
       </defs>
@@ -401,10 +402,12 @@
       <rect x="72" y="76" width="10" height="6" rx="2" transform="rotate(45 77 79)" fill="url(#spikeMetal)"/>
       <circle cx="50" cy="50" r="32" fill="url(#mineShell)" stroke="#2f3b45" stroke-width="2"/>
       <circle cx="50" cy="50" r="28" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" stroke-dasharray="3 4"/>
-      <circle cx="50" cy="50" r="13" fill="url(#sensorGlow)" stroke="#ff1f44" stroke-width="1.5"/>
+      <circle cx="50" cy="50" r="13" fill="url(#sensorGlow)" stroke="#ff4757" stroke-width="1.5"/>
       <path d="M50 43v14M43 50h14" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
     </svg>
   `;
+
+  const SVG_COIN_INLINE = `<svg viewBox="0 0 24 24" width="15" height="15" style="vertical-align:-2px;flex-shrink:0;"><use href="#mf-coin-icon"/></svg>`;
 
   // =========================================================================
   // 4. MINES PARTICLE CANVAS ENGINE (ON-DEMAND)
@@ -427,7 +430,7 @@
   function spawnMineBlast(x, y) {
     resizeMinesCanvas();
     if (!minesCanvas) return;
-    const colors = ['#ff1f44', '#ff5964', '#f59e0b', '#ffffff', '#450a0a'];
+    const colors = ['#ff4757', '#ff6b81', '#fbbf24', '#ffffff', '#450a0a'];
     for (let i = 0; i < 36; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 2 + Math.random() * 6;
@@ -448,7 +451,7 @@
   function spawnGemSparks(x, y) {
     resizeMinesCanvas();
     if (!minesCanvas) return;
-    const colors = ['#00f0ff', '#38bdf8', '#00e701', '#ffffff'];
+    const colors = ['#2ef2b8', '#10b981', '#6ee7b7', '#ffffff'];
     for (let i = 0; i < 16; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 1.5 + Math.random() * 3;
@@ -469,8 +472,8 @@
   function spawnCoinShower() {
     resizeMinesCanvas();
     if (!minesCanvas) return;
-    const colors = ['#00e701', '#00f0ff', '#f59e0b', '#fbbf24', '#ffffff'];
-    for (let i = 0; i < 70; i++) {
+    const colors = ['#2ef2b8', '#10b981', '#fbbf24', '#ffffff'];
+    for (let i = 0; i < 65; i++) {
       particles.push({
         x: Math.random() * (minesCanvas.width || 600),
         y: (minesCanvas.height || 500) * 0.8,
@@ -479,7 +482,7 @@
         radius: 4 + Math.random() * 4,
         color: colors[Math.floor(Math.random() * colors.length)],
         alpha: 1,
-        decay: 0.014 + Math.random() * 0.014,
+        decay: 0.015 + Math.random() * 0.014,
         gravity: 0.2,
         rotation: Math.random() * 360,
         rotSpeed: (Math.random() - 0.5) * 12,
@@ -532,7 +535,7 @@
   }
 
   // =========================================================================
-  // 5. ZERO-LAG 60FPS CONTINUOUS ORBITAL CRASH CANVAS ENGINE
+  // 5. ZERO-LAG 60FPS CRASH CANVAS ENGINE (MOONFLIP MINT THEME)
   // =========================================================================
 
   const crashCanvas = document.getElementById('crashCanvas');
@@ -540,7 +543,7 @@
 
   let crashAnimId = null;
   let cachedCrashWidth = 800;
-  let cachedCrashHeight = 520;
+  let cachedCrashHeight = 500;
   let cachedCrashDpr = 1;
   let cachedBgGradient = null;
 
@@ -552,7 +555,6 @@
   let crashShakeMagnitude = 0;
   let lastRocketTip = { x: 400, y: 250 };
 
-  // Throttled DOM string cache to prevent 60FPS layout thrashing
   const domCache = {
     liveMultText: '',
     liveMultClass: '',
@@ -565,16 +567,15 @@
 
   function initCrashStars() {
     crashStars = [];
-    const count = 65;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < 60; i++) {
       crashStars.push({
         x: Math.random(),
         y: Math.random(),
-        r: 0.6 + Math.random() * 1.4,
-        baseAlpha: 0.2 + Math.random() * 0.55,
+        r: 0.6 + Math.random() * 1.3,
+        baseAlpha: 0.15 + Math.random() * 0.5,
         twinkleSpeed: 0.002 + Math.random() * 0.004,
         twinkleOffset: Math.random() * Math.PI * 2,
-        speed: 0.2 + Math.random() * 0.65,
+        speed: 0.2 + Math.random() * 0.6,
       });
     }
   }
@@ -599,9 +600,9 @@
       cachedCrashHeight * 0.5,
       Math.max(cachedCrashWidth, cachedCrashHeight)
     );
-    cachedBgGradient.addColorStop(0, '#0d1627');
-    cachedBgGradient.addColorStop(0.6, '#080d18');
-    cachedBgGradient.addColorStop(1, '#05080f');
+    cachedBgGradient.addColorStop(0, '#0c181d');
+    cachedBgGradient.addColorStop(0.6, '#081016');
+    cachedBgGradient.addColorStop(1, '#060a0e');
   }
 
   window.addEventListener('resize', () => {
@@ -626,7 +627,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       stopCrashCanvasLoop();
-    } else if (state.currentGame === 'crash') {
+    } else if (state.currentView === 'crash') {
       startCrashCanvasLoop();
       fetchCrashState();
     }
@@ -634,29 +635,24 @@
 
   function triggerCrashSupernova(x, y) {
     crashExplosionParticles = [];
-    const colors = ['#ff3344', '#ff8800', '#ffd700', '#ffffff', '#ff1f44'];
-    for (let i = 0; i < 65; i++) {
+    const colors = ['#ff4757', '#ff7f50', '#fbbf24', '#ffffff'];
+    for (let i = 0; i < 60; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 8.5;
+      const speed = 2 + Math.random() * 8;
       crashExplosionParticles.push({
         x, y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        r: 2.5 + Math.random() * 4.5,
+        r: 2.5 + Math.random() * 4,
         color: colors[Math.floor(Math.random() * colors.length)],
         alpha: 1,
-        decay: 0.016 + Math.random() * 0.02,
+        decay: 0.018 + Math.random() * 0.02,
       });
     }
 
-    crashShockwave = {
-      x, y,
-      radius: 10,
-      alpha: 1,
-    };
-
-    crashShakeFrames = 20;
-    crashShakeMagnitude = 12;
+    crashShockwave = { x, y, radius: 10, alpha: 1 };
+    crashShakeFrames = 18;
+    crashShakeMagnitude = 10;
     Sound.crashExplosion();
   }
 
@@ -667,23 +663,24 @@
   }
 
   function renderCrashCanvas() {
-    if (state.currentGame !== 'crash' || document.hidden) {
+    if (state.currentView !== 'crash' || document.hidden) {
       crashAnimId = null;
       return;
     }
     if (!crashCanvas || !cCtx) return;
 
-    const serverNow = Date.now() + state.serverTimeOffset;
+    const perfDelta = Math.max(0, performance.now() - state.crashSyncPerfNow);
     const w = cachedCrashWidth;
     const h = cachedCrashHeight;
     const dpr = cachedCrashDpr;
 
     // -----------------------------------------------------------------------
-    // A. REAL-TIME PHASE & MULTIPLIER INTERPOLATION (60FPS)
+    // A. CLOCK-SKEW IMMUNE 60FPS INTERPOLATION
     // -----------------------------------------------------------------------
+    let elapsed = 0;
+
     if (state.crashPhase === 'BETTING') {
-      const elapsedBetting = Math.max(0, serverNow - state.crashPhaseStartTime);
-      const remainingMs = Math.max(0, state.crashBettingDurationMs - elapsedBetting);
+      const remainingMs = Math.max(0, state.crashBaseRemainingMs - perfDelta);
       const pct = Math.max(0, Math.min(100, (remainingMs / state.crashBettingDurationMs) * 100));
 
       if (el.crashCountdownWrap && el.crashCountdownWrap.style.display !== 'block') {
@@ -699,13 +696,13 @@
         domCache.liveMultClass = 'crash-live-mult mult-betting';
         if (el.crashLiveMult) el.crashLiveMult.className = domCache.liveMultClass;
       }
-      updateDomTextIfChanged(el.crashLiveStatus, 'liveStatusText', 'NEXT FLIGHT LAUNCHING IN');
+      updateDomTextIfChanged(el.crashLiveStatus, 'liveStatusText', 'BETTING OPEN • NEXT FLIGHT IN');
     } else if (state.crashPhase === 'IN_FLIGHT') {
       if (el.crashCountdownWrap && el.crashCountdownWrap.style.display !== 'none') {
         el.crashCountdownWrap.style.display = 'none';
       }
 
-      const elapsed = Math.max(0, serverNow - state.crashStartTime);
+      elapsed = Math.max(0, state.crashBaseElapsedMs + perfDelta);
       const liveMult = Math.max(1.0, Math.exp(0.00006 * elapsed));
       state.crashCurrentMult = liveMult;
 
@@ -726,34 +723,28 @@
       }
 
       const statusTxt = state.crashMyBet && state.crashMyBet.cashedOut
-        ? `CASHED OUT @ ${Number(state.crashMyBet.cashoutMult).toFixed(2)}× (FLIGHT LIVE)`
-        : 'ORBITAL ASCENT IN PROGRESS';
+        ? `CASHED OUT @ ${Number(state.crashMyBet.cashoutMult).toFixed(2)}×`
+        : 'FLIGHT IN PROGRESS • BETTING LOCKED';
       updateDomTextIfChanged(el.crashLiveStatus, 'liveStatusText', statusTxt);
 
-      // Update Live Cashout CTA if user has an active uncashed bet
       if (state.crashMyBet && !state.crashMyBet.cashedOut) {
         const livePayout = Math.floor(state.crashMyBet.wager * liveMult);
-        const liveProfit = Math.max(0, livePayout - state.crashMyBet.wager);
-        updateDomTextIfChanged(el.crashActionSub, 'actionSubText', `+${livePayout.toLocaleString()} 🪙 (${multFormatted})`);
+        updateDomTextIfChanged(el.crashActionSub, 'actionSubText', `+${livePayout.toLocaleString()} (${multFormatted})`);
         updateDomTextIfChanged(el.crashHudMultVal, 'hudMultText', multFormatted);
-        updateDomTextIfChanged(el.crashHudProfitVal, 'hudProfitText', `+${liveProfit.toLocaleString()} 🪙`);
+        updateDomTextIfChanged(el.crashHudProfitVal, 'hudProfitText', `+${livePayout.toLocaleString()}`);
       }
 
-      // Update Altitude Zone
-      let zone = 'LIFTOFF';
-      let zoneClass = 'tele-val text-cyan';
+      let zone = 'ASCENDING';
+      let zoneClass = 'tele-val text-mint';
       if (liveMult >= 50.0) {
-        zone = 'INTERSTELLAR';
+        zone = 'HYPERWARP';
         zoneClass = 'tele-val text-purple';
       } else if (liveMult >= 10.0) {
-        zone = 'DEEP SPACE';
+        zone = 'DEEP ORBIT';
         zoneClass = 'tele-val text-gold';
-      } else if (liveMult >= 5.0) {
-        zone = 'LOW ORBIT';
-        zoneClass = 'tele-val text-emerald';
       } else if (liveMult >= 2.0) {
-        zone = 'STRATOSPHERE';
-        zoneClass = 'tele-val text-cyan';
+        zone = 'SUPERSONIC';
+        zoneClass = 'tele-val text-mint';
       }
       if (domCache.altitudeZoneText !== zone && el.crashAltitudeZone) {
         domCache.altitudeZoneText = zone;
@@ -767,21 +758,21 @@
         el.crashCountdownWrap.style.display = 'none';
       }
       const finalMult = state.crashPoint || state.crashCurrentMult || 1.0;
+      elapsed = Math.max(0, Math.log(Math.max(1, finalMult)) / 0.00006);
       updateDomTextIfChanged(el.crashLiveMult, 'liveMultText', `${finalMult.toFixed(2)}×`);
       if (domCache.liveMultClass !== 'crash-live-mult mult-crashed') {
         domCache.liveMultClass = 'crash-live-mult mult-crashed';
         if (el.crashLiveMult) el.crashLiveMult.className = domCache.liveMultClass;
       }
-      updateDomTextIfChanged(el.crashLiveStatus, 'liveStatusText', 'SIGNAL LOST • PREPARING NEXT LAUNCH');
+      updateDomTextIfChanged(el.crashLiveStatus, 'liveStatusText', 'CRASHED • NEXT COUNTDOWN STARTING');
     }
 
     // -----------------------------------------------------------------------
-    // B. HIGH-SPEED CANVAS SCENE RENDERING (ZERO SHADOWBLUR)
+    // B. HIGH-SPEED CANVAS SCENE RENDERING
     // -----------------------------------------------------------------------
     cCtx.save();
     cCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Apply Screen Shake on Detonation
     if (crashShakeFrames > 0) {
       const ox = (Math.random() - 0.5) * crashShakeMagnitude;
       const oy = (Math.random() - 0.5) * crashShakeMagnitude;
@@ -790,50 +781,34 @@
       crashShakeMagnitude *= 0.9;
     }
 
-    // 1. Deep Space Background
-    cCtx.fillStyle = cachedBgGradient || '#070a10';
+    cCtx.fillStyle = cachedBgGradient || '#070b10';
     cCtx.fillRect(0, 0, w, h);
 
-    // 2. Parallax Starfield with Multiplier Warp
+    // Subtle Starfield
     const isFlying = state.crashPhase === 'IN_FLIGHT';
-    const warpFactor = isFlying ? Math.min(8, 1 + (state.crashCurrentMult - 1) * 0.35) : 0.35;
+    const warpFactor = isFlying ? Math.min(7, 1 + (state.crashCurrentMult - 1) * 0.3) : 0.3;
+    const now = performance.now();
 
     cCtx.fillStyle = '#ffffff';
     for (let i = 0; i < crashStars.length; i++) {
       const s = crashStars[i];
-      s.x -= s.speed * 0.0008 * warpFactor;
-      if (isFlying) {
-        s.y += s.speed * 0.00035 * warpFactor;
-      }
+      s.x -= s.speed * 0.0007 * warpFactor;
+      if (isFlying) s.y += s.speed * 0.0003 * warpFactor;
       if (s.x < 0) s.x = 1.0;
       if (s.y > 1) s.y = 0;
 
-      const tw = Math.sin(serverNow * s.twinkleSpeed + s.twinkleOffset);
-      cCtx.globalAlpha = Math.max(0.12, Math.min(0.95, s.baseAlpha + tw * 0.2));
-      const sx = s.x * w;
-      const sy = s.y * h;
-
-      if (warpFactor > 3.2) {
-        // Draw warp speed star streaks at high multipliers
-        cCtx.strokeStyle = '#e2e8f0';
-        cCtx.lineWidth = s.r;
-        cCtx.beginPath();
-        cCtx.moveTo(sx, sy);
-        cCtx.lineTo(sx + warpFactor * 2.4, sy - warpFactor * 0.9);
-        cCtx.stroke();
-      } else {
-        cCtx.beginPath();
-        cCtx.arc(sx, sy, s.r, 0, Math.PI * 2);
-        cCtx.fill();
-      }
+      const tw = Math.sin(now * s.twinkleSpeed + s.twinkleOffset);
+      cCtx.globalAlpha = Math.max(0.1, Math.min(0.85, s.baseAlpha + tw * 0.18));
+      cCtx.beginPath();
+      cCtx.arc(s.x * w, s.y * h, s.r, 0, Math.PI * 2);
+      cCtx.fill();
     }
     cCtx.globalAlpha = 1;
 
-    // Chart Usable Area
-    const padL = 58;
-    const padR = 54;
-    const padT = 48;
-    const padB = 50;
+    const padL = 56;
+    const padR = 52;
+    const padT = 46;
+    const padB = 48;
     const uw = w - padL - padR;
     const uh = h - padT - padB;
     const ox = padL;
@@ -841,14 +816,9 @@
 
     const currentMult = state.crashCurrentMult || 1.0;
     const maxPlotMult = Math.max(2.0, currentMult * 1.24);
-    const elapsed = state.crashPhase === 'IN_FLIGHT'
-      ? Math.max(0, serverNow - state.crashStartTime)
-      : state.crashPhase === 'CRASHED'
-        ? Math.max(0, Math.log(Math.max(1, currentMult)) / 0.00006)
-        : 0;
     const maxPlotTime = Math.max(5500, elapsed * 1.22);
 
-    // 3. Reference Grid Lines
+    // Reference Grid Lines
     const refLevels = [1.2, 1.5, 2.0, 3.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 1000.0];
     cCtx.lineWidth = 1;
     cCtx.font = '600 11px "JetBrains Mono", monospace';
@@ -861,18 +831,18 @@
       const yPos = oy - yNorm * uh;
       if (yPos < padT - 5) continue;
 
-      cCtx.strokeStyle = 'rgba(255, 255, 255, 0.055)';
+      cCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
       cCtx.beginPath();
       cCtx.moveTo(ox, yPos);
       cCtx.lineTo(ox + uw, yPos);
       cCtx.stroke();
 
-      cCtx.fillStyle = 'rgba(148, 163, 184, 0.55)';
+      cCtx.fillStyle = 'rgba(148, 163, 184, 0.5)';
       cCtx.fillText(`${lvl >= 10 ? lvl.toFixed(0) : lvl.toFixed(1)}×`, ox - 10, yPos + 4);
     }
 
     // Axes
-    cCtx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    cCtx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     cCtx.lineWidth = 1.5;
     cCtx.beginPath();
     cCtx.moveTo(ox, padT);
@@ -880,34 +850,33 @@
     cCtx.lineTo(ox + uw, oy);
     cCtx.stroke();
 
-    // 4. BETTING PHASE: Pre-Ignition Telemetry Radar & Launchpad Spacecraft
+    // BETTING PHASE: Pre-Launch Radar & Idle Spacecraft
     if (state.crashPhase === 'BETTING') {
-      const sweepAngle = (serverNow * 0.0022) % (Math.PI * 2);
+      const sweepAngle = (now * 0.002) % (Math.PI * 2);
       const rx = ox + uw * 0.5;
-      const ry = oy - uh * 0.46;
-      const radius = Math.min(uw, uh) * 0.34;
+      const ry = oy - uh * 0.45;
+      const radius = Math.min(uw, uh) * 0.32;
 
-      cCtx.strokeStyle = 'rgba(0, 240, 255, 0.12)';
+      cCtx.strokeStyle = 'rgba(46, 242, 184, 0.12)';
       cCtx.lineWidth = 1.2;
       cCtx.beginPath();
       cCtx.arc(rx, ry, radius, 0, Math.PI * 2);
-      cCtx.moveTo(rx + radius * 0.6, ry);
-      cCtx.arc(rx, ry, radius * 0.6, 0, Math.PI * 2);
+      cCtx.moveTo(rx + radius * 0.55, ry);
+      cCtx.arc(rx, ry, radius * 0.55, 0, Math.PI * 2);
       cCtx.stroke();
 
-      cCtx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+      cCtx.strokeStyle = 'rgba(46, 242, 184, 0.32)';
       cCtx.beginPath();
       cCtx.moveTo(rx, ry);
       cCtx.lineTo(rx + Math.cos(sweepAngle) * radius, ry + Math.sin(sweepAngle) * radius);
       cCtx.stroke();
 
-      // Hovering Spacecraft on Launchpad with Pre-Ignition Thruster Hum
-      const hoverY = oy - 22 + Math.sin(serverNow * 0.008) * 3.5;
+      const hoverY = oy - 22 + Math.sin(now * 0.007) * 3;
       lastRocketTip = { x: ox + 36, y: hoverY };
       drawRocket(cCtx, ox + 36, hoverY, -0.18, true, false, 1.0);
     }
 
-    // 5. IN_FLIGHT / CRASHED PHASE: Exponential Curve & Dynamic Spacecraft
+    // IN_FLIGHT / CRASHED PHASE: Mint-Neon Exponential Curve
     if (state.crashPhase === 'IN_FLIGHT' || state.crashPhase === 'CRASHED') {
       const steps = 48;
       const points = [];
@@ -921,43 +890,26 @@
       }
 
       if (points.length >= 2) {
-        let strokeColor = '#00f0ff';
-        let glowColor = 'rgba(0, 240, 255, 0.24)';
-        let fillColorTop = 'rgba(0, 240, 255, 0.18)';
+        let strokeColor = '#2ef2b8';
+        let glowColor = 'rgba(46, 242, 184, 0.25)';
+        let fillColorTop = 'rgba(46, 242, 184, 0.20)';
 
         if (currentMult >= 50.0) {
-          strokeColor = '#d946ef';
-          glowColor = 'rgba(217, 70, 239, 0.28)';
-          fillColorTop = 'rgba(217, 70, 239, 0.20)';
+          strokeColor = '#c084fc';
+          glowColor = 'rgba(192, 132, 252, 0.28)';
+          fillColorTop = 'rgba(192, 132, 252, 0.20)';
         } else if (currentMult >= 10.0) {
-          strokeColor = '#ffd700';
-          glowColor = 'rgba(255, 215, 0, 0.28)';
-          fillColorTop = 'rgba(255, 215, 0, 0.20)';
-        } else if (currentMult >= 5.0) {
-          strokeColor = '#00e701';
-          glowColor = 'rgba(0, 231, 1, 0.26)';
-          fillColorTop = 'rgba(0, 231, 1, 0.18)';
-        } else if (currentMult >= 2.0) {
-          strokeColor = '#38bdf8';
-          glowColor = 'rgba(56, 189, 248, 0.26)';
-          fillColorTop = 'rgba(56, 189, 248, 0.18)';
-        } else {
-          strokeColor = '#ff9900';
-          glowColor = 'rgba(255, 153, 0, 0.24)';
-          fillColorTop = 'rgba(255, 153, 0, 0.16)';
+          strokeColor = '#fbbf24';
+          glowColor = 'rgba(251, 191, 36, 0.28)';
+          fillColorTop = 'rgba(251, 191, 36, 0.20)';
         }
 
         if (state.crashPhase === 'CRASHED') {
-          strokeColor = '#ff3344';
-          glowColor = 'rgba(255, 51, 68, 0.25)';
-          fillColorTop = 'rgba(255, 51, 68, 0.15)';
-        } else if (state.crashMyBet && state.crashMyBet.cashedOut) {
-          strokeColor = '#00e701';
-          glowColor = 'rgba(0, 231, 1, 0.28)';
-          fillColorTop = 'rgba(0, 231, 1, 0.20)';
+          strokeColor = '#ff4757';
+          glowColor = 'rgba(255, 71, 87, 0.25)';
+          fillColorTop = 'rgba(255, 71, 87, 0.16)';
         }
 
-        // Fill Area Under Curve
         const areaGrad = cCtx.createLinearGradient(0, padT, 0, oy);
         areaGrad.addColorStop(0, fillColorTop);
         areaGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
@@ -972,11 +924,10 @@
         cCtx.closePath();
         cCtx.fill();
 
-        // Dual-Pass Neon Stroke (Zero-Lag Replacement for shadowBlur)
+        // Dual-Pass Neon Stroke
         cCtx.lineCap = 'round';
         cCtx.lineJoin = 'round';
 
-        // Outer Halo Stroke
         cCtx.strokeStyle = glowColor;
         cCtx.lineWidth = 10;
         cCtx.beginPath();
@@ -986,12 +937,11 @@
         }
         cCtx.stroke();
 
-        // Crisp Core Stroke
         cCtx.strokeStyle = strokeColor;
         cCtx.lineWidth = 3.2;
         cCtx.stroke();
 
-        // Draw Eject Markers for Pilots who Cashed Out along the Curve
+        // Eject Markers Along Curve
         for (let i = 0; i < state.crashEjectMarkers.length; i++) {
           const m = state.crashEjectMarkers[i];
           if (m.mult <= currentMult) {
@@ -999,39 +949,36 @@
             const mx = ox + (mTau / maxPlotTime) * uw;
             const my = oy - ((m.mult - 1) / (maxPlotMult - 1)) * uh;
 
-            cCtx.fillStyle = '#00e701';
+            cCtx.fillStyle = '#2ef2b8';
             cCtx.beginPath();
             cCtx.arc(mx, my, 4.5, 0, Math.PI * 2);
             cCtx.fill();
 
-            cCtx.fillStyle = 'rgba(0, 231, 1, 0.85)';
+            cCtx.fillStyle = 'rgba(46, 242, 184, 0.9)';
             cCtx.font = '700 10px "JetBrains Mono", monospace';
             cCtx.textAlign = 'center';
             cCtx.fillText(`${m.mult.toFixed(2)}×`, mx, my - 9);
           }
         }
 
-        // Rocket Position & Tangent Angle
         const tip = points[points.length - 1];
         const prev = points[Math.max(0, points.length - 3)];
         const angle = Math.atan2(tip.y - prev.y, tip.x - prev.x);
         lastRocketTip = { x: tip.x, y: tip.y };
 
-        // Emit Exhaust Particles During Flight
-        if (state.crashPhase === 'IN_FLIGHT' && crashFlameParticles.length < 45 && Math.random() < 0.8) {
+        if (state.crashPhase === 'IN_FLIGHT' && crashFlameParticles.length < 40 && Math.random() < 0.78) {
           crashFlameParticles.push({
             x: tip.x - Math.cos(angle) * 14,
             y: tip.y - Math.sin(angle) * 14,
-            vx: -Math.cos(angle) * (2.2 + Math.random() * 3.8) + (Math.random() - 0.5) * 1.4,
-            vy: -Math.sin(angle) * (2.2 + Math.random() * 3.8) + (Math.random() - 0.5) * 1.4,
-            r: 2.2 + Math.random() * 2.8,
-            color: Math.random() > 0.45 ? '#00f0ff' : '#ffaa00',
-            alpha: 0.95,
-            decay: 0.045 + Math.random() * 0.03,
+            vx: -Math.cos(angle) * (2.2 + Math.random() * 3.5) + (Math.random() - 0.5) * 1.3,
+            vy: -Math.sin(angle) * (2.2 + Math.random() * 3.5) + (Math.random() - 0.5) * 1.3,
+            r: 2 + Math.random() * 2.6,
+            color: Math.random() > 0.4 ? '#2ef2b8' : '#ffffff',
+            alpha: 0.9,
+            decay: 0.048 + Math.random() * 0.03,
           });
         }
 
-        // Draw Orbital Spacecraft unless Detonated
         if (state.crashPhase !== 'CRASHED') {
           const isPlayerCashed = Boolean(state.crashMyBet && state.crashMyBet.cashedOut);
           drawRocket(cCtx, tip.x, tip.y, angle, true, isPlayerCashed, currentMult);
@@ -1039,7 +986,7 @@
       }
     }
 
-    // 6. Thruster Exhaust Particles
+    // Exhaust Particles
     for (let i = crashFlameParticles.length - 1; i >= 0; i--) {
       const p = crashFlameParticles[i];
       p.x += p.vx;
@@ -1057,10 +1004,10 @@
     }
     cCtx.globalAlpha = 1;
 
-    // 7. Supernova Shockwave Ring
+    // Detonation Shockwave
     if (crashShockwave && crashShockwave.alpha > 0) {
       cCtx.globalAlpha = crashShockwave.alpha;
-      cCtx.strokeStyle = '#ff3344';
+      cCtx.strokeStyle = '#ff4757';
       cCtx.lineWidth = 3;
       cCtx.beginPath();
       cCtx.arc(crashShockwave.x, crashShockwave.y, crashShockwave.radius, 0, Math.PI * 2);
@@ -1072,7 +1019,7 @@
       if (crashShockwave.alpha <= 0) crashShockwave = null;
     }
 
-    // 8. Supernova Explosion Sparks
+    // Detonation Sparks
     for (let i = crashExplosionParticles.length - 1; i >= 0; i--) {
       const p = crashExplosionParticles[i];
       p.x += p.vx;
@@ -1093,7 +1040,6 @@
     cCtx.globalAlpha = 1;
 
     cCtx.restore();
-
     crashAnimId = requestAnimationFrame(renderCrashCanvas);
   }
 
@@ -1102,28 +1048,25 @@
     ctx.translate(x, y);
     ctx.rotate(angle);
 
-    // Mach Shockwave Cone at Supersonic Multipliers (>= 2.0x)
     if (hasThrust && mult >= 2.0) {
       const machAlpha = Math.min(0.45, (mult - 2.0) * 0.08 + 0.12);
-      ctx.strokeStyle = isCashed ? `rgba(0, 231, 1, ${machAlpha})` : `rgba(0, 240, 255, ${machAlpha})`;
+      ctx.strokeStyle = `rgba(46, 242, 184, ${machAlpha})`;
       ctx.lineWidth = 1.8;
       ctx.beginPath();
-      ctx.moveTo(-6, -18);
+      ctx.moveTo(-6, -17);
       ctx.lineTo(22, 0);
-      ctx.lineTo(-6, 18);
+      ctx.lineTo(-6, 17);
       ctx.stroke();
     }
 
-    // Dual-Stage Plasma Thruster Plume
     if (hasThrust) {
-      const flicker = Math.sin(Date.now() * 0.04) * 5;
-      const flameLen = (mult > 1.05 ? 28 : 16) + flicker;
+      const flicker = Math.sin(performance.now() * 0.04) * 5;
+      const flameLen = (mult > 1.05 ? 26 : 15) + flicker;
 
       const flameGrad = ctx.createLinearGradient(-12, 0, -12 - flameLen, 0);
       flameGrad.addColorStop(0, '#ffffff');
-      flameGrad.addColorStop(0.35, isCashed ? '#00e701' : '#00f0ff');
-      flameGrad.addColorStop(0.75, '#ff8800');
-      flameGrad.addColorStop(1, 'rgba(255, 30, 0, 0)');
+      flameGrad.addColorStop(0.4, '#2ef2b8');
+      flameGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
 
       ctx.fillStyle = flameGrad;
       ctx.beginPath();
@@ -1134,14 +1077,13 @@
       ctx.fill();
     }
 
-    // Swept Delta Wings
-    ctx.fillStyle = isCashed ? '#059669' : '#0284c7';
-    ctx.strokeStyle = '#0f172a';
+    ctx.fillStyle = '#10b981';
+    ctx.strokeStyle = '#071410';
     ctx.lineWidth = 1.2;
 
     ctx.beginPath();
     ctx.moveTo(2, -5);
-    ctx.lineTo(-14, -16);
+    ctx.lineTo(-14, -15);
     ctx.lineTo(-9, -4);
     ctx.closePath();
     ctx.fill();
@@ -1149,14 +1091,13 @@
 
     ctx.beginPath();
     ctx.moveTo(2, 5);
-    ctx.lineTo(-14, 16);
+    ctx.lineTo(-14, 15);
     ctx.lineTo(-9, 4);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Main Orbital Fuselage
-    ctx.fillStyle = isCashed ? '#00e701' : '#f8fafc';
+    ctx.fillStyle = isCashed ? '#2ef2b8' : '#f8fafc';
     ctx.beginPath();
     ctx.moveTo(20, 0);
     ctx.lineTo(4, -6.5);
@@ -1168,10 +1109,9 @@
     ctx.fill();
     ctx.stroke();
 
-    // Ion Cockpit Canopy
-    ctx.fillStyle = '#00f0ff';
+    ctx.fillStyle = '#2ef2b8';
     ctx.beginPath();
-    ctx.ellipse(4, 0, 5.5, 2.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(4, 0, 5.2, 2.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -1182,11 +1122,29 @@
   // =========================================================================
 
   const el = {
-    // Header, Sync Status & Global Nav
+    // Topbar & Sidebar Navigation
+    brandHomeLink: document.getElementById('brandHomeLink'),
+    topNavGames: document.getElementById('topNavGames'),
+    navHome: document.getElementById('navHome'),
+    navAllGames: document.getElementById('navAllGames'),
     btnSwitchMines: document.getElementById('btnSwitchMines'),
     btnSwitchCrash: document.getElementById('btnSwitchCrash'),
+    sidebarLeaderboard: document.getElementById('sidebarLeaderboard'),
+    sidebarSupport: document.getElementById('sidebarSupport'),
+    btnHeroPlayNow: document.getElementById('btnHeroPlayNow'),
+    cardPlayMines: document.getElementById('cardPlayMines'),
+    cardPlayCrash: document.getElementById('cardPlayCrash'),
+    activeGameTopbar: document.getElementById('activeGameTopbar'),
+    btnBackHome: document.getElementById('btnBackHome'),
+    tabPlayMines: document.getElementById('tabPlayMines'),
+    tabPlayCrash: document.getElementById('tabPlayCrash'),
+
+    // Views
+    homeChassis: document.getElementById('homeChassis'),
     minesChassis: document.getElementById('minesChassis'),
     crashChassis: document.getElementById('crashChassis'),
+
+    // Profile, Balance & Sync
     balanceNumber: document.getElementById('balanceNumber'),
     auxBalance: document.getElementById('auxBalance'),
     userAvatar: document.getElementById('userAvatar'),
@@ -1230,7 +1188,7 @@
     btnModalPlayAgain: document.getElementById('btnModalPlayAgain'),
     btnModalClose: document.getElementById('btnModalClose'),
 
-    // Continuous Crash Controls & Telemetry
+    // Crash Controls
     btnCrashManualMode: document.getElementById('btnCrashManualMode'),
     btnCrashAutoMode: document.getElementById('btnCrashAutoMode'),
     crashWagerInput: document.getElementById('crashWagerInput'),
@@ -1265,9 +1223,14 @@
     crashWinToast: document.getElementById('crashWinToast'),
     crashToastMult: document.getElementById('crashToastMult'),
     crashToastProfit: document.getElementById('crashToastProfit'),
-    crashVictoryModal: document.getElementById('crashVictoryModal'),
 
-    // Global Fairness & Leaderboard Modals
+    // Bottom Live Activity & Compact Leaderboard
+    liveActivityBody: document.getElementById('liveActivityBody'),
+    miniLeaderboardList: document.getElementById('miniLeaderboardList'),
+    btnExpandLeaderboard: document.getElementById('btnExpandLeaderboard'),
+    lbStageTabs: document.querySelectorAll('.lb-stage-tab'),
+
+    // Modals
     fairnessModal: document.getElementById('fairnessModal'),
     btnOpenFairness: document.getElementById('btnOpenFairness'),
     btnOpenFairness2: document.getElementById('btnOpenFairness2'),
@@ -1279,8 +1242,6 @@
     btnDoneLeaderboard: document.getElementById('btnDoneLeaderboard'),
     lbModalTabs: document.querySelectorAll('.lb-tab-btn'),
     lbModalContent: document.getElementById('lbModalContent'),
-    lbStageTabs: document.querySelectorAll('.lb-stage-tab'),
-    lbStageContent: document.getElementById('lbStageContent'),
   };
 
   // =========================================================================
@@ -1291,12 +1252,12 @@
     if (el.discordSyncPill && el.syncText) {
       if (state.authenticated) {
         el.discordSyncPill.className = 'sync-status-pill synced';
-        el.discordSyncPill.title = `Connected to Discord user ${state.username} (${state.userId}). All tokens sync with the Discord server.`;
-        el.syncText.textContent = '⚡ Discord Synced';
+        el.discordSyncPill.title = `Connected to Discord user ${state.username}. All tokens sync with the Discord server.`;
+        el.syncText.textContent = 'Discord Synced';
       } else {
         el.discordSyncPill.className = 'sync-status-pill demo';
         el.discordSyncPill.title = 'Unlinked Demo Mode. Type /play in the Discord server to connect your real Discord balance!';
-        el.syncText.textContent = '⚠️ Demo Mode';
+        el.syncText.textContent = 'Demo Mode';
       }
     }
 
@@ -1336,7 +1297,7 @@
     if (el.teleNextMult) el.teleNextMult.textContent = gemsLeft > 0 ? `${nextMult.toFixed(2)}×` : 'MAX';
 
     if (!state.activeGame && el.actionBtnSub) {
-      el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()} 🪙`;
+      el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()}`;
     }
   }
 
@@ -1347,10 +1308,10 @@
     if (target && target >= 1.01) {
       const prob = Math.min(98, (0.98 / target) * 100);
       if (el.crashWinRate) el.crashWinRate.textContent = `${prob.toFixed(1)}%`;
-      if (el.crashEstPayout) el.crashEstPayout.textContent = `${Math.floor(wager * target).toLocaleString()} 🪙`;
+      if (el.crashEstPayout) el.crashEstPayout.textContent = `${Math.floor(wager * target).toLocaleString()}`;
     } else {
       if (el.crashWinRate) el.crashWinRate.textContent = '49.0%';
-      if (el.crashEstPayout) el.crashEstPayout.textContent = `${Math.floor(wager * 2).toLocaleString()} 🪙`;
+      if (el.crashEstPayout) el.crashEstPayout.textContent = `${Math.floor(wager * 2).toLocaleString()}`;
     }
 
     if (el.crashRoundNumber) {
@@ -1399,13 +1360,11 @@
         if (mult < 1.8) chip.classList.add('chip-loss');
         else if (mult >= 10.0) chip.classList.add('chip-purple');
         else if (mult >= 5.0) chip.classList.add('chip-gold');
-        else if (mult >= 2.0) chip.classList.add('chip-cyan');
         else chip.classList.add('chip-win');
       } else {
         if (!won || mult <= 1.0) chip.classList.add('chip-loss');
         else if (mult >= 10.0) chip.classList.add('chip-purple');
         else if (mult >= 5.0) chip.classList.add('chip-gold');
-        else if (mult >= 2.0) chip.classList.add('chip-cyan');
         else chip.classList.add('chip-win');
       }
 
@@ -1457,16 +1416,23 @@
     });
 
     sseSource.addEventListener('crash_state', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        applyServerCrashState(data);
-      } catch {}
+      try { applyServerCrashState(JSON.parse(e.data)); } catch {}
     });
 
     sseSource.addEventListener('crash_phase', (e) => {
+      try { applyServerCrashState(JSON.parse(e.data)); } catch {}
+    });
+
+    sseSource.addEventListener('crash_tick', (e) => {
       try {
         const data = JSON.parse(e.data);
-        applyServerCrashState(data);
+        if (data.phase === 'IN_FLIGHT' && state.crashPhase === 'IN_FLIGHT') {
+          state.crashBaseElapsedMs = data.elapsedMs || 0;
+          state.crashSyncPerfNow = performance.now();
+          if (typeof data.currentMult === 'number') {
+            state.crashCurrentMult = data.currentMult;
+          }
+        }
       } catch {}
     });
 
@@ -1494,7 +1460,6 @@
             mult: Number(data.player.cashoutMult),
           });
         }
-        // Check if this cashout belongs to the current user (e.g. server-side auto-cashout)
         if (data.player && data.player.userId === state.userId) {
           state.crashMyBet = data.player;
           if (state.crashLastCelebratedRound !== state.crashRoundNumber) {
@@ -1508,7 +1473,6 @@
     });
 
     sseSource.onerror = () => {
-      // Browser EventSource automatically reconnects; fetch state once as fallback
       setTimeout(() => {
         if (!document.hidden) fetchCrashState();
       }, 2000);
@@ -1523,7 +1487,7 @@
   }
 
   // =========================================================================
-  // 9. CONTINUOUS 24/7 ORBITAL CRASH CLIENT ENGINE
+  // 9. CONTINUOUS 24/7 CRASH ENGINE (STRICT COUNTDOWN-ONLY BETTING)
   // =========================================================================
 
   let winToastTimeout = null;
@@ -1531,7 +1495,7 @@
   function showCrashWinToast(mult, profit) {
     if (!el.crashWinToast) return;
     if (el.crashToastMult) el.crashToastMult.textContent = `${Number(mult).toFixed(2)}×`;
-    if (el.crashToastProfit) el.crashToastProfit.textContent = `+${Number(profit).toLocaleString()} 🪙`;
+    if (el.crashToastProfit) el.crashToastProfit.textContent = `+${Number(profit).toLocaleString()}`;
     el.crashWinToast.style.display = 'flex';
     el.crashWinToast.classList.add('active');
 
@@ -1550,7 +1514,7 @@
     showCrashWinToast(mult, profit);
     setCrashHud(
       'Cashed Out',
-      `Locked in <strong>+${Number(profit).toLocaleString()} 🪙</strong> at <strong>${Number(mult).toFixed(2)}×</strong>!`,
+      `Locked in <strong>+${Number(profit).toLocaleString()}</strong> at <strong>${Number(mult).toFixed(2)}×</strong>!`,
       'won'
     );
     refreshProfile();
@@ -1558,26 +1522,23 @@
   }
 
   function syncMyBetFromPlayers() {
-    if (!state.userId) return;
-    const found = state.crashPlayers.find((p) => p.userId === state.userId);
+    const myKey = state.authenticated && state.userId ? state.userId : (playToken || guestId);
+    if (!myKey) return;
+    const found = state.crashPlayers.find((p) => p.userId === myKey || (state.userId && p.userId === state.userId));
     state.crashMyBet = found || null;
   }
 
   function applyServerCrashState(data) {
     if (!data) return;
-    if (data.serverNow) {
-      state.serverTimeOffset = data.serverNow - Date.now();
-    }
 
     const prevPhase = state.crashPhase;
     state.crashPhase = data.phase || state.crashPhase;
     state.crashRoundNumber = data.roundNumber || state.crashRoundNumber;
-    state.crashPhaseStartTime = data.phaseStartTime || state.crashPhaseStartTime;
-    state.crashBettingDurationMs = data.bettingDurationMs || 5000;
+    state.crashBettingDurationMs = data.bettingDurationMs || data.countdownTotalMs || 6000;
+    state.crashBaseElapsedMs = typeof data.elapsedMs === 'number' ? data.elapsedMs : 0;
+    state.crashBaseRemainingMs = typeof data.remainingMs === 'number' ? data.remainingMs : state.crashBettingDurationMs;
+    state.crashSyncPerfNow = performance.now();
 
-    if (data.flightStartTime) {
-      state.crashStartTime = data.flightStartTime;
-    }
     if (typeof data.currentMult === 'number') {
       state.crashCurrentMult = data.currentMult;
     }
@@ -1595,10 +1556,6 @@
       syncMyBetFromPlayers();
     }
 
-    if (data.myQueuedBet !== undefined) {
-      state.crashMyQueuedBet = data.myQueuedBet;
-    }
-
     if (Array.isArray(data.history) && data.history.length > 0) {
       state.crashHistory = data.history;
       if (state.currentGame === 'crash') renderHistoryRibbon();
@@ -1612,18 +1569,17 @@
       Sound.stopThruster();
 
       if (state.crashMyBet) {
-        setCrashHud('Armed', `Bet of ${state.crashMyBet.wager.toLocaleString()} 🪙 locked in for Round #${state.crashRoundNumber}!`, 'active');
+        setCrashHud('Bet Locked', `Bet of ${state.crashMyBet.wager.toLocaleString()} locked in for Round #${state.crashRoundNumber}!`, 'active');
       } else {
-        setCrashHud('Betting Open', `Round #${state.crashRoundNumber} launching in 5s. Place your bet now!`, 'ready');
+        setCrashHud('Betting Open', `Round #${state.crashRoundNumber} countdown active — Place your bet before liftoff!`, 'ready');
       }
 
-      // Trigger Auto-Bet if enabled and not yet bet this round
+      // Trigger Auto-Bet ONLY during BETTING phase
       if (state.crashMode === 'auto' && state.crashAutoBetActive && !state.crashMyBet && state.crashAutoBetLastRound !== state.crashRoundNumber) {
         state.crashAutoBetLastRound = state.crashRoundNumber;
-        placeOrQueueCrashBet();
+        placeCrashBetDuringCountdown();
       }
     } else if (state.crashPhase === 'IN_FLIGHT' && prevPhase !== 'IN_FLIGHT') {
-      // Populate eject markers if joining mid-flight
       state.crashEjectMarkers = state.crashPlayers
         .filter((p) => p.cashedOut && p.cashoutMult)
         .map((p) => ({ username: p.username, mult: Number(p.cashoutMult) }));
@@ -1632,7 +1588,7 @@
       if (state.crashMyBet && !state.crashMyBet.cashedOut) {
         setCrashHud('In Flight', 'Rocket ascending! Click Cash Out anytime before detonation.', 'active');
       } else {
-        setCrashHud('In Flight', 'Flight in progress! You can queue a bet for the next launch.', 'ready');
+        setCrashHud('Flight Live', 'Flight in progress — Betting is locked until the next countdown.', 'ready');
       }
     } else if (state.crashPhase === 'CRASHED' && prevPhase !== 'CRASHED') {
       const crashMult = state.crashPoint || state.crashCurrentMult || 1.0;
@@ -1645,11 +1601,12 @@
       }
 
       if (state.crashMyBet && !state.crashMyBet.cashedOut) {
-        setCrashHud('Crashed', `Signal lost at ${crashMult.toFixed(2)}×! Next countdown starts in 3s.`, 'lost');
+        setCrashHud('Crashed', `Crashed at ${crashMult.toFixed(2)}×! Next betting countdown starts in 3s.`, 'lost');
         refreshProfile();
-      } else if (!state.crashMyBet) {
-        setCrashHud('Round Over', `Flight crashed at ${crashMult.toFixed(2)}×. Preparing next launchpad...`, 'ready');
+      } else {
+        setCrashHud('Round Over', `Flight crashed at ${crashMult.toFixed(2)}×. Next betting countdown starts in 3s...`, 'ready');
       }
+      loadLeaderboard();
     }
 
     renderCrashPlayersRoster();
@@ -1660,28 +1617,29 @@
     if (!el.crashPlayersList) return;
     const players = state.crashPlayers || [];
     if (el.crashPlayersCount) {
-      el.crashPlayersCount.textContent = `${players.length} ${players.length === 1 ? 'Pilot' : 'Pilots'}`;
+      el.crashPlayersCount.textContent = `${players.length} ${players.length === 1 ? 'Player' : 'Players'}`;
     }
 
     if (players.length === 0) {
-      el.crashPlayersList.innerHTML = '<div class="crash-players-empty">Waiting for pilots to lock in wagers...</div>';
+      el.crashPlayersList.innerHTML = '<div class="lb-empty" style="padding:12px;">Waiting for bets...</div>';
       return;
     }
 
+    const myKey = state.authenticated && state.userId ? state.userId : (playToken || guestId);
     let html = '';
     for (let i = 0; i < players.length; i++) {
       const p = players[i];
-      const isMe = p.userId === state.userId;
+      const isMe = (state.userId && p.userId === state.userId) || (myKey && p.userId === myKey);
       let statusHtml = '';
 
       if (p.cashedOut) {
-        statusHtml = `<span class="cp-status cashed">${Number(p.cashoutMult).toFixed(2)}× (+${Number(p.profit).toLocaleString()} 🪙)</span>`;
+        statusHtml = `<span class="cp-status cashed">${Number(p.cashoutMult).toFixed(2)}× (+${Number(p.profit).toLocaleString()})</span>`;
       } else if (state.crashPhase === 'CRASHED') {
-        statusHtml = `<span class="cp-status lost">💥 Crashed</span>`;
+        statusHtml = `<span class="cp-status lost">Crashed</span>`;
       } else if (state.crashPhase === 'IN_FLIGHT') {
-        statusHtml = `<span class="cp-status flying">🚀 In Flight</span>`;
+        statusHtml = `<span class="cp-status flying">In Flight</span>`;
       } else {
-        statusHtml = `<span class="cp-status flying">⚡ Ready</span>`;
+        statusHtml = `<span class="cp-status flying">Ready</span>`;
       }
 
       html += `
@@ -1690,7 +1648,7 @@
             <img class="cp-avatar" src="${escapeHtml(p.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt="">
             <span class="cp-name">${escapeHtml(p.username)}${isMe ? ' (You)' : ''}</span>
           </div>
-          <span class="cp-wager">${Number(p.wager).toLocaleString()} 🪙</span>
+          <span class="cp-wager">${Number(p.wager).toLocaleString()}</span>
           ${statusHtml}
         </div>
       `;
@@ -1703,103 +1661,98 @@
 
     const wager = state.crashWager;
     const myBet = state.crashMyBet;
-    const myQueued = state.crashMyQueuedBet;
 
-    // Show/hide live profit box on HUD
     if (el.crashHudProfitBox) {
       el.crashHudProfitBox.style.display = (state.crashPhase === 'IN_FLIGHT' && myBet && !myBet.cashedOut) ? 'flex' : 'none';
     }
 
-    // 1. Active Uncashed Bet during IN_FLIGHT -> CASH OUT button!
+    // 1. Player has an active uncashed bet during IN_FLIGHT -> Active CASH OUT button!
     if (state.crashPhase === 'IN_FLIGHT' && myBet && !myBet.cashedOut) {
       el.crashActionButton.disabled = false;
       el.crashActionButton.className = 'btn-stake-cta btn-cashout';
-      el.crashActionTitle.textContent = 'Cash Out Now';
+      el.crashActionTitle.textContent = 'Cash Out';
       const livePayout = Math.floor(myBet.wager * (state.crashCurrentMult || 1.0));
-      el.crashActionSub.textContent = `+${livePayout.toLocaleString()} 🪙`;
+      el.crashActionSub.textContent = `+${livePayout.toLocaleString()}`;
       return;
     }
 
-    // 2. Auto-Bet Mode Active Toggle
+    // 2. Auto-Bet Mode Active Toggle (Allows stopping auto-bet at any time)
     if (state.crashMode === 'auto' && state.crashAutoBetActive) {
       el.crashActionButton.disabled = false;
-      el.crashActionButton.className = 'btn-stake-cta btn-queued';
+      el.crashActionButton.className = 'btn-stake-cta btn-armed';
       el.crashActionTitle.textContent = 'Stop Auto-Bet';
       el.crashActionSub.textContent = myBet
-        ? `Armed (${myBet.wager.toLocaleString()} 🪙)`
-        : `Auto-Betting ${Number(wager).toLocaleString()} 🪙 / Round`;
+        ? `Locked (${myBet.wager.toLocaleString()})`
+        : `${Number(wager).toLocaleString()} / Round`;
       return;
     }
 
-    // 3. During BETTING Phase
+    // 3. During BETTING Countdown Phase -> ONLY window to place a bet!
     if (state.crashPhase === 'BETTING') {
       if (myBet) {
         el.crashActionButton.disabled = true;
         el.crashActionButton.className = 'btn-stake-cta btn-armed';
-        el.crashActionTitle.textContent = 'Bet Armed • Launching Soon';
-        el.crashActionSub.textContent = `${Number(myBet.wager).toLocaleString()} 🪙 Locked`;
+        el.crashActionTitle.textContent = 'Bet Locked • Launching Soon';
+        el.crashActionSub.textContent = `${Number(myBet.wager).toLocaleString()}`;
       } else {
         el.crashActionButton.disabled = false;
         el.crashActionButton.className = 'btn-stake-cta btn-bet';
-        el.crashActionTitle.textContent = state.crashMode === 'auto' ? 'Start Auto-Bet' : 'Place Bet (This Flight)';
-        el.crashActionSub.textContent = `${Number(wager).toLocaleString()} 🪙`;
+        el.crashActionTitle.textContent = state.crashMode === 'auto' ? 'Start Auto-Bet' : 'Place Bet';
+        el.crashActionSub.textContent = `${Number(wager).toLocaleString()}`;
       }
       return;
     }
 
-    // 4. During IN_FLIGHT (not in round or already cashed out) or CRASHED -> Queue for Next Flight!
-    if (myQueued) {
-      el.crashActionButton.disabled = false;
-      el.crashActionButton.className = 'btn-stake-cta btn-queued';
-      el.crashActionTitle.textContent = 'Queued for Next Flight (Cancel)';
-      el.crashActionSub.textContent = `${Number(myQueued.wager).toLocaleString()} 🪙`;
+    // 4. During IN_FLIGHT or CRASHED -> Strictly LOCKED! Cannot place a bet while rocket is flying!
+    el.crashActionButton.disabled = true;
+    el.crashActionButton.className = 'btn-stake-cta btn-locked';
+    if (myBet && myBet.cashedOut) {
+      el.crashActionTitle.textContent = `Cashed Out @ ${Number(myBet.cashoutMult).toFixed(2)}×`;
+      el.crashActionSub.textContent = 'Wait for Next Round';
+    } else if (state.crashPhase === 'IN_FLIGHT') {
+      el.crashActionTitle.textContent = 'Flight in Progress';
+      el.crashActionSub.textContent = 'Wait for Countdown';
     } else {
-      el.crashActionButton.disabled = false;
-      el.crashActionButton.className = 'btn-stake-cta btn-bet';
-      el.crashActionTitle.textContent = state.crashMode === 'auto' ? 'Start Auto-Bet' : 'Bet (Next Flight)';
-      el.crashActionSub.textContent = `${Number(wager).toLocaleString()} 🪙`;
+      el.crashActionTitle.textContent = 'Round Over';
+      el.crashActionSub.textContent = 'Next Countdown Soon';
     }
   }
 
   async function handleCrashPrimaryButton() {
     if (state.crashProcessing) return;
 
-    // A. If player has an active uncashed bet during IN_FLIGHT -> Cash Out!
+    // A. Active uncashed bet during IN_FLIGHT -> Cash Out!
     if (state.crashPhase === 'IN_FLIGHT' && state.crashMyBet && !state.crashMyBet.cashedOut) {
       await cashOutContinuousCrash();
       return;
     }
 
-    // B. If Auto-Bet mode is currently running -> Stop Auto-Bet
+    // B. Stop Auto-Bet if running
     if (state.crashMode === 'auto' && state.crashAutoBetActive) {
       Sound.click();
       state.crashAutoBetActive = false;
-      if (state.crashMyQueuedBet) {
-        await cancelQueuedCrashBet();
-      }
-      setCrashHud('Auto-Bet Stopped', 'Automated flight betting disabled.', 'ready');
+      setCrashHud('Auto-Bet Stopped', 'Automated betting disabled.', 'ready');
       updateCrashActionCTA();
       return;
     }
 
-    // C. If player has a queued bet for the next round -> Cancel Queue
-    if (state.crashMyQueuedBet) {
-      await cancelQueuedCrashBet();
+    // C. Strictly block placing bets if not in BETTING phase!
+    if (state.crashPhase !== 'BETTING') {
+      setCrashHud('Betting Locked', 'Wait for the flight to finish and the 6s countdown to begin!', 'lost');
+      updateCrashActionCTA();
       return;
     }
 
-    // D. If starting Auto-Bet mode
     if (state.crashMode === 'auto' && !state.crashAutoBetActive) {
       state.crashAutoBetActive = true;
       state.crashAutoBetLastRound = state.crashRoundNumber;
     }
 
-    // E. Place Bet (if BETTING) or Queue Bet (if IN_FLIGHT / CRASHED)
-    await placeOrQueueCrashBet();
+    await placeCrashBetDuringCountdown();
   }
 
-  async function placeOrQueueCrashBet() {
-    if (state.crashProcessing) return;
+  async function placeCrashBetDuringCountdown() {
+    if (state.crashProcessing || state.crashPhase !== 'BETTING' || state.crashMyBet) return;
     state.crashProcessing = true;
     Sound.click();
 
@@ -1809,7 +1762,7 @@
 
     if (state.balance < wager) {
       state.crashAutoBetActive = false;
-      setCrashHud('Insufficient Balance', `You need ${wager.toLocaleString()} 🪙 (Balance: ${state.balance.toLocaleString()} 🪙).`, 'lost');
+      setCrashHud('Insufficient Balance', `You need ${wager.toLocaleString()} (Balance: ${state.balance.toLocaleString()}).`, 'lost');
       state.crashProcessing = false;
       updateCrashActionCTA();
       return;
@@ -1818,36 +1771,12 @@
     try {
       const res = await api('/crash/bet', 'POST', { wager, autoCashout });
       updateBalanceDisplay(res.balance);
-
-      if (res.status === 'placed') {
-        state.crashMyBet = res.bet;
-        setCrashHud('Bet Armed', `Locked in ${wager.toLocaleString()} 🪙 for Round #${state.crashRoundNumber}!`, 'active');
-      } else if (res.status === 'queued') {
-        state.crashMyQueuedBet = res.queuedBet;
-        setCrashHud('Queued', `Queued ${wager.toLocaleString()} 🪙 for the next flight! Click again to cancel.`, 'active');
-      }
-      fetchCrashState();
+      state.crashMyBet = res.bet;
+      if (res.crashState) applyServerCrashState(res.crashState);
+      setCrashHud('Bet Locked', `Locked in ${wager.toLocaleString()} for Round #${state.crashRoundNumber}!`, 'active');
     } catch (err) {
       state.crashAutoBetActive = false;
-      setCrashHud('Error', err.message, 'lost');
-    } finally {
-      state.crashProcessing = false;
-      updateCrashActionCTA();
-    }
-  }
-
-  async function cancelQueuedCrashBet() {
-    if (state.crashProcessing) return;
-    state.crashProcessing = true;
-    Sound.click();
-
-    try {
-      const res = await api('/crash/bet', 'POST', { cancelQueue: true });
-      state.crashMyQueuedBet = null;
-      updateBalanceDisplay(res.balance);
-      setCrashHud('Cancelled', 'Queued bet cancelled and refunded to your wallet.', 'ready');
-    } catch (err) {
-      setCrashHud('Error', err.message, 'lost');
+      setCrashHud('Bet Rejected', err.message, 'lost');
     } finally {
       state.crashProcessing = false;
       updateCrashActionCTA();
@@ -1862,7 +1791,7 @@
     try {
       const res = await api('/crash/cashout', 'POST', {});
       if (res.crashed) {
-        setCrashHud('Too Late', `Flight detonated at ${Number(res.crashPoint).toFixed(2)}×!`, 'lost');
+        setCrashHud('Too Late', `Flight crashed at ${Number(res.crashPoint).toFixed(2)}×!`, 'lost');
         return;
       }
 
@@ -1991,7 +1920,7 @@
     const bombs = Math.min(24, Math.max(1, Math.floor(Number(el.minesCountSelect.value)) || 3));
 
     if (state.balance < wager) {
-      setMinesHud('Error', `Insufficient balance! You have ${state.balance.toLocaleString()} 🪙.`, 'lost');
+      setMinesHud('Error', `Insufficient balance! You have ${state.balance.toLocaleString()}.`, 'lost');
       state.isProcessing = false;
       el.mainActionButton.disabled = false;
       return;
@@ -2019,7 +1948,7 @@
 
       updateBalanceDisplay(res.balance);
       enterActiveMinesState();
-      setMinesHud('Active', 'Round in progress. Uncover gems or Cash Out anytime!', 'active');
+      setMinesHud('Active', 'Round in progress. Uncover safe tiles or Cash Out anytime!', 'active');
     } catch (err) {
       setMinesHud('Error', err.message, 'lost');
       resetMinesToIdleState();
@@ -2072,7 +2001,7 @@
           });
         }
 
-        setMinesHud('Detonated', `Explosion! Lost ${state.wager.toLocaleString()} 🪙. Click Bet to play again.`, 'lost');
+        setMinesHud('Detonated', `Hit a mine! Lost ${state.wager.toLocaleString()}. Click Bet to play again.`, 'lost');
         resetMinesToIdleState();
         refreshProfile();
         loadLeaderboard();
@@ -2085,9 +2014,9 @@
       revealGem(idx, true);
       updateMinesTelemetry();
 
-      el.actionBtnSub.textContent = `${Number(state.currentWin).toLocaleString()} 🪙`;
+      el.actionBtnSub.textContent = `${Number(state.currentWin).toLocaleString()}`;
       el.hudMultVal.textContent = `${state.currentMult.toFixed(2)}×`;
-      el.hudProfitVal.textContent = `+${Number(res.profit).toLocaleString()} 🪙`;
+      el.hudProfitVal.textContent = `+${Number(res.profit).toLocaleString()}`;
 
       if (res.won) {
         state.activeGame = false;
@@ -2095,7 +2024,7 @@
         Sound.cashout();
         spawnCoinShower();
         showMinesVictory('PERFECT CLEAR!', res.multiplier, res.profit);
-        setMinesHud('Perfect', `Cleared all safe gems! Won ${res.winAmount.toLocaleString()} 🪙!`, 'won');
+        setMinesHud('Perfect', `Cleared all safe gems! Won ${res.winAmount.toLocaleString()}!`, 'won');
         resetMinesToIdleState();
         refreshProfile();
         loadLeaderboard();
@@ -2131,11 +2060,11 @@
       spawnCoinShower();
 
       showMinesVictory('CASHED OUT', res.multiplier, res.profit);
-      setMinesHud('Cashed Out', `Locked in +${res.winAmount.toLocaleString()} 🪙! (Peek remaining tiles)`, 'won');
+      setMinesHud('Cashed Out', `Locked in +${res.winAmount.toLocaleString()}! (Click remaining tiles to peek)`, 'won');
 
       el.mainActionButton.className = 'btn-stake-cta btn-replay';
       el.actionBtnTitle.textContent = 'Play Again';
-      el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()} 🪙`;
+      el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()}`;
 
       refreshProfile();
       loadLeaderboard();
@@ -2153,11 +2082,11 @@
 
     el.mainActionButton.className = 'btn-stake-cta btn-cashout';
     el.actionBtnTitle.textContent = 'Cashout';
-    el.actionBtnSub.textContent = `${Number(state.currentWin).toLocaleString()} 🪙`;
+    el.actionBtnSub.textContent = `${Number(state.currentWin).toLocaleString()}`;
 
     el.hudProfitBox.style.display = 'flex';
     el.hudMultVal.textContent = `${state.currentMult.toFixed(2)}×`;
-    el.hudProfitVal.textContent = `+${Math.max(0, state.currentWin - state.wager).toLocaleString()} 🪙`;
+    el.hudProfitVal.textContent = `+${Math.max(0, state.currentWin - state.wager).toLocaleString()}`;
     updateMinesTelemetry();
   }
 
@@ -2167,7 +2096,7 @@
 
     el.mainActionButton.className = 'btn-stake-cta btn-bet';
     el.actionBtnTitle.textContent = 'Bet';
-    el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()} 🪙`;
+    el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()}`;
 
     el.hudProfitBox.style.display = 'none';
     updateMinesTelemetry();
@@ -2188,7 +2117,7 @@
   function showMinesVictory(badge, mult, profit) {
     el.modalBadge.textContent = badge;
     el.modalMult.textContent = `${Number(mult).toFixed(2)}×`;
-    el.modalWinAmount.textContent = `+${Number(profit).toLocaleString()} 🪙`;
+    el.modalWinAmount.textContent = `+${Number(profit).toLocaleString()}`;
     el.modalSubtext.textContent = state.authenticated
       ? 'Winnings synced directly to your Discord wallet!'
       : 'Demo winnings credited. Run /play in Discord to link your server wallet!';
@@ -2207,7 +2136,7 @@
   }
 
   // =========================================================================
-  // 11. DUAL LEADERBOARD & HALL OF FAME RENDERER
+  // 11. LIVE ACTIVITY & COMPACT CROWN LEADERBOARD RENDERERS
   // =========================================================================
 
   function escapeHtml(str) {
@@ -2222,12 +2151,22 @@
   }
 
   function formatTimeAgo(ts) {
-    if (!ts) return 'recently';
-    const diff = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-    if (diff < 60) return 'Just now';
+    if (!ts) return 'Just now';
+    const diff = Math.max(2, Math.floor((Date.now() - ts) / 1000));
+    if (diff < 60) return `${diff}s ago`;
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     return `${Math.floor(diff / 86400)}d ago`;
+  }
+
+  function getCrownSvg(rankIndex) {
+    const colors = ['#fbbf24', '#94a3b8', '#d97706'];
+    const c = colors[rankIndex] || '#64748b';
+    return `
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="${c}">
+        <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14v2H5v-2z"/>
+      </svg>
+    `;
   }
 
   async function loadLeaderboard() {
@@ -2240,9 +2179,109 @@
       if (minesRes.status === 'fulfilled') state.minesLeaderboard = minesRes.value;
       if (crashRes.status === 'fulfilled') state.crashLeaderboard = crashRes.value;
 
+      renderLiveActivityTable(state.activeStageTab);
+      renderMiniLeaderboard();
       renderLeaderboardTable(state.activeModalTab, el.lbModalContent);
-      renderLeaderboardTable(state.activeStageTab, el.lbStageContent);
     } catch {}
+  }
+
+  function renderLiveActivityTable(category = 'recent') {
+    if (!el.liveActivityBody) return;
+    const mData = state.minesLeaderboard || {};
+    const cData = state.crashLeaderboard || {};
+
+    const minesWins = (mData.recentWins || mData.topMultipliers || []).map((w) => ({ ...w, gameName: 'Mines' }));
+    const crashWins = (cData.recentWins || cData.topMultipliers || []).map((w) => ({ ...w, gameName: 'Crash' }));
+
+    let list = [];
+    if (category === 'mines-multipliers') {
+      list = (mData.topMultipliers || []).map((w) => ({ ...w, gameName: 'Mines' }));
+    } else if (category === 'crash-multipliers') {
+      list = (cData.topMultipliers || []).map((w) => ({ ...w, gameName: 'Crash' }));
+    } else {
+      list = [...minesWins, ...crashWins].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    }
+
+    list = list.slice(0, 6);
+
+    if (list.length === 0) {
+      el.liveActivityBody.innerHTML = '<tr><td colspan="5" class="lb-empty">No recent activity yet. Place a bet to appear live!</td></tr>';
+      return;
+    }
+
+    let html = '';
+    list.forEach((w) => {
+      const mult = Number(w.multiplier || 1.0);
+      const profit = Number(w.profit || w.payout || 0);
+      const gameLabel = w.gameName || (w.bombs !== undefined ? 'Mines' : 'Crash');
+      html += `
+        <tr>
+          <td>
+            <div class="lb-player-cell">
+              <img class="lb-avatar" src="${escapeHtml(w.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt="">
+              <span class="lb-username">${escapeHtml(w.username)}</span>
+            </div>
+          </td>
+          <td class="mf-game-col">${escapeHtml(gameLabel)}</td>
+          <td style="text-align:center;"><span class="lb-mult-chip">${mult.toFixed(2)}×</span></td>
+          <td style="text-align:right;">
+            <span class="mf-payout-cell">${SVG_COIN_INLINE} +${profit.toLocaleString()}</span>
+          </td>
+          <td style="text-align:right;"><span class="lb-time">${formatTimeAgo(w.timestamp)}</span></td>
+        </tr>
+      `;
+    });
+
+    el.liveActivityBody.innerHTML = html;
+  }
+
+  function renderMiniLeaderboard() {
+    if (!el.miniLeaderboardList) return;
+    const mData = state.minesLeaderboard || {};
+    const cData = state.crashLeaderboard || {};
+
+    // Combine top players across Mines & Crash
+    const playerMap = new Map();
+    const allPlayers = [...(mData.topPlayers || []), ...(cData.topPlayers || [])];
+
+    for (const p of allPlayers) {
+      const key = p.userId || p.username;
+      if (!playerMap.has(key)) {
+        playerMap.set(key, {
+          username: p.username,
+          avatarUrl: p.avatarUrl,
+          totalProfit: Number(p.totalProfit || 0),
+        });
+      } else {
+        const existing = playerMap.get(key);
+        existing.totalProfit = Math.max(existing.totalProfit, Number(p.totalProfit || 0));
+      }
+    }
+
+    const top3 = Array.from(playerMap.values())
+      .sort((a, b) => b.totalProfit - a.totalProfit)
+      .slice(0, 3);
+
+    if (top3.length === 0) {
+      el.miniLeaderboardList.innerHTML = '<div class="lb-empty">No ranked players yet.</div>';
+      return;
+    }
+
+    let html = '';
+    top3.forEach((p, idx) => {
+      html += `
+        <div class="mf-mini-lb-row">
+          <div class="mf-mini-lb-left">
+            <span class="mf-crown-icon">${getCrownSvg(idx)}</span>
+            <img class="lb-avatar" src="${escapeHtml(p.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png')}" alt="">
+            <span class="lb-username">${escapeHtml(p.username)}</span>
+          </div>
+          <span class="mf-mini-lb-amount">${SVG_COIN_INLINE} ${Number(p.totalProfit).toLocaleString()}</span>
+        </div>
+      `;
+    });
+
+    el.miniLeaderboardList.innerHTML = html;
   }
 
   function renderLeaderboardTable(category, container) {
@@ -2299,7 +2338,6 @@
       list.forEach((p, i) => {
         const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-default';
         const mult = Number(p.highestMultiplier || 1.0);
-        const multChipClass = mult >= 10 ? 'mult-gold' : mult >= 3 ? 'mult-cyan' : 'mult-green';
         html += `
           <tr>
             <td><span class="lb-rank ${rankClass}">${i + 1}</span></td>
@@ -2309,8 +2347,8 @@
                 <span class="lb-username">${escapeHtml(p.username)}</span>
               </div>
             </td>
-            <td style="text-align: right;"><span class="lb-profit">+${Number(p.totalProfit).toLocaleString()} 🪙</span></td>
-            <td style="text-align: center;"><span class="lb-mult-chip ${multChipClass}">${mult.toFixed(2)}×</span></td>
+            <td style="text-align: right;"><span class="lb-profit">${SVG_COIN_INLINE} +${Number(p.totalProfit).toLocaleString()}</span></td>
+            <td style="text-align: center;"><span class="lb-mult-chip">${mult.toFixed(2)}×</span></td>
             <td style="text-align: right; color: #ffffff; font-weight: 700;">${p.totalWins}</td>
             <td style="text-align: right;"><span class="lb-time">${formatTimeAgo(p.lastWinAt)}</span></td>
           </tr>
@@ -2329,7 +2367,7 @@
             <th style="width: 50px;">Rank</th>
             <th>Player</th>
             <th style="text-align: center;">Multiplier</th>
-            <th style="text-align: center;">${isCrashTab ? 'Wager / Altitude' : 'Wager / Bombs'}</th>
+            <th style="text-align: center;">${isCrashTab ? 'Wager / Game' : 'Wager / Mines'}</th>
             <th style="text-align: right;">Net Profit</th>
             <th style="text-align: right;">Time</th>
           </tr>
@@ -2340,10 +2378,9 @@
     list.forEach((w, i) => {
       const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-default';
       const mult = Number(w.multiplier || 1.0);
-      const multChipClass = mult >= 10 ? 'mult-gold' : mult >= 3 ? 'mult-cyan' : 'mult-green';
       const detailBadge = w.bombs !== undefined
-        ? `${Number(w.wager).toLocaleString()} 🪙 • ${w.bombs}💣`
-        : `${Number(w.wager).toLocaleString()} 🪙 • 🚀 Orbit`;
+        ? `${Number(w.wager).toLocaleString()} • ${w.bombs} Mines`
+        : `${Number(w.wager).toLocaleString()} • Crash`;
 
       html += `
         <tr>
@@ -2354,9 +2391,9 @@
               <span class="lb-username">${escapeHtml(w.username)}</span>
             </div>
           </td>
-          <td style="text-align: center;"><span class="lb-mult-chip ${multChipClass}">${mult.toFixed(2)}×</span></td>
-          <td style="text-align: center;"><span class="lb-wager-bombs">${detailBadge}</span></td>
-          <td style="text-align: right;"><span class="lb-profit">+${Number(w.profit).toLocaleString()} 🪙</span></td>
+          <td style="text-align: center;"><span class="lb-mult-chip">${mult.toFixed(2)}×</span></td>
+          <td style="text-align: center; color: #94a3b8;">${detailBadge}</td>
+          <td style="text-align: right;"><span class="lb-profit">${SVG_COIN_INLINE} +${Number(w.profit).toLocaleString()}</span></td>
           <td style="text-align: right;"><span class="lb-time">${formatTimeAgo(w.timestamp)}</span></td>
         </tr>
       `;
@@ -2377,35 +2414,58 @@
   }
 
   // =========================================================================
-  // 12. GLOBAL GAME SWITCHER (PAUSE HIDDEN CANVASES FOR ZERO LAG)
+  // 12. VIEW SWITCHER (HOME HUB <-> MINES <-> CRASH)
   // =========================================================================
 
-  function switchGame(targetGame, playSound = false) {
+  function switchView(targetView, playSound = false) {
     if (playSound) Sound.click();
-    state.currentGame = targetGame;
+    state.currentView = targetView;
+    if (targetView === 'mines' || targetView === 'crash') {
+      state.currentGame = targetView;
+    }
 
-    if (el.btnSwitchMines) el.btnSwitchMines.classList.toggle('active', targetGame === 'mines');
-    if (el.btnSwitchCrash) el.btnSwitchCrash.classList.toggle('active', targetGame === 'crash');
+    // Sidebar active states
+    if (el.navHome) el.navHome.classList.toggle('active', targetView === 'home');
+    if (el.btnSwitchMines) el.btnSwitchMines.classList.toggle('active', targetView === 'mines');
+    if (el.btnSwitchCrash) el.btnSwitchCrash.classList.toggle('active', targetView === 'crash');
 
-    if (targetGame === 'crash') {
+    // Game topbar tabs
+    if (el.tabPlayMines) el.tabPlayMines.classList.toggle('active', targetView === 'mines');
+    if (el.tabPlayCrash) el.tabPlayCrash.classList.toggle('active', targetView === 'crash');
+
+    if (targetView === 'home') {
+      if (el.homeChassis) el.homeChassis.style.display = 'flex';
+      if (el.activeGameTopbar) el.activeGameTopbar.style.display = 'none';
+      if (el.minesChassis) el.minesChassis.style.display = 'none';
+      if (el.crashChassis) el.crashChassis.style.display = 'none';
+      stopCrashCanvasLoop();
+    } else if (targetView === 'crash') {
+      if (el.homeChassis) el.homeChassis.style.display = 'none';
+      if (el.activeGameTopbar) el.activeGameTopbar.style.display = 'flex';
       if (el.minesChassis) el.minesChassis.style.display = 'none';
       if (el.crashChassis) el.crashChassis.style.display = 'grid';
       startCrashCanvasLoop();
       updateCrashTelemetry();
       fetchCrashState();
+      renderHistoryRibbon();
     } else {
+      if (el.homeChassis) el.homeChassis.style.display = 'none';
+      if (el.activeGameTopbar) el.activeGameTopbar.style.display = 'flex';
       if (el.minesChassis) el.minesChassis.style.display = 'grid';
       if (el.crashChassis) el.crashChassis.style.display = 'none';
       stopCrashCanvasLoop();
       resizeMinesCanvas();
       updateMinesTelemetry();
+      renderHistoryRibbon();
     }
-
-    renderHistoryRibbon();
 
     try {
       const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set('game', targetGame);
+      if (targetView === 'home') {
+        newUrl.searchParams.delete('game');
+      } else {
+        newUrl.searchParams.set('game', targetView);
+      }
       window.history.replaceState({}, '', newUrl.toString());
     } catch {}
   }
@@ -2431,8 +2491,8 @@
       if (Array.isArray(data.crashHistory)) state.crashHistory = data.crashHistory;
       renderHistoryRibbon();
 
-      if (data.crashArena) {
-        applyServerCrashState(data.crashArena);
+      if (data.crashArena || data.crashState) {
+        applyServerCrashState(data.crashArena || data.crashState);
       }
 
       if (data.activeGame && !state.activeGame) {
@@ -2465,8 +2525,25 @@
   // 14. EVENT LISTENERS & KEYBOARD SHORTCUTS
   // =========================================================================
 
-  if (el.btnSwitchMines) el.btnSwitchMines.addEventListener('click', () => switchGame('mines', true));
-  if (el.btnSwitchCrash) el.btnSwitchCrash.addEventListener('click', () => switchGame('crash', true));
+  if (el.brandHomeLink) {
+    el.brandHomeLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchView('home', true);
+    });
+  }
+  if (el.topNavGames) el.topNavGames.addEventListener('click', () => switchView('home', true));
+  if (el.navHome) el.navHome.addEventListener('click', () => switchView('home', true));
+  if (el.navAllGames) el.navAllGames.addEventListener('click', () => switchView('home', true));
+  if (el.btnBackHome) el.btnBackHome.addEventListener('click', () => switchView('home', true));
+
+  if (el.btnSwitchMines) el.btnSwitchMines.addEventListener('click', () => switchView('mines', true));
+  if (el.btnSwitchCrash) el.btnSwitchCrash.addEventListener('click', () => switchView('crash', true));
+  if (el.tabPlayMines) el.tabPlayMines.addEventListener('click', () => switchView('mines', true));
+  if (el.tabPlayCrash) el.tabPlayCrash.addEventListener('click', () => switchView('crash', true));
+
+  if (el.btnHeroPlayNow) el.btnHeroPlayNow.addEventListener('click', () => switchView('mines', true));
+  if (el.cardPlayMines) el.cardPlayMines.addEventListener('click', () => switchView('mines', true));
+  if (el.cardPlayCrash) el.cardPlayCrash.addEventListener('click', () => switchView('crash', true));
 
   // Mines Primary CTA
   if (el.mainActionButton) {
@@ -2522,10 +2599,10 @@
     const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
 
-    if (state.currentGame === 'crash') {
+    if (state.currentView === 'crash') {
       e.preventDefault();
       handleCrashPrimaryButton();
-    } else if (state.currentGame === 'mines' && state.activeGame && state.revealedIndices.size > 0) {
+    } else if (state.currentView === 'mines' && state.activeGame && state.revealedIndices.size > 0) {
       e.preventDefault();
       cashOutMines();
     }
@@ -2689,6 +2766,8 @@
 
   // Leaderboard & Fairness Modals
   if (el.btnOpenLeaderboard) el.btnOpenLeaderboard.addEventListener('click', openLeaderboard);
+  if (el.sidebarLeaderboard) el.sidebarLeaderboard.addEventListener('click', openLeaderboard);
+  if (el.btnExpandLeaderboard) el.btnExpandLeaderboard.addEventListener('click', openLeaderboard);
   if (el.btnCloseLeaderboard) el.btnCloseLeaderboard.addEventListener('click', closeLeaderboard);
   if (el.btnDoneLeaderboard) el.btnDoneLeaderboard.addEventListener('click', closeLeaderboard);
 
@@ -2711,7 +2790,7 @@
         el.lbStageTabs.forEach((t) => t.classList.remove('active'));
         tab.classList.add('active');
         state.activeStageTab = tab.dataset.stageTab;
-        renderLeaderboardTable(state.activeStageTab, el.lbStageContent);
+        renderLiveActivityTable(state.activeStageTab);
       });
     });
   }
@@ -2726,6 +2805,7 @@
   if (el.btnOpenFairness) el.btnOpenFairness.addEventListener('click', openFairness);
   if (el.btnOpenFairness2) el.btnOpenFairness2.addEventListener('click', openFairness);
   if (el.btnOpenCrashFairness) el.btnOpenCrashFairness.addEventListener('click', openFairness);
+  if (el.sidebarSupport) el.sidebarSupport.addEventListener('click', openFairness);
   if (el.btnCloseFairness) el.btnCloseFairness.addEventListener('click', closeFairness);
   if (el.btnDoneFairness) el.btnDoneFairness.addEventListener('click', closeFairness);
 
@@ -2739,7 +2819,7 @@
   resizeMinesCanvas();
   resizeCrashCanvas();
 
-  switchGame(state.currentGame);
+  switchView(state.currentView);
   refreshProfile();
   connectRealtimeStream();
   loadLeaderboard();

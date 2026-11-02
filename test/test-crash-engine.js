@@ -1,7 +1,7 @@
 import express from 'express';
 import http from 'http';
 import assert from 'assert';
-import { setupPlayApi, webPlaySessions, activeWebCrash, createWebPlaySession } from '../src/web/playApi.js';
+import { setupPlayApi, webPlaySessions, activeWebCrash, createWebPlaySession, globalCrashEngine } from '../src/web/playApi.js';
 import { getCrashLeaderboard, recordCrashWin, flushCrashLeaderboardSync } from '../src/games/crashLeaderboard.js';
 import { getBalance, setBalance } from '../src/games/economy.js';
 
@@ -154,19 +154,27 @@ async function runTests() {
     console.log('  [PASS] Stateless HMAC token survived in-memory wipe with full Discord wallet sync.');
 
     // -----------------------------------------------------------------------
-    // Test 7: 24/7 Continuous Multiplayer Crash State & Betting
+    // Test 7: 24/7 Continuous Multiplayer Crash State & Strict Countdown Betting
     // -----------------------------------------------------------------------
-    console.log('\n--- Test 7: 24/7 Continuous Crash Arena State & Betting ---');
+    console.log('\n--- Test 7: 24/7 Continuous Crash Arena State & Strict Betting Lock ---');
     const stateRes = await request(baseUrl, '/api/play/crash/state', 'GET', null, signedToken);
     assert.strictEqual(stateRes.status, 200, 'Crash state should return 200');
     assert.ok(['BETTING', 'IN_FLIGHT', 'CRASHED'].includes(stateRes.data.phase), 'Valid continuous phase required');
     assert.ok(Array.isArray(stateRes.data.players), 'Players telemetry list should be an array');
 
+    // Place bet during BETTING phase
+    globalCrashEngine.enterBettingPhase();
     const betRes = await request(baseUrl, '/api/play/crash/bet', 'POST', { wager: 100, autoCashout: 2.0 }, signedToken);
-    assert.strictEqual(betRes.status, 200, 'Continuous Crash bet/queue should return 200');
-    assert.strictEqual(betRes.data.success, true, 'Continuous Crash bet/queue should succeed');
-    assert.ok(['placed', 'queued'].includes(betRes.data.status), 'Status should be placed or queued');
-    console.log(`  [PASS] Continuous Crash Engine active in phase "${stateRes.data.phase}", bet status: "${betRes.data.status}".`);
+    assert.strictEqual(betRes.status, 200, 'Continuous Crash bet during BETTING should return 200');
+    assert.strictEqual(betRes.data.success, true, 'Continuous Crash bet during BETTING should succeed');
+    assert.strictEqual(betRes.data.status, 'placed', 'Status should be placed');
+    console.log('  [PASS] Bet placed successfully during BETTING countdown.');
+
+    // Verify placing a bet during IN_FLIGHT is strictly rejected
+    globalCrashEngine.enterFlightPhase();
+    const midFlightBetRes = await request(baseUrl, '/api/play/crash/bet', 'POST', { wager: 100, autoCashout: 2.0 }, signedToken);
+    assert.strictEqual(midFlightBetRes.status, 400, 'Betting while flight is in progress MUST be rejected with 400');
+    console.log('  [PASS] Mid-flight bet attempt strictly rejected:', midFlightBetRes.data.error);
 
     console.log('\n=== ALL CRASH TESTS PASSED SUCCESSFULLY! ===\n');
   } catch (err) {

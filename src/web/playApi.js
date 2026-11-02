@@ -247,18 +247,18 @@ class GlobalCrashArenaEngine {
   constructor() {
     this.phase = 'BETTING'; // 'BETTING' | 'IN_FLIGHT' | 'CRASHED'
     this.roundNumber = 1042;
-    this.roundId = ` global_${Date.now()}`;
-    this.countdownMs = 5000;
+    this.roundId = `global_${Date.now()}`;
+    this.countdownMs = 6000;
     this.cooldownMs = 3000;
     this.phaseStartTime = Date.now();
     this.flightStartTime = null;
     this.crashPoint = 2.0;
     this.flightDurationMs = 5000;
     this.currentMultiplier = 1.0;
+    this.tickCounter = 0;
 
     // Active bets in current round: gameKey -> BetEntry
     this.bets = new Map();
-    // Queued bets for next round: gameKey -> QueuedBet
     this.queuedBets = new Map();
 
     this.timer = null;
@@ -356,8 +356,15 @@ class GlobalCrashArenaEngine {
   onFlightTick() {
     if (this.phase !== 'IN_FLIGHT') return;
     const elapsed = Math.max(0, Date.now() - this.flightStartTime);
+
+    if (elapsed >= this.flightDurationMs) {
+      this.enterCrashedPhase();
+      return;
+    }
+
     const liveMult = Math.min(this.crashPoint, Math.max(1.0, Math.exp(0.00006 * elapsed)));
     this.currentMultiplier = Math.round(liveMult * 100) / 100;
+    this.tickCounter++;
 
     const cashedPlayers = [];
     for (const bet of this.bets.values()) {
@@ -371,6 +378,18 @@ class GlobalCrashArenaEngine {
       broadcastArenaEvent('crash_cashout', {
         ...this.getPublicSnapshot(),
         player: p,
+      });
+    }
+
+    // Broadcast authoritative flight telemetry tick every 200ms to prevent any client clock drift
+    if (this.tickCounter % 2 === 0) {
+      broadcastArenaEvent('crash_tick', {
+        roundId: this.roundId,
+        roundNumber: this.roundNumber,
+        phase: 'IN_FLIGHT',
+        elapsedMs: elapsed,
+        currentMult: this.currentMultiplier,
+        serverNow: Date.now(),
       });
     }
   }
@@ -1031,56 +1050,40 @@ export function setupPlayApi(app) {
         });
       }
 
-      // If currently in BETTING phase, join this round immediately!
-      if (globalCrashEngine.phase === 'BETTING') {
-        if (globalCrashEngine.bets.has(gameKey)) {
-          return res.status(400).json({ error: 'You already placed a bet for this flight!' });
-        }
-
-        const result = globalCrashEngine.placeBetInternal(gameKey, {
-          authenticated,
-          session,
-          wager: cleanBet,
-          autoCashout: cleanAuto,
-        });
-
-        if (result.error) {
-          return res.status(400).json(result);
-        }
-
-        globalCrashEngine.broadcastState('crash_bet');
-        return res.json({
-          success: true,
-          status: 'placed',
-          queued: false,
-          roundId: globalCrashEngine.roundId,
-          wager: cleanBet,
-          autoCashout: cleanAuto,
-          bet: result.bet,
-          balance: result.balance,
+      // Strictly allow bets ONLY during the BETTING countdown phase!
+      if (globalCrashEngine.phase !== 'BETTING') {
+        return res.status(400).json({
+          error: 'Flight is already in progress! Wait for the next launchpad countdown to place a bet.',
+          phase: globalCrashEngine.phase,
           crashState: globalCrashEngine.getPublicSnapshot(gameKey),
         });
       }
 
-      // If currently IN_FLIGHT or CRASHED, queue the bet for the next countdown!
-      const queuedBetObj = {
-        wager: cleanBet,
-        autoCashout: cleanAuto,
-      };
-      globalCrashEngine.queuedBets.set(gameKey, {
+      if (globalCrashEngine.bets.has(gameKey)) {
+        return res.status(400).json({ error: 'You already placed a bet for this flight!' });
+      }
+
+      const result = globalCrashEngine.placeBetInternal(gameKey, {
         authenticated,
         session,
-        ...queuedBetObj,
-      });
-
-      return res.json({
-        success: true,
-        status: 'queued',
-        queued: true,
         wager: cleanBet,
         autoCashout: cleanAuto,
-        queuedBet: queuedBetObj,
-        balance: currentBalance,
+      });
+
+      if (result.error) {
+        return res.status(400).json(result);
+      }
+
+      globalCrashEngine.broadcastState('crash_bet');
+      return res.json({
+        success: true,
+        status: 'placed',
+        queued: false,
+        roundId: globalCrashEngine.roundId,
+        wager: cleanBet,
+        autoCashout: cleanAuto,
+        bet: result.bet,
+        balance: result.balance,
         crashState: globalCrashEngine.getPublicSnapshot(gameKey),
       });
     } catch (err) {

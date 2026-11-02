@@ -3,573 +3,767 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Moonflip — Web Arena (5x5 Mines & Orbital Crash)</title>
+  <title>Moonflip — Discord-Powered Minigames &amp; Web Arena (Mines &amp; Crash)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/style.css?v=3.0">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/play/style.css?v=4.0">
 </head>
-<body class="casino-theme">
+<body class="moonflip-theme">
 
-  <!-- Top Global Navigation -->
-  <header class="casino-navbar">
-    <div class="nav-left">
-      <a href="/play" class="casino-brand">
-        <div class="brand-crest">
-          <svg viewBox="0 0 36 36" fill="none" class="brand-svg">
-            <path d="M28.5 18C28.5 24.3513 23.3513 29.5 17 29.5C11.5309 29.5 6.94586 25.6883 5.75391 20.584C6.69975 20.854 7.69708 21 8.72727 21C14.4007 21 19 16.4007 19 10.7273C19 8.27376 18.1407 6.02102 16.7027 4.25098C23.3857 4.90807 28.5 10.8291 28.5 18Z" fill="url(#crestGrad)" />
-            <circle cx="10" cy="9" r="2.5" fill="#00f0ff" />
-            <defs>
-              <linearGradient id="crestGrad" x1="5.7" y1="4.2" x2="28.5" y2="29.5" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#00f0ff"/>
-                <stop offset="1" stop-color="#0072ff"/>
-              </linearGradient>
-            </defs>
+  <!-- Reusable SVG Definitions (Moonflip Crescent-Coin Icon) -->
+  <svg width="0" height="0" style="position:absolute;visibility:hidden;" aria-hidden="true">
+    <defs>
+      <g id="mf-coin-icon">
+        <path d="M18.5 3.2A9.5 9.5 0 1 0 21.2 16.5A7.8 7.8 0 0 1 11.5 5.8C11.5 4.8 11.7 3.9 12.1 3.1A9.4 9.4 0 0 1 18.5 3.2Z" fill="#2ef2b8"/>
+        <path d="M15.5 7.2L16.4 9.5L18.7 10.4L16.4 11.3L15.5 13.6L14.6 11.3L12.3 10.4L14.6 9.5L15.5 7.2Z" fill="#2ef2b8"/>
+      </g>
+    </defs>
+  </svg>
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="mf-topbar">
+    <div class="mf-topbar-left">
+      <a href="/play" class="mf-brand" id="brandHomeLink">
+        <div class="mf-brand-logo">
+          <svg viewBox="0 0 36 36" fill="none" class="mf-logo-svg">
+            <circle cx="18" cy="18" r="16" fill="rgba(46, 242, 184, 0.08)" stroke="rgba(46, 242, 184, 0.25)" stroke-width="1.5"/>
+            <path d="M24.8 22.8C20.2 26.8 13.2 26.3 9.2 21.7C5.2 17.1 5.7 10.1 10.3 6.1C11.4 5.1 12.7 4.4 14.1 4.0C11.2 7.6 11.5 12.9 14.9 16.3C18.3 19.7 23.6 20.0 27.2 17.1C26.7 19.3 25.9 21.3 24.8 22.8Z" fill="#2ef2b8"/>
+            <path d="M21.5 8.5L22.6 11.4L25.5 12.5L22.6 13.6L21.5 16.5L20.4 13.6L17.5 12.5L20.4 11.4L21.5 8.5Z" fill="#2ef2b8"/>
           </svg>
         </div>
-        <div class="brand-meta">
-          <span class="brand-title">MOONFLIP</span>
-          <span class="brand-tag">WEB ARENA</span>
-        </div>
+        <span class="mf-brand-wordmark">moon<span class="text-mint">flip</span></span>
       </a>
 
-      <!-- Game Switcher (5x5 Mines vs Orbital Crash) -->
-      <div class="game-nav-switcher">
-        <button type="button" class="btn-game-switch active" id="btnSwitchMines" data-game="mines">
-          <span class="game-icon">💣</span>
-          <span class="game-name">5x5 Mines</span>
+      <nav class="mf-topnav-links">
+        <button type="button" class="mf-topnav-item active" id="topNavGames">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="6"/>
+            <path d="M6 12h4m-2-2v4"/>
+            <circle cx="15" cy="11" r="1" fill="currentColor"/>
+            <circle cx="17" cy="13" r="1" fill="currentColor"/>
+          </svg>
+          <span>Games</span>
         </button>
-        <button type="button" class="btn-game-switch" id="btnSwitchCrash" data-game="crash">
-          <span class="game-icon">🚀</span>
-          <span class="game-name">Orbital Crash</span>
-          <span class="live-tag-pill">LIVE</span>
+
+        <button type="button" class="mf-topnav-item" id="btnOpenLeaderboard">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+          </svg>
+          <span>Leaderboard</span>
         </button>
-      </div>
+
+        <button type="button" class="mf-topnav-item" id="btnOpenFairness">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 12 20 22 4 22 4 12"/>
+            <rect x="2" y="7" width="20" height="5"/>
+            <line x1="12" y1="22" x2="12" y2="7"/>
+            <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+            <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+          </svg>
+          <span>Rewards</span>
+        </button>
+
+        <a href="https://discord.com" target="_blank" rel="noopener" class="mf-topnav-item">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+          </svg>
+          <span>Discord</span>
+          <span class="mf-ext-arrow">↗</span>
+        </a>
+      </nav>
     </div>
 
-    <!-- Live Multiplier Ribbon (Stake-Style Ribbon) -->
-    <div class="nav-center">
-      <div class="multiplier-ribbon">
-        <div class="ribbon-stream" id="historyStream">
-          <!-- Dynamically populated chips -->
-        </div>
-      </div>
-    </div>
-
-    <div class="nav-right">
+    <div class="mf-topbar-right">
       <!-- Discord Sync Status Pill -->
       <div class="sync-status-pill" id="discordSyncPill" title="Discord Wallet Sync Status">
         <span class="sync-dot" id="discordSyncDot"></span>
         <span class="sync-label" id="discordSyncText">Syncing...</span>
       </div>
 
-      <!-- Leaderboard Trigger -->
-      <button class="nav-icon-btn nav-btn-highlight" id="btnOpenLeaderboard" title="Hall of Fame & Leaderboard">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="#ffd700">
-          <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+      <!-- Balance Pill -->
+      <div class="mf-balance-pill" title="Synchronized Discord Token Balance">
+        <svg viewBox="0 0 24 24" width="18" height="18" class="mf-coin-svg">
+          <use href="#mf-coin-icon"/>
         </svg>
-        <span class="btn-label-desktop">Leaderboard</span>
+        <span class="mf-balance-val" id="balanceNumber">1,000</span>
+        <span class="mf-chevron">⌄</span>
+      </div>
+
+      <div class="mf-topbar-divider"></div>
+
+      <!-- Sound Toggle -->
+      <button type="button" class="mf-icon-btn" id="soundBtn" title="Toggle Sound Effects">
+        <svg id="soundSvgOn" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <svg id="soundSvgOff" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff4d6d" stroke-width="2" style="display:none;">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
       </button>
 
-      <!-- Provably Fair Modal Trigger -->
-      <button class="nav-icon-btn" id="btnOpenFairness" title="Provably Fair Verification">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v4.7c0 4.67-3.13 8.96-7 10.08-3.87-1.12-7-5.41-7-10.08V6.3l7-3.12zM11 7v2h2V7h-2zm0 4v6h2v-6h-2z"/>
-        </svg>
-        <span class="btn-label-desktop">Fairness</span>
-      </button>
-
-      <!-- Audio Toggle -->
-      <button class="nav-icon-btn" id="soundBtn" title="Toggle Sound FX">
-        <svg id="soundSvgOn" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-        </svg>
-        <svg id="soundSvgOff" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:none;">
-          <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-        </svg>
-      </button>
-
-      <!-- Player Wallet Capsule -->
-      <div class="user-capsule" id="userCapsule">
-        <div class="avatar-ring">
-          <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" class="avatar-img" id="userAvatar">
+      <!-- User Profile Pill -->
+      <div class="mf-user-pill" id="userBadge">
+        <div class="mf-avatar-wrap">
+          <img id="userAvatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" class="mf-user-avatar">
+          <span class="mf-online-dot"></span>
         </div>
-        <div class="user-details">
-          <span class="user-handle" id="userName">Guest</span>
-          <div class="balance-badge">
-            <span class="coin-glyph">🪙</span>
-            <span class="balance-digits" id="balanceNumber">1,000</span>
-          </div>
-        </div>
+        <span id="userName" class="mf-user-name">Guest</span>
+        <span class="mf-chevron">⌄</span>
       </div>
     </div>
   </header>
 
-  <!-- Guest / Unlinked Wallet Warning Banner (Hidden automatically when Discord token is synced) -->
-  <div class="guest-warning-banner" id="guestWarningBanner" style="display:none;">
-    <div class="guest-warning-inner">
-      <span class="guest-warning-badge">DEMO MODE</span>
-      <span class="guest-warning-text">
-        You are currently playing with a temporary <strong>Guest Demo Wallet</strong>. To sync your real Discord tokens &amp; leaderboard stats, type <code>/play</code> or <code>/crash</code> inside the Moonflip Discord server and click your personal launch button!
-      </span>
-    </div>
+  <!-- Unlinked Guest Demo Callout Banner -->
+  <div class="guest-warning-banner" id="guestWarningBanner" style="display: none;">
+    <span>⚠️ <strong>Demo Mode Active:</strong> Your browser is not linked to a Discord wallet yet. Run <code>/play</code> in the Moonflip Discord server and click <strong>Play on Web</strong> to sync your real tokens!</span>
   </div>
 
-  <!-- Main Game Stage Chassis -->
-  <main class="casino-stage">
-    
-    <!-- 1. 5x5 MINES GAME CHASSIS -->
-    <div class="game-chassis" id="minesChassis">
-      
-      <!-- LEFT CONTROL DECK (Mines Betting Engine) -->
-      <aside class="control-deck">
-        
-        <!-- Game Mode Switcher -->
-        <div class="mode-tabs">
-          <button class="mode-tab active" data-mode="manual">Manual</button>
-          <button class="mode-tab" data-mode="auto" title="Auto Mode">Auto</button>
-        </div>
+  <!-- APP SHELL: LEFT SIDEBAR + MAIN STAGE -->
+  <div class="mf-shell">
 
-        <div class="deck-form">
-          
-          <!-- Bet Amount Section -->
-          <div class="deck-field">
-            <div class="field-header">
-              <label for="wagerInput">Bet Amount</label>
-              <span class="field-aux" id="maxBetNote">Balance: <strong id="auxBalance">1,000</strong></span>
-            </div>
-            
-            <div class="stake-input-group">
-              <span class="group-addon-left">🪙</span>
-              <input type="number" id="wagerInput" min="10" max="1000000" step="10" value="100" autocomplete="off" spellcheck="false">
-              <div class="group-addon-right">
-                <button type="button" class="btn-math" id="btnHalf">½</button>
-                <div class="addon-divider"></div>
-                <button type="button" class="btn-math" id="btnDouble">2×</button>
-                <div class="addon-divider"></div>
-                <button type="button" class="btn-math btn-max" id="btnMax">MAX</button>
-              </div>
-            </div>
+    <!-- LEFT SIDEBAR NAVIGATION -->
+    <aside class="mf-sidebar">
+      <div class="mf-sidebar-group">
+        <button type="button" class="mf-side-link active" id="navHome">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          <span>Home</span>
+        </button>
 
-            <!-- Quick Chips Bar -->
-            <div class="quick-chips">
-              <button type="button" class="chip-btn" data-val="100">100</button>
-              <button type="button" class="chip-btn" data-val="250">250</button>
-              <button type="button" class="chip-btn" data-val="500">500</button>
-              <button type="button" class="chip-btn" data-val="1000">1k</button>
-              <button type="button" class="chip-btn" data-val="5000">5k</button>
-            </div>
-          </div>
+        <button type="button" class="mf-side-link" id="navAllGames">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span>All Games</span>
+        </button>
+      </div>
 
-          <!-- Mines Selector -->
-          <div class="deck-field">
-            <div class="field-header">
-              <label for="minesCountSelect">Mines</label>
-              <span class="field-aux text-danger" id="auxMineCount">3 Mines</span>
-            </div>
+      <div class="mf-sidebar-divider"></div>
 
-            <!-- Stake-style Segmented Selector -->
-            <div class="segmented-picker">
-              <select id="minesCountSelect" class="stake-select">
-                <option value="1">1 Mine</option>
-                <option value="2">2 Mines</option>
-                <option value="3" selected>3 Mines</option>
-                <option value="4">4 Mines</option>
-                <option value="5">5 Mines</option>
-                <option value="6">6 Mines</option>
-                <option value="7">7 Mines</option>
-                <option value="8">8 Mines</option>
-                <option value="9">9 Mines</option>
-                <option value="10">10 Mines</option>
-                <option value="15">15 Mines</option>
-                <option value="20">20 Mines</option>
-                <option value="24">24 Mines</option>
-              </select>
-              <div class="select-chevron">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                  <path d="M7 10l5 5 5-5z"/>
+      <!-- Games Navigation (Mines & Crash Only) -->
+      <div class="mf-sidebar-group">
+        <button type="button" class="mf-side-link" id="btnSwitchMines" data-game="mines">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="13" r="7"/>
+            <path d="M16 8l3-3"/>
+            <path d="M19 2v3h3"/>
+          </svg>
+          <span>Mines</span>
+        </button>
+
+        <button type="button" class="mf-side-link" id="btnSwitchCrash" data-game="crash">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
+          </svg>
+          <span>Crash</span>
+        </button>
+      </div>
+
+      <div class="mf-sidebar-divider"></div>
+
+      <div class="mf-sidebar-group">
+        <button type="button" class="mf-side-link" id="sidebarLeaderboard">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+          </svg>
+          <span>Leaderboard</span>
+        </button>
+
+        <button type="button" class="mf-side-link" id="sidebarSupport">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+          </svg>
+          <span>Support</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT VIEWPORT -->
+    <main class="mf-main">
+
+      <!-- ===================================================================
+           1. HOME HUB VIEW (EXACT MATCH TO MOCKUP)
+           =================================================================== -->
+      <div class="mf-home-view" id="homeChassis">
+
+        <!-- HERO BANNER CARD -->
+        <section class="mf-hero-card">
+          <div class="mf-hero-content">
+            <h1 class="mf-hero-title">Discord-powered <span class="text-mint">minigames.</span></h1>
+            <p class="mf-hero-sub">A community platform for fun, fair minigames with your Discord identity synced.</p>
+            <div class="mf-hero-actions">
+              <button type="button" class="mf-btn-mint" id="btnHeroPlayNow">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
                 </svg>
-              </div>
-            </div>
-
-            <!-- Segmented Quick Pills -->
-            <div class="mines-pills">
-              <button type="button" class="mine-pill" data-bombs="1">1</button>
-              <button type="button" class="mine-pill active" data-bombs="3">3</button>
-              <button type="button" class="mine-pill" data-bombs="5">5</button>
-              <button type="button" class="mine-pill" data-bombs="10">10</button>
-              <button type="button" class="mine-pill" data-bombs="15">15</button>
-              <button type="button" class="mine-pill" data-bombs="24">24</button>
+                <span>Play Now</span>
+              </button>
+              <a href="https://discord.com" target="_blank" rel="noopener" class="mf-btn-outline">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                </svg>
+                <span>Join Discord</span>
+                <span class="mf-ext-arrow">↗</span>
+              </a>
             </div>
           </div>
 
-          <!-- Dynamic Odds & Telemetry Box -->
-          <div class="telemetry-card">
-            <div class="telemetry-row">
-              <div class="tele-item">
-                <span class="tele-label">Mines</span>
-                <span class="tele-val text-danger" id="teleMines">3</span>
-              </div>
-              <div class="tele-item">
-                <span class="tele-label">Gems Left</span>
-                <span class="tele-val text-cyan" id="teleGemsLeft">22</span>
-              </div>
-              <div class="tele-item">
-                <span class="tele-label">Win Rate</span>
-                <span class="tele-val text-emerald" id="teleWinRate">88.0%</span>
-              </div>
-            </div>
-            <div class="telemetry-subrow">
-              <span class="tele-sub-label">Next Tile Mult:</span>
-              <span class="tele-sub-val" id="teleNextMult">1.14×</span>
-            </div>
-          </div>
-
-          <!-- PRIMARY ACTION BUTTON (The Legendary Green Bet / Cashout Button) -->
-          <div class="cta-wrapper">
-            <button class="btn-stake-cta btn-bet" id="mainActionButton">
-              <span class="cta-label" id="actionBtnTitle">Bet</span>
-              <span class="cta-sub" id="actionBtnSub">100 🪙</span>
-            </button>
-          </div>
-
-        </div>
-
-        <!-- Casing Footer Metadata -->
-        <div class="deck-footer">
-          <div class="fairness-badge" id="btnOpenFairness2">
-            <span class="pulsing-emerald-dot"></span>
-            <span>Provably Fair Verified</span>
-          </div>
-        </div>
-
-      </aside>
-
-      <!-- CENTER ARENA: THE 5x5 MINES MATRIX -->
-      <section class="arena-matrix-stage">
-        
-        <!-- Live Floating Status HUD -->
-        <div class="matrix-hud" id="matrixHud">
-          <div class="hud-left">
-            <span class="hud-badge" id="hudStateBadge">Ready</span>
-            <span class="hud-message" id="hudMessage">Set your wager and click <strong>Bet</strong> to start.</span>
-          </div>
-          <div class="hud-right" id="hudProfitBox" style="display:none;">
-            <div class="hud-stat">
-              <span class="hud-stat-lbl">Multiplier</span>
-              <span class="hud-stat-val text-cyan" id="hudMultVal">1.00×</span>
-            </div>
-            <div class="hud-stat">
-              <span class="hud-stat-lbl">Profit</span>
-              <span class="hud-stat-val text-emerald" id="hudProfitVal">+0 🪙</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 5x5 Tiles Matrix Container with Hardware Accelerated Perspective -->
-        <div class="matrix-grid-frame">
-          <canvas id="particleCanvas" class="particle-canvas"></canvas>
-
-          <!-- 5x5 Tiles Grid -->
-          <div class="mines-grid" id="minesGrid">
-            <!-- 25 Precision 3D Physical Keys injected by JavaScript -->
-          </div>
-
-          <!-- In-Game Big Win / Cashout Modal Overlay -->
-          <div class="victory-modal" id="victoryModal">
-            <div class="modal-card">
-              <div class="modal-gem-glow"></div>
-              <div class="modal-badge-wrapper">
-                <span class="modal-badge" id="modalBadge">ROUND COMPLETE</span>
-              </div>
-              <div class="modal-mult" id="modalMult">2.45×</div>
-              <div class="modal-payout-box">
-                <span class="modal-payout-label">TOTAL CASHOUT</span>
-                <span class="modal-payout-amount" id="modalWinAmount">+245 🪙</span>
-              </div>
-              <p class="modal-subtext" id="modalSubtext">Winnings credited to your Discord wallet.</p>
-              <div class="modal-actions">
-                <button type="button" class="btn-modal-primary" id="btnModalPlayAgain">PLAY AGAIN</button>
-                <button type="button" class="btn-modal-secondary" id="btnModalClose">PEEK BOARD</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-    </div>
-
-    <!-- 2. ORBITAL CRASH GAME CHASSIS (24/7 CONTINUOUS GLOBAL ENGINE) -->
-    <div class="game-chassis" id="crashChassis" style="display: none;">
-      
-      <!-- LEFT CONTROL DECK (Crash Betting & Auto-Loop Engine) -->
-      <aside class="control-deck">
-        
-        <!-- Game Mode Switcher (Manual vs Auto-Repeat) -->
-        <div class="mode-tabs" id="crashModeTabs">
-          <button type="button" class="mode-tab active" id="btnCrashManualMode" data-crash-mode="manual">Manual</button>
-          <button type="button" class="mode-tab" id="btnCrashAutoMode" data-crash-mode="auto">Auto Bet</button>
-        </div>
-
-        <div class="deck-form">
-          
-          <!-- Bet Amount Section -->
-          <div class="deck-field">
-            <div class="field-header">
-              <label for="crashWagerInput">Bet Amount</label>
-              <span class="field-aux" id="crashMaxBetNote">Balance: <strong id="crashAuxBalance">1,000</strong></span>
-            </div>
-            
-            <div class="stake-input-group">
-              <span class="group-addon-left">🪙</span>
-              <input type="number" id="crashWagerInput" min="10" max="1000000" step="10" value="100" autocomplete="off" spellcheck="false">
-              <div class="group-addon-right">
-                <button type="button" class="btn-math" id="btnCrashHalf">½</button>
-                <div class="addon-divider"></div>
-                <button type="button" class="btn-math" id="btnCrashDouble">2×</button>
-                <div class="addon-divider"></div>
-                <button type="button" class="btn-math btn-max" id="btnCrashMax">MAX</button>
-              </div>
-            </div>
-
-            <!-- Quick Chips Bar -->
-            <div class="quick-chips">
-              <button type="button" class="chip-btn crash-chip-btn" data-val="100">100</button>
-              <button type="button" class="chip-btn crash-chip-btn" data-val="250">250</button>
-              <button type="button" class="chip-btn crash-chip-btn" data-val="500">500</button>
-              <button type="button" class="chip-btn crash-chip-btn" data-val="1000">1k</button>
-              <button type="button" class="chip-btn crash-chip-btn" data-val="5000">5k</button>
-            </div>
-          </div>
-
-          <!-- Auto Cashout Target Section -->
-          <div class="deck-field">
-            <div class="field-header">
-              <label for="crashAutoCashoutInput">Auto Cashout</label>
-              <span class="field-aux text-cyan" id="crashAutoNote">Optional Target</span>
-            </div>
-
-            <div class="stake-input-group">
-              <span class="group-addon-left">🎯</span>
-              <input type="number" id="crashAutoCashoutInput" min="1.01" max="1000" step="0.1" placeholder="e.g. 2.00" autocomplete="off">
-              <div class="group-addon-right">
-                <button type="button" class="btn-math" id="btnCrashClearAuto" title="Clear Auto Cashout">✕</button>
-              </div>
-            </div>
-
-            <!-- Segmented Quick Target Multipliers -->
-            <div class="mines-pills crash-auto-pills">
-              <button type="button" class="mine-pill crash-auto-pill" data-target="1.5">1.5×</button>
-              <button type="button" class="mine-pill crash-auto-pill" data-target="2.0">2×</button>
-              <button type="button" class="mine-pill crash-auto-pill" data-target="3.0">3×</button>
-              <button type="button" class="mine-pill crash-auto-pill" data-target="5.0">5×</button>
-              <button type="button" class="mine-pill crash-auto-pill" data-target="10.0">10×</button>
-            </div>
-          </div>
-
-          <!-- Dynamic Odds & Flight Telemetry Card -->
-          <div class="telemetry-card">
-            <div class="telemetry-row">
-              <div class="tele-item">
-                <span class="tele-label">Zone</span>
-                <span class="tele-val text-cyan" id="crashAltitudeZone">LIFTOFF</span>
-              </div>
-              <div class="tele-item">
-                <span class="tele-label">Win Rate</span>
-                <span class="tele-val text-emerald" id="crashWinRate">49.0%</span>
-              </div>
-              <div class="tele-item">
-                <span class="tele-label">Flight #</span>
-                <span class="tele-val text-gold" id="crashRoundNumber">#1042</span>
-              </div>
-            </div>
-            <div class="telemetry-subrow">
-              <span class="tele-sub-label">Target Payout:</span>
-              <span class="tele-sub-val" id="crashEstPayout">200 🪙</span>
-            </div>
-          </div>
-
-          <!-- PRIMARY ACTION BUTTON (Bet / Queue Next Round / Cash Out) -->
-          <div class="cta-wrapper">
-            <button class="btn-stake-cta btn-bet" id="crashActionButton">
-              <span class="cta-label" id="crashActionTitle">Place Bet</span>
-              <span class="cta-sub" id="crashActionSub">100 🪙</span>
-            </button>
-          </div>
-
-          <!-- LIVE IN-FLIGHT PLAYERS ROSTER -->
-          <div class="crash-players-box">
-            <div class="crash-players-header">
-              <span class="crash-players-title">LIVE FLIGHT TELEMETRY</span>
-              <span class="crash-players-count" id="crashPlayersCount">0 Pilots</span>
-            </div>
-            <div class="crash-players-list" id="crashPlayersList">
-              <!-- Populated in real time -->
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Casing Footer Metadata -->
-        <div class="deck-footer">
-          <div class="fairness-badge" id="btnOpenCrashFairness">
-            <span class="pulsing-emerald-dot"></span>
-            <span>24/7 Continuous Multiplayer Engine</span>
-          </div>
-        </div>
-
-      </aside>
-
-      <!-- CENTER ARENA: THE RADAR FLIGHT STAGE -->
-      <section class="arena-matrix-stage crash-matrix-stage">
-        
-        <!-- Live Floating Status HUD -->
-        <div class="matrix-hud" id="crashHud">
-          <div class="hud-left">
-            <span class="hud-badge ready" id="crashHudBadge">LIVE</span>
-            <span class="hud-message" id="crashHudMessage">Continuous Orbital Crash — Place your bet before launch or queue for the next flight!</span>
-          </div>
-          <div class="hud-right" id="crashHudProfitBox" style="display:none;">
-            <div class="hud-stat">
-              <span class="hud-stat-lbl">Multiplier</span>
-              <span class="hud-stat-val text-cyan" id="crashHudMultVal">1.00×</span>
-            </div>
-            <div class="hud-stat">
-              <span class="hud-stat-lbl">Live Payout</span>
-              <span class="hud-stat-val text-emerald" id="crashHudProfitVal">+0 🪙</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Radar Canvas Container -->
-        <div class="matrix-grid-frame crash-radar-frame">
-          <canvas id="crashCanvas" class="crash-canvas"></canvas>
-
-          <!-- Top-Left Atmosphere Telemetry Overlay -->
-          <div class="crash-telemetry-corner">
-            <span class="corner-dot"></span>
-            <span class="corner-text" id="crashCornerZone">ORBITAL RADAR • CONTINUOUS STREAM</span>
-          </div>
-
-          <!-- Floating Large Center Multiplier & Countdown Readout -->
-          <div class="crash-center-readout" id="crashCenterReadout">
-            <div class="crash-live-mult" id="crashLiveMult">1.00×</div>
-            <div class="crash-live-status" id="crashLiveStatus">PREPARING LAUNCH</div>
-            <!-- Countdown Progress Bar (Shown during 5s BETTING phase) -->
-            <div class="crash-countdown-wrap" id="crashCountdownWrap" style="display: none;">
-              <div class="crash-countdown-bar" id="crashCountdownBar"></div>
-            </div>
-          </div>
-
-          <!-- Non-Intrusive Cashout Toast Banner -->
-          <div class="crash-win-toast" id="crashWinToast">
-            <div class="crash-win-toast-badge">EJECTION LOCKED</div>
-            <div class="crash-win-toast-main">
-              <span id="crashToastMult">2.45×</span>
-              <span class="crash-win-toast-divider">•</span>
-              <span id="crashToastProfit">+245 🪙</span>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-    </div>
-
-    <!-- BOTTOM LIVE LEADERBOARD / HALL OF FAME ARENA -->
-    <section class="live-leaderboard-stage">
-      <div class="lb-stage-header">
-        <div class="lb-stage-title-group">
-          <div class="trophy-pulse-crest">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffd700">
-              <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+          <!-- 3D Mint Crescent Coin Emblem -->
+          <div class="mf-hero-artwork" aria-hidden="true">
+            <div class="mf-hero-glow"></div>
+            <svg viewBox="0 0 260 220" fill="none" class="mf-hero-emblem-svg">
+              <!-- Outer Mint Crescent Moon -->
+              <path d="M188 175C142 214 72 208 35 162C-2 116 4 46 50 9C66 -4 85 -11 104 -13C67 24 66 84 103 124C140 164 200 168 240 133C230 150 211 165 188 175Z" fill="url(#heroMoonGrad)" transform="translate(10, 12) scale(0.92)"/>
+              <!-- Tilted 3D Coin Ring Inside Crescent -->
+              <g transform="translate(142, 102) rotate(-28)">
+                <ellipse cx="0" cy="12" rx="52" ry="30" fill="#091915" stroke="#2ef2b8" stroke-width="3"/>
+                <ellipse cx="0" cy="0" rx="52" ry="30" fill="#0d261f" stroke="#2ef2b8" stroke-width="3.5"/>
+                <ellipse cx="0" cy="0" rx="40" ry="21" fill="none" stroke="#2ef2b8" stroke-width="2" opacity="0.65"/>
+                <!-- Coin Edge Notches -->
+                <line x1="-36" y1="21" x2="-36" y2="33" stroke="#2ef2b8" stroke-width="3"/>
+                <line x1="-12" y1="28" x2="-12" y2="40" stroke="#2ef2b8" stroke-width="3"/>
+                <line x1="14" y1="28" x2="14" y2="40" stroke="#2ef2b8" stroke-width="3"/>
+                <line x1="36" y1="21" x2="36" y2="33" stroke="#2ef2b8" stroke-width="3"/>
+                <!-- Center 4-Point Star -->
+                <path d="M0 -13L4 -4L15 0L4 4L0 13L-4 4L-15 0L-4 -4L0 -13Z" fill="#2ef2b8"/>
+              </g>
+              <defs>
+                <linearGradient id="heroMoonGrad" x1="20" y1="0" x2="210" y2="200" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#3df5be"/>
+                  <stop offset="1" stop-color="#10b981"/>
+                </linearGradient>
+              </defs>
             </svg>
           </div>
-          <div>
-            <h2 class="lb-section-heading">Web Arena Leaderboard &amp; Hall of Fame</h2>
-            <span class="lb-section-sub">Real-time synchronized Discord wallet rankings &amp; record multipliers</span>
+        </section>
+
+        <!-- GAMES CARDS SECTION (MINES & CRASH ONLY) -->
+        <section class="mf-games-section">
+          <div class="mf-section-title">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2ef2b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="6" width="20" height="12" rx="6"/>
+              <path d="M6 12h4m-2-2v4"/>
+              <circle cx="15" cy="11" r="1" fill="#2ef2b8"/>
+              <circle cx="17" cy="13" r="1" fill="#2ef2b8"/>
+            </svg>
+            <h2>Games</h2>
+          </div>
+
+          <div class="mf-games-grid">
+            <!-- MINES CARD -->
+            <div class="mf-game-card" id="cardPlayMines" role="button" tabindex="0">
+              <div class="mf-game-card-icon">
+                <svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="21" cy="27" r="13"/>
+                  <path d="M30 18l6-6"/>
+                  <path d="M35 6l2 4 4 2-4 2-2 4-2-4-4-2 4-2 2-4z" fill="#ffffff" stroke="none"/>
+                </svg>
+              </div>
+              <div class="mf-game-card-body">
+                <h3>Mines</h3>
+                <p>Find the safe tiles.</p>
+              </div>
+              <span class="mf-game-card-arrow">→</span>
+            </div>
+
+            <!-- CRASH CARD -->
+            <div class="mf-game-card" id="cardPlayCrash" role="button" tabindex="0">
+              <div class="mf-game-card-icon">
+                <svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="40 14 25 29 17 21 6 32"/>
+                  <polyline points="29 14 40 14 40 25"/>
+                </svg>
+              </div>
+              <div class="mf-game-card-body">
+                <h3>Crash</h3>
+                <p>Cash out at the right time.</p>
+              </div>
+              <span class="mf-game-card-arrow">→</span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ===================================================================
+           2. ACTIVE GAME VIEW BAR (SHOWN WHEN PLAYING MINES OR CRASH)
+           =================================================================== -->
+      <div class="mf-game-topbar" id="activeGameTopbar" style="display: none;">
+        <div class="mf-game-topbar-left">
+          <button type="button" class="mf-back-home-btn" id="btnBackHome">
+            <span>←</span>
+            <span>Lobby</span>
+          </button>
+          <div class="mf-game-tabs">
+            <button type="button" class="mf-game-tab active" id="tabPlayMines">💣 Mines</button>
+            <button type="button" class="mf-game-tab" id="tabPlayCrash">📈 Crash <span class="mf-live-dot"></span></button>
           </div>
         </div>
-        <div class="lb-stage-tabs">
-          <button type="button" class="lb-stage-tab active" data-stage-tab="mines-multipliers">💣 Mines Mults</button>
-          <button type="button" class="lb-stage-tab" data-stage-tab="crash-multipliers">🚀 Crash Mults</button>
-          <button type="button" class="lb-stage-tab" data-stage-tab="payouts">💰 Highest Wins</button>
-          <button type="button" class="lb-stage-tab" data-stage-tab="players">👑 Top Players</button>
-          <button type="button" class="lb-stage-tab" data-stage-tab="recent">⚡ Live Wins</button>
+
+        <!-- Live Recent Multipliers Ribbon -->
+        <div class="multiplier-ribbon">
+          <div class="ribbon-stream" id="historyStream"></div>
         </div>
       </div>
 
-      <div class="lb-stage-card" id="lbStageContent">
-        <div class="lb-loading">Loading live leaderboard...</div>
+      <!-- ===================================================================
+           3. 5x5 MINES GAME CHASSIS
+           =================================================================== -->
+      <div class="game-chassis" id="minesChassis" style="display: none;">
+        
+        <aside class="control-deck">
+          <div class="mode-tabs">
+            <button type="button" class="mode-tab active">Manual</button>
+            <button type="button" class="mode-tab disabled" title="Manual Precision Mode">Auto</button>
+          </div>
+
+          <div class="deck-form">
+            <div class="deck-field">
+              <div class="field-header">
+                <label for="wagerInput">Bet Amount</label>
+                <span class="field-aux" id="maxBetNote">Balance: <strong id="auxBalance">1,000</strong></span>
+              </div>
+              
+              <div class="stake-input-group">
+                <span class="group-addon-left">
+                  <svg viewBox="0 0 24 24" width="16" height="16"><use href="#mf-coin-icon"/></svg>
+                </span>
+                <input type="number" id="wagerInput" min="10" max="1000000" step="10" value="100" autocomplete="off" spellcheck="false">
+                <div class="group-addon-right">
+                  <button type="button" class="btn-math" id="btnHalf">½</button>
+                  <div class="addon-divider"></div>
+                  <button type="button" class="btn-math" id="btnDouble">2×</button>
+                  <div class="addon-divider"></div>
+                  <button type="button" class="btn-math btn-max" id="btnMax">MAX</button>
+                </div>
+              </div>
+
+              <div class="quick-chips">
+                <button type="button" class="chip-btn" data-val="100">100</button>
+                <button type="button" class="chip-btn" data-val="250">250</button>
+                <button type="button" class="chip-btn" data-val="500">500</button>
+                <button type="button" class="chip-btn" data-val="1000">1k</button>
+                <button type="button" class="chip-btn" data-val="5000">5k</button>
+              </div>
+            </div>
+
+            <div class="deck-field">
+              <div class="field-header">
+                <label for="minesCountSelect">Mines</label>
+                <span class="field-aux text-danger" id="auxMineCount">3 Mines</span>
+              </div>
+
+              <div class="stake-select-wrapper">
+                <select id="minesCountSelect" class="stake-select">
+                  <option value="1">1 Mine (Low Risk)</option>
+                  <option value="2">2 Mines</option>
+                  <option value="3" selected>3 Mines (Standard)</option>
+                  <option value="4">4 Mines</option>
+                  <option value="5">5 Mines (Medium)</option>
+                  <option value="6">6 Mines</option>
+                  <option value="7">7 Mines</option>
+                  <option value="8">8 Mines</option>
+                  <option value="9">9 Mines</option>
+                  <option value="10">10 Mines (High)</option>
+                  <option value="12">12 Mines</option>
+                  <option value="15">15 Mines (Extreme)</option>
+                  <option value="20">20 Mines (Insane)</option>
+                  <option value="24">24 Mines (1 Safe Gem)</option>
+                </select>
+                <span class="select-chevron">▾</span>
+              </div>
+
+              <div class="mines-pills">
+                <button type="button" class="mine-pill" data-bombs="1">1</button>
+                <button type="button" class="mine-pill active" data-bombs="3">3</button>
+                <button type="button" class="mine-pill" data-bombs="5">5</button>
+                <button type="button" class="mine-pill" data-bombs="10">10</button>
+                <button type="button" class="mine-pill" data-bombs="15">15</button>
+                <button type="button" class="mine-pill" data-bombs="24">24</button>
+              </div>
+            </div>
+
+            <div class="telemetry-card">
+              <div class="telemetry-row">
+                <div class="tele-item">
+                  <span class="tele-label">Mines</span>
+                  <span class="tele-val text-danger" id="teleMines">3</span>
+                </div>
+                <div class="tele-item">
+                  <span class="tele-label">Safe Gems</span>
+                  <span class="tele-val text-mint" id="teleGemsLeft">22</span>
+                </div>
+                <div class="tele-item">
+                  <span class="tele-label">Win Chance</span>
+                  <span class="tele-val text-mint" id="teleWinRate">88.0%</span>
+                </div>
+              </div>
+              <div class="telemetry-subrow">
+                <span class="tele-sub-label">Next Tile Multiplier:</span>
+                <span class="tele-sub-val" id="teleNextMult">1.10×</span>
+              </div>
+            </div>
+
+            <div class="cta-wrapper">
+              <button class="btn-stake-cta btn-bet" id="mainActionButton">
+                <span class="cta-label" id="actionBtnTitle">Bet</span>
+                <span class="cta-sub" id="actionBtnSub">100</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="deck-footer">
+            <div class="fairness-badge" id="btnOpenFairness2">
+              <span class="pulsing-emerald-dot"></span>
+              <span>Provably Fair Verified</span>
+            </div>
+          </div>
+        </aside>
+
+        <section class="arena-matrix-stage">
+          <div class="matrix-hud" id="matrixHud">
+            <div class="hud-left">
+              <span class="hud-badge" id="hudStateBadge">Ready</span>
+              <span class="hud-message" id="hudMessage">Set your wager and click <strong>Bet</strong> to start.</span>
+            </div>
+            <div class="hud-right" id="hudProfitBox" style="display:none;">
+              <div class="hud-stat">
+                <span class="hud-stat-lbl">Multiplier</span>
+                <span class="hud-stat-val text-mint" id="hudMultVal">1.00×</span>
+              </div>
+              <div class="hud-stat">
+                <span class="hud-stat-lbl">Profit</span>
+                <span class="hud-stat-val text-mint" id="hudProfitVal">+0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="matrix-grid-frame">
+            <canvas id="particleCanvas" class="particle-canvas"></canvas>
+            <div class="mines-grid" id="minesGrid"></div>
+
+            <div class="victory-modal" id="victoryModal">
+              <div class="modal-card">
+                <div class="modal-gem-glow"></div>
+                <div class="modal-badge-wrapper">
+                  <span class="modal-badge" id="modalBadge">ROUND COMPLETE</span>
+                </div>
+                <div class="modal-mult" id="modalMult">2.45×</div>
+                <div class="modal-payout-box">
+                  <span class="modal-payout-label">TOTAL CASHOUT</span>
+                  <span class="modal-payout-amount" id="modalWinAmount">+245</span>
+                </div>
+                <p class="modal-subtext" id="modalSubtext">Winnings synced with your Discord wallet.</p>
+                <div class="modal-actions">
+                  <button type="button" class="btn-modal-primary" id="btnModalPlayAgain">PLAY AGAIN</button>
+                  <button type="button" class="btn-modal-secondary" id="btnModalClose">PEEK BOARD</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
-    </section>
 
-  </main>
+      <!-- ===================================================================
+           4. ORBITAL CRASH CHASSIS (STRICT COUNTDOWN BETTING & 60FPS CURVE)
+           =================================================================== -->
+      <div class="game-chassis" id="crashChassis" style="display: none;">
+        
+        <aside class="control-deck">
+          <div class="mode-tabs" id="crashModeTabs">
+            <button type="button" class="mode-tab active" id="btnCrashManualMode" data-crash-mode="manual">Manual</button>
+            <button type="button" class="mode-tab" id="btnCrashAutoMode" data-crash-mode="auto">Auto Bet</button>
+          </div>
 
-  <!-- PROVABLY FAIR VERIFICATION MODAL -->
-  <div class="fairness-modal-backdrop" id="fairnessModal">
+          <div class="deck-form">
+            <div class="deck-field">
+              <div class="field-header">
+                <label for="crashWagerInput">Bet Amount</label>
+                <span class="field-aux" id="crashMaxBetNote">Balance: <strong id="crashAuxBalance">1,000</strong></span>
+              </div>
+              
+              <div class="stake-input-group">
+                <span class="group-addon-left">
+                  <svg viewBox="0 0 24 24" width="16" height="16"><use href="#mf-coin-icon"/></svg>
+                </span>
+                <input type="number" id="crashWagerInput" min="10" max="1000000" step="10" value="100" autocomplete="off" spellcheck="false">
+                <div class="group-addon-right">
+                  <button type="button" class="btn-math" id="btnCrashHalf">½</button>
+                  <div class="addon-divider"></div>
+                  <button type="button" class="btn-math" id="btnCrashDouble">2×</button>
+                  <div class="addon-divider"></div>
+                  <button type="button" class="btn-math btn-max" id="btnCrashMax">MAX</button>
+                </div>
+              </div>
+
+              <div class="quick-chips">
+                <button type="button" class="chip-btn crash-chip-btn" data-val="100">100</button>
+                <button type="button" class="chip-btn crash-chip-btn" data-val="250">250</button>
+                <button type="button" class="chip-btn crash-chip-btn" data-val="500">500</button>
+                <button type="button" class="chip-btn crash-chip-btn" data-val="1000">1k</button>
+                <button type="button" class="chip-btn crash-chip-btn" data-val="5000">5k</button>
+              </div>
+            </div>
+
+            <div class="deck-field">
+              <div class="field-header">
+                <label for="crashAutoCashoutInput">Auto Cashout</label>
+                <span class="field-aux text-mint" id="crashAutoNote">Multiplier Target</span>
+              </div>
+
+              <div class="stake-input-group">
+                <span class="group-addon-left">🎯</span>
+                <input type="number" id="crashAutoCashoutInput" min="1.01" max="1000" step="0.1" value="2.00" placeholder="e.g. 2.00" autocomplete="off">
+                <div class="group-addon-right">
+                  <button type="button" class="btn-math" id="btnCrashClearAuto" title="Clear Auto Cashout">✕</button>
+                </div>
+              </div>
+
+              <div class="mines-pills crash-auto-pills">
+                <button type="button" class="mine-pill crash-auto-pill" data-target="1.5">1.5×</button>
+                <button type="button" class="mine-pill crash-auto-pill active" data-target="2.0">2×</button>
+                <button type="button" class="mine-pill crash-auto-pill" data-target="3.0">3×</button>
+                <button type="button" class="mine-pill crash-auto-pill" data-target="5.0">5×</button>
+                <button type="button" class="mine-pill crash-auto-pill" data-target="10.0">10×</button>
+              </div>
+            </div>
+
+            <div class="telemetry-card">
+              <div class="telemetry-row">
+                <div class="tele-item">
+                  <span class="tele-label">Status</span>
+                  <span class="tele-val text-mint" id="crashAltitudeZone">STANDBY</span>
+                </div>
+                <div class="tele-item">
+                  <span class="tele-label">Win Chance</span>
+                  <span class="tele-val text-mint" id="crashWinRate">49.0%</span>
+                </div>
+                <div class="tele-item">
+                  <span class="tele-label">Round</span>
+                  <span class="tele-val text-gold" id="crashRoundNumber">#1042</span>
+                </div>
+              </div>
+              <div class="telemetry-subrow">
+                <span class="tele-sub-label">Target Payout:</span>
+                <span class="tele-sub-val" id="crashEstPayout">200</span>
+              </div>
+            </div>
+
+            <!-- PRIMARY CRASH CTA (Strictly locked while flight is in progress unless cashing out!) -->
+            <div class="cta-wrapper">
+              <button class="btn-stake-cta btn-bet" id="crashActionButton">
+                <span class="cta-label" id="crashActionTitle">Place Bet</span>
+                <span class="cta-sub" id="crashActionSub">100</span>
+              </button>
+            </div>
+
+            <!-- LIVE IN-FLIGHT PLAYERS ROSTER -->
+            <div class="crash-players-box">
+              <div class="crash-players-header">
+                <span class="crash-players-title">ROUND BETS</span>
+                <span class="crash-players-count" id="crashPlayersCount">0 Players</span>
+              </div>
+              <div class="crash-players-list" id="crashPlayersList"></div>
+            </div>
+          </div>
+
+          <div class="deck-footer">
+            <div class="fairness-badge" id="btnOpenCrashFairness">
+              <span class="pulsing-emerald-dot"></span>
+              <span>Provably Fair Continuous Crash</span>
+            </div>
+          </div>
+        </aside>
+
+        <section class="arena-matrix-stage crash-matrix-stage">
+          <div class="matrix-hud" id="crashHud">
+            <div class="hud-left">
+              <span class="hud-badge ready" id="crashHudBadge">BETTING OPEN</span>
+              <span class="hud-message" id="crashHudMessage">Place your bet during the countdown before the multiplier takes off!</span>
+            </div>
+            <div class="hud-right" id="crashHudProfitBox" style="display:none;">
+              <div class="hud-stat">
+                <span class="hud-stat-lbl">Multiplier</span>
+                <span class="hud-stat-val text-mint" id="crashHudMultVal">1.00×</span>
+              </div>
+              <div class="hud-stat">
+                <span class="hud-stat-lbl">Cashout Value</span>
+                <span class="hud-stat-val text-mint" id="crashHudProfitVal">+0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="matrix-grid-frame crash-radar-frame">
+            <canvas id="crashCanvas" class="crash-canvas"></canvas>
+
+            <div class="crash-telemetry-corner">
+              <span class="corner-dot"></span>
+              <span class="corner-text" id="crashCornerZone">LIVE MULTIPLIER FEED</span>
+            </div>
+
+            <div class="crash-center-readout" id="crashCenterReadout">
+              <div class="crash-live-mult" id="crashLiveMult">1.00×</div>
+              <div class="crash-live-status" id="crashLiveStatus">PREPARING ROUND</div>
+              <div class="crash-countdown-wrap" id="crashCountdownWrap" style="display: none;">
+                <div class="crash-countdown-bar" id="crashCountdownBar"></div>
+              </div>
+            </div>
+
+            <div class="crash-win-toast" id="crashWinToast">
+              <div class="crash-win-toast-badge">CASHED OUT</div>
+              <div class="crash-win-toast-main">
+                <span id="crashToastMult">2.45×</span>
+                <span class="crash-win-toast-divider">•</span>
+                <span id="crashToastProfit">+245</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===================================================================
+           5. BOTTOM SPLIT: LIVE ACTIVITY & TOP LEADERBOARD (EXACT MOCKUP MATCH)
+           =================================================================== -->
+      <section class="mf-bottom-split">
+        
+        <!-- LEFT: LIVE ACTIVITY TABLE -->
+        <div class="mf-panel-card mf-activity-card">
+          <div class="mf-panel-header">
+            <div class="mf-panel-title">
+              <span class="mf-live-dot"></span>
+              <h3>Live Activity</h3>
+            </div>
+            <div class="lb-stage-tabs" id="activityFilterTabs">
+              <button type="button" class="lb-stage-tab active" data-stage-tab="recent">All</button>
+              <button type="button" class="lb-stage-tab" data-stage-tab="mines-multipliers">Mines</button>
+              <button type="button" class="lb-stage-tab" data-stage-tab="crash-multipliers">Crash</button>
+            </div>
+          </div>
+
+          <div class="mf-activity-table-wrap" id="lbStageContent">
+            <table class="mf-activity-table">
+              <thead>
+                <tr>
+                  <th>USER</th>
+                  <th>GAME</th>
+                  <th style="text-align:center;">MULTIPLIER</th>
+                  <th style="text-align:right;">PAYOUT</th>
+                  <th style="text-align:right;">TIME</th>
+                </tr>
+              </thead>
+              <tbody id="liveActivityBody">
+                <tr>
+                  <td colspan="5" class="lb-loading">Loading live activity...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- RIGHT: COMPACT TOP PLAYERS LEADERBOARD CARD -->
+        <div class="mf-panel-card mf-mini-lb-card">
+          <div class="mf-panel-header mf-clickable-header" id="btnExpandLeaderboard">
+            <div class="mf-panel-title">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2ef2b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                <path d="M4 22h16"/>
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+              </svg>
+              <h3>Leaderboard</h3>
+            </div>
+            <span class="mf-panel-chevron">›</span>
+          </div>
+
+          <div class="mf-mini-lb-list" id="miniLeaderboardList">
+            <div class="lb-loading">Loading top players...</div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- PROVABLY FAIR & REWARDS MODAL -->
+  <div class="fairness-modal" id="fairnessModal">
     <div class="fairness-card">
       <div class="fairness-header">
-        <div class="fairness-title-wrap">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="#00f0ff">
-            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v4.7c0 4.67-3.13 8.96-7 10.08-3.87-1.12-7-5.41-7-10.08V6.3l7-3.12zM11 7v2h2V7h-2zm0 4v6h2v-6h-2z"/>
-          </svg>
-          <h3>Provably Fair Verification</h3>
+        <div class="fairness-title-row">
+          <span class="pulsing-emerald-dot"></span>
+          <h3>Cryptographic Provably Fair &amp; Discord Sync</h3>
         </div>
         <button class="btn-close-modal" id="btnCloseFairness">&times;</button>
       </div>
-
       <div class="fairness-body">
-        <p class="fairness-desc">
-          Moonflip uses a cryptographically verifiable random seed generator. Every round outcome is computed prior to action and synced directly with the Discord economy ledger.
-        </p>
-
-        <div class="fairness-input-block">
-          <label>Active Client Seed (Browser)</label>
-          <div class="fairness-field-copy">
-            <input type="text" id="clientSeedDisplay" readonly value="e9a4f8b2c1d7634e">
-          </div>
+        <p>Every Moonflip round on <strong>Mines</strong> and <strong>Crash</strong> is generated on the server using Node.js <code>crypto.randomBytes(4)</code> CSPRNG and settled directly against your Discord server balance.</p>
+        <div class="fairness-formula">
+          <code>Crash Point = 0.98 / (1 - U), Instant Bust = 3.5%</code>
+          <code>Mines Multiplier = 0.97 / P(Safe Gems Uncovered)</code>
         </div>
-
-        <div class="fairness-input-block">
-          <label>Server Seed Hash (SHA-256)</label>
-          <div class="fairness-field-copy">
-            <input type="text" id="serverSeedDisplay" readonly value="7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069">
+        <div class="fairness-specs">
+          <div class="spec-row">
+            <span>Discord Commands</span>
+            <strong>Use <code>/daily</code>, <code>/balance</code> &amp; <code>/play</code> in Discord</strong>
           </div>
-        </div>
-
-        <div class="fairness-input-block">
-          <label>Algorithm</label>
-          <span class="algorithm-tag">HMAC-SHA256 • 24/7 Continuous Orbital Curve</span>
+          <div class="spec-row">
+            <span>Crash Betting Window</span>
+            <strong>6.0s Launchpad Countdown (Locked During Flight)</strong>
+          </div>
+          <div class="spec-row">
+            <span>Wallet Sync</span>
+            <strong>Instant Bidirectional Discord Economy Settlement</strong>
+          </div>
         </div>
       </div>
-
       <div class="fairness-footer">
-        <button type="button" class="btn-modal-primary" id="btnDoneFairness">Close</button>
+        <button type="button" class="btn-modal-primary" id="btnDoneFairness">Got It</button>
       </div>
     </div>
   </div>
 
-  <!-- LEADERBOARD & HALL OF FAME MODAL -->
-  <div class="fairness-modal-backdrop leaderboard-modal-backdrop" id="leaderboardModal">
-    <div class="fairness-card leaderboard-card">
+  <!-- FULL LEADERBOARD MODAL -->
+  <div class="fairness-modal" id="leaderboardModal">
+    <div class="fairness-card leaderboard-modal-card">
       <div class="fairness-header">
-        <div class="fairness-title-wrap">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffd700">
+        <div class="fairness-title-row">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="#2ef2b8">
             <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
           </svg>
-          <h3>Moonflip — Hall of Fame</h3>
+          <h3>Moonflip — Leaderboard &amp; Hall of Fame</h3>
         </div>
         <button class="btn-close-modal" id="btnCloseLeaderboard">&times;</button>
       </div>
 
       <div class="lb-tabs-bar">
         <button type="button" class="lb-tab-btn active" data-tab="mines-multipliers">💣 Mines Mults</button>
-        <button type="button" class="lb-tab-btn" data-tab="crash-multipliers">🚀 Crash Mults</button>
+        <button type="button" class="lb-tab-btn" data-tab="crash-multipliers">📈 Crash Mults</button>
         <button type="button" class="lb-tab-btn" data-tab="payouts">💰 Highest Wins</button>
         <button type="button" class="lb-tab-btn" data-tab="players">👑 Top Players</button>
-        <button type="button" class="lb-tab-btn" data-tab="recent">⚡ Recent Wins</button>
+        <button type="button" class="lb-tab-btn" data-tab="recent">⚡ Live Activity</button>
       </div>
 
       <div class="leaderboard-scroll-area">
@@ -585,6 +779,6 @@
     </div>
   </div>
 
-  <script src="/play/app.js?v=3.1"></script>
+  <script src="/play/app.js?v=4.0"></script>
 </body>
 </html>
