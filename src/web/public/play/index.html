@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/style.css?v=6.0">
+  <link rel="stylesheet" href="/play/style.css?v=7.0">
 </head>
 <body class="moonflip-theme">
 
@@ -242,7 +242,7 @@
             <!-- MINES CARD -->
             <div class="mf-catalog-card" id="cardPlayMines" role="button" tabindex="0">
               <div class="mf-card-cover-wrap">
-                <img src="/play/assets/game-mines.png?v=6.0" alt="Mines Game" class="mf-card-cover-img" loading="lazy">
+                <img src="/play/assets/cover-mines.svg?v=7" alt="Mines Game" class="mf-card-cover-img" loading="lazy">
                 <span class="mf-card-badge"><span class="pulsing-emerald-dot"></span>ORIGINAL</span>
                 <div class="mf-card-hover-overlay">
                   <span class="mf-play-pill">PLAY NOW</span>
@@ -263,7 +263,7 @@
             <!-- CRASH CARD -->
             <div class="mf-catalog-card" id="cardPlayCrash" role="button" tabindex="0">
               <div class="mf-card-cover-wrap">
-                <img src="/play/assets/game-crash.png?v=6.0" alt="Crash Game" class="mf-card-cover-img" loading="lazy">
+                <img src="/play/assets/cover-crash.svg?v=7" alt="Crash Game" class="mf-card-cover-img" loading="lazy">
                 <span class="mf-card-badge"><span class="pulsing-emerald-dot"></span>MULTIPLAYER</span>
                 <div class="mf-card-hover-overlay">
                   <span class="mf-play-pill">PLAY NOW</span>
@@ -284,7 +284,7 @@
             <!-- BLACKJACK CARD -->
             <div class="mf-catalog-card" data-catalog-game="blackjack" role="button" tabindex="0">
               <div class="mf-card-cover-wrap">
-                <img src="/play/assets/game-blackjack.png?v=6.0" alt="Blackjack Game" class="mf-card-cover-img" loading="lazy">
+                <img src="/play/assets/cover-blackjack.svg?v=7" alt="Blackjack Game" class="mf-card-cover-img" loading="lazy">
                 <span class="mf-card-badge">TABLE GAME</span>
                 <div class="mf-card-hover-overlay">
                   <span class="mf-play-pill">VIEW RULES</span>
@@ -305,7 +305,7 @@
             <!-- KENO CARD -->
             <div class="mf-catalog-card" data-catalog-game="keno" role="button" tabindex="0">
               <div class="mf-card-cover-wrap">
-                <img src="/play/assets/game-keno.png?v=6.0" alt="Keno Game" class="mf-card-cover-img" loading="lazy">
+                <img src="/play/assets/cover-keno.svg?v=7" alt="Keno Game" class="mf-card-cover-img" loading="lazy">
                 <span class="mf-card-badge">LOTTERY</span>
                 <div class="mf-card-hover-overlay">
                   <span class="mf-play-pill">VIEW RULES</span>
@@ -326,7 +326,7 @@
             <!-- SLOTS CARD -->
             <div class="mf-catalog-card" data-catalog-game="slots" role="button" tabindex="0">
               <div class="mf-card-cover-wrap">
-                <img src="/play/assets/game-slots.png?v=6.0" alt="Slots Game" class="mf-card-cover-img" loading="lazy">
+                <img src="/play/assets/cover-slots.svg?v=7" alt="Slots Game" class="mf-card-cover-img" loading="lazy">
                 <span class="mf-card-badge">CLASSIC 777</span>
                 <div class="mf-card-hover-overlay">
                   <span class="mf-play-pill">VIEW RULES</span>
@@ -347,7 +347,7 @@
             <!-- COINFLIP CARD -->
             <div class="mf-catalog-card" data-catalog-game="coinflip" role="button" tabindex="0">
               <div class="mf-card-cover-wrap">
-                <img src="/play/assets/game-coinflip.png?v=6.0" alt="Coinflip Game" class="mf-card-cover-img" loading="lazy">
+                <img src="/play/assets/cover-coinflip.svg?v=7" alt="Coinflip Game" class="mf-card-cover-img" loading="lazy">
                 <span class="mf-card-badge">PVP &amp; SOLO</span>
                 <div class="mf-card-hover-overlay">
                   <span class="mf-play-pill">VIEW RULES</span>
@@ -377,12 +377,12 @@
         <!-- Modern Catalog Header -->
         <div class="mf-catalog-header">
           <div class="mf-catalog-header-text">
-            <div class="mf-catalog-badge">
+            <div class="mf-catalog-badge" hidden>
               <span class="pulsing-emerald-dot"></span>
               <span>MOONFLIP GAMES LIBRARY</span>
             </div>
-            <h1 class="mf-catalog-title">Explore All <span class="text-mint">Games</span></h1>
-            <p class="mf-catalog-subtitle">Instant-play Discord minigames, provably fair web originals, and classic casino tables.</p>
+            <h1 class="mf-catalog-title">Games</h1>
+            <p class="mf-catalog-subtitle">Choose a game and start playing.</p>
           </div>
 
           <div class="mf-catalog-search-wrap">
@@ -390,7 +390,7 @@
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input type="text" id="gamesSearchInput" placeholder="Search games..." autocomplete="off" spellcheck="false">
+            <input type="text" aria-label="Search games" id="gamesSearchInput" placeholder="Search games..." autocomplete="off" spellcheck="false">
             <button type="button" class="btn-clear-search" id="btnClearSearch" style="display: none;" title="Clear search">✕</button>
           </div>
         </div>
@@ -410,7 +410,7 @@
           <!-- MINES -->
           <div class="mf-catalog-card" data-category="originals" data-title="mines gems gem hunt safe cashout provably fair" role="button" tabindex="0">
             <div class="mf-card-cover-wrap">
-              <img src="/play/assets/game-mines.png?v=6.0" alt="Mines Game" class="mf-card-cover-img" loading="lazy">
+              <img src="/play/assets/cover-mines.svg?v=7" alt="Mines Game" class="mf-card-cover-img" loading="lazy">
               <span class="mf-card-badge"><span class="pulsing-emerald-dot"></span>ORIGINAL</span>
               <div class="mf-card-hover-overlay">
                 <span class="mf-play-pill">PLAY NOW</span>
@@ -431,7 +431,7 @@
           <!-- CRASH -->
           <div class="mf-catalog-card" data-category="originals" data-title="crash orbital rocket flight multiplayer cashout" role="button" tabindex="0">
             <div class="mf-card-cover-wrap">
-              <img src="/play/assets/game-crash.png?v=6.0" alt="Crash Game" class="mf-card-cover-img" loading="lazy">
+              <img src="/play/assets/cover-crash.svg?v=7" alt="Crash Game" class="mf-card-cover-img" loading="lazy">
               <span class="mf-card-badge"><span class="pulsing-emerald-dot"></span>MULTIPLAYER</span>
               <div class="mf-card-hover-overlay">
                 <span class="mf-play-pill">PLAY NOW</span>
@@ -452,7 +452,7 @@
           <!-- BLACKJACK -->
           <div class="mf-catalog-card" data-category="table" data-title="blackjack 21 cards dealer double down table" data-catalog-game="blackjack" role="button" tabindex="0">
             <div class="mf-card-cover-wrap">
-              <img src="/play/assets/game-blackjack.png?v=6.0" alt="Blackjack Game" class="mf-card-cover-img" loading="lazy">
+              <img src="/play/assets/cover-blackjack.svg?v=7" alt="Blackjack Game" class="mf-card-cover-img" loading="lazy">
               <span class="mf-card-badge">TABLE GAME</span>
               <div class="mf-card-hover-overlay">
                 <span class="mf-play-pill">VIEW RULES</span>
@@ -473,7 +473,7 @@
           <!-- KENO -->
           <div class="mf-catalog-card" data-category="arcade" data-title="keno lottery lucky draw numbers" data-catalog-game="keno" role="button" tabindex="0">
             <div class="mf-card-cover-wrap">
-              <img src="/play/assets/game-keno.png?v=6.0" alt="Keno Game" class="mf-card-cover-img" loading="lazy">
+              <img src="/play/assets/cover-keno.svg?v=7" alt="Keno Game" class="mf-card-cover-img" loading="lazy">
               <span class="mf-card-badge">LOTTERY</span>
               <div class="mf-card-hover-overlay">
                 <span class="mf-play-pill">VIEW RULES</span>
@@ -494,7 +494,7 @@
           <!-- SLOTS -->
           <div class="mf-catalog-card" data-category="arcade" data-title="slots slot machine progressive 777 vegas diamonds spins" data-catalog-game="slots" role="button" tabindex="0">
             <div class="mf-card-cover-wrap">
-              <img src="/play/assets/game-slots.png?v=6.0" alt="Slots Game" class="mf-card-cover-img" loading="lazy">
+              <img src="/play/assets/cover-slots.svg?v=7" alt="Slots Game" class="mf-card-cover-img" loading="lazy">
               <span class="mf-card-badge">CLASSIC 777</span>
               <div class="mf-card-hover-overlay">
                 <span class="mf-play-pill">VIEW RULES</span>
@@ -515,7 +515,7 @@
           <!-- COINFLIP -->
           <div class="mf-catalog-card" data-category="arcade" data-title="coinflip heads tails toss pvp solo" data-catalog-game="coinflip" role="button" tabindex="0">
             <div class="mf-card-cover-wrap">
-              <img src="/play/assets/game-coinflip.png?v=6.0" alt="Coinflip Game" class="mf-card-cover-img" loading="lazy">
+              <img src="/play/assets/cover-coinflip.svg?v=7" alt="Coinflip Game" class="mf-card-cover-img" loading="lazy">
               <span class="mf-card-badge">PVP &amp; SOLO</span>
               <div class="mf-card-hover-overlay">
                 <span class="mf-play-pill">VIEW RULES</span>
@@ -929,7 +929,7 @@
                 <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
                 <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
               </svg>
-              <h3>Leaderboard</h3>
+              <h3 id="leaderboardTitle">Leaderboard</h3>
             </div>
             <span class="mf-panel-chevron">›</span>
           </div>
@@ -983,23 +983,23 @@
 
   <!-- FULL LEADERBOARD MODAL -->
   <div class="fairness-modal" id="leaderboardModal">
-    <div class="fairness-card leaderboard-modal-card">
+    <div class="fairness-card leaderboard-modal-card" role="dialog" aria-modal="true" aria-labelledby="leaderboardTitle">
       <div class="fairness-header">
         <div class="fairness-title-row">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="#2ef2b8">
             <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
           </svg>
-          <h3>Moonflip — Leaderboard &amp; Hall of Fame</h3>
+          <h3 id="leaderboardTitle">Leaderboard</h3>
         </div>
-        <button class="btn-close-modal" id="btnCloseLeaderboard">&times;</button>
+        <button class="btn-close-modal" aria-label="Close leaderboard" id="btnCloseLeaderboard">&times;</button>
       </div>
 
       <div class="lb-tabs-bar">
-        <button type="button" class="lb-tab-btn active" data-tab="mines-multipliers">💣 Mines Mults</button>
-        <button type="button" class="lb-tab-btn" data-tab="crash-multipliers">📈 Crash Mults</button>
-        <button type="button" class="lb-tab-btn" data-tab="payouts">💰 Highest Wins</button>
-        <button type="button" class="lb-tab-btn" data-tab="players">👑 Top Players</button>
-        <button type="button" class="lb-tab-btn" data-tab="recent">⚡ Live Activity</button>
+        <button type="button" class="lb-tab-btn active" data-tab="mines-multipliers">Mines</button>
+        <button type="button" class="lb-tab-btn" data-tab="crash-multipliers">Crash</button>
+        <button type="button" class="lb-tab-btn" data-tab="payouts">Highest wins</button>
+        <button type="button" class="lb-tab-btn" data-tab="players">Top players</button>
+        <button type="button" class="lb-tab-btn" data-tab="recent">Recent activity</button>
       </div>
 
       <div class="leaderboard-scroll-area">
@@ -1009,7 +1009,7 @@
       </div>
 
       <div class="fairness-footer">
-        <span class="lb-footer-badge">⚡ Real-time synced with Discord wallet</span>
+        <span class="lb-footer-badge">Updated as games finish</span>
         <button type="button" class="btn-modal-primary" id="btnDoneLeaderboard">Close</button>
       </div>
     </div>
@@ -1064,6 +1064,6 @@
     </div>
   </div>
 
-  <script src="/play/app.js?v=6.0"></script>
+  <script src="/play/app.js?v=7.0"></script>
 </body>
 </html>

@@ -984,7 +984,7 @@
     // Subtle Starfield
     const isFlying = state.crashPhase === 'IN_FLIGHT';
     const warpFactor = isFlying ? Math.min(7, 1 + (state.crashCurrentMult - 1) * 0.3) : 0.3;
-    const now = performance.now();
+    const now = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : performance.now();
 
     cCtx.fillStyle = '#ffffff';
     for (let i = 0; i < crashStars.length; i++) {
@@ -995,7 +995,7 @@
       if (s.y > 1) s.y = 0;
 
       const tw = Math.sin(now * s.twinkleSpeed + s.twinkleOffset);
-      cCtx.globalAlpha = Math.max(0.1, Math.min(0.85, s.baseAlpha + tw * 0.18));
+      cCtx.globalAlpha = Math.max(0.1, Math.min(0.23, s.baseAlpha * 0.3 + tw * 0.03));
       cCtx.beginPath();
       cCtx.arc(s.x * w, s.y * h, s.r, 0, Math.PI * 2);
       cCtx.fill();
@@ -1049,25 +1049,6 @@
 
     // BETTING PHASE: Pre-Launch Radar & Idle Spacecraft
     if (state.crashPhase === 'BETTING') {
-      const sweepAngle = (now * 0.002) % (Math.PI * 2);
-      const rx = ox + uw * 0.5;
-      const ry = oy - uh * 0.45;
-      const radius = Math.min(uw, uh) * 0.32;
-
-      cCtx.strokeStyle = 'rgba(46, 242, 184, 0.12)';
-      cCtx.lineWidth = 1.2;
-      cCtx.beginPath();
-      cCtx.arc(rx, ry, radius, 0, Math.PI * 2);
-      cCtx.moveTo(rx + radius * 0.55, ry);
-      cCtx.arc(rx, ry, radius * 0.55, 0, Math.PI * 2);
-      cCtx.stroke();
-
-      cCtx.strokeStyle = 'rgba(46, 242, 184, 0.32)';
-      cCtx.beginPath();
-      cCtx.moveTo(rx, ry);
-      cCtx.lineTo(rx + Math.cos(sweepAngle) * radius, ry + Math.sin(sweepAngle) * radius);
-      cCtx.stroke();
-
       const hoverY = oy - 22 + Math.sin(now * 0.007) * 3;
       lastRocketTip = { x: ox + 36, y: hoverY };
       drawRocket(cCtx, ox + 36, hoverY, -0.18, true, false, 1.0);
@@ -1240,77 +1221,42 @@
     crashAnimId = requestAnimationFrame(renderCrashCanvas);
   }
 
-  function drawRocket(ctx, x, y, angle, hasThrust = true, isCashed = false, mult = 1.0) {
+  function drawRocket(ctx, x, y, angle, hasThrust = true, isCashed = false) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
-
-    if (hasThrust && mult >= 2.0) {
-      const machAlpha = Math.min(0.45, (mult - 2.0) * 0.08 + 0.12);
-      ctx.strokeStyle = `rgba(46, 242, 184, ${machAlpha})`;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.moveTo(-6, -17);
-      ctx.lineTo(22, 0);
-      ctx.lineTo(-6, 17);
-      ctx.stroke();
-    }
-
+    const scale = cachedCrashWidth < 500 ? 1.25 : 1.8;
+    ctx.scale(scale, scale);
     if (hasThrust) {
-      const flicker = Math.sin(performance.now() * 0.04) * 5;
-      const flameLen = (mult > 1.05 ? 26 : 15) + flicker;
-
-      const flameGrad = ctx.createLinearGradient(-12, 0, -12 - flameLen, 0);
-      flameGrad.addColorStop(0, '#ffffff');
-      flameGrad.addColorStop(0.4, '#2ef2b8');
-      flameGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
-
-      ctx.fillStyle = flameGrad;
-      ctx.beginPath();
-      ctx.moveTo(-12, -5);
-      ctx.lineTo(-12 - flameLen, 0);
-      ctx.lineTo(-12, 5);
-      ctx.closePath();
-      ctx.fill();
+      const flicker = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : Math.sin(performance.now() * 0.025) * 3;
+      const flame = ctx.createLinearGradient(-15, 0, -43 - flicker, 0);
+      flame.addColorStop(0, '#f7d998');
+      flame.addColorStop(0.35, '#ef9050');
+      flame.addColorStop(1, 'rgba(239,144,80,0)');
+      ctx.fillStyle = flame;
+      ctx.beginPath(); ctx.moveTo(-13,-5); ctx.quadraticCurveTo(-30,-5,-43-flicker,0); ctx.quadraticCurveTo(-30,5,-13,5); ctx.fill();
     }
-
-    ctx.fillStyle = '#10b981';
-    ctx.strokeStyle = '#071410';
-    ctx.lineWidth = 1.2;
-
-    ctx.beginPath();
-    ctx.moveTo(2, -5);
-    ctx.lineTo(-14, -15);
-    ctx.lineTo(-9, -4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(2, 5);
-    ctx.lineTo(-14, 15);
-    ctx.lineTo(-9, 4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = isCashed ? '#2ef2b8' : '#f8fafc';
-    ctx.beginPath();
-    ctx.moveTo(20, 0);
-    ctx.lineTo(4, -6.5);
-    ctx.lineTo(-12, -4.5);
-    ctx.lineTo(-14, 0);
-    ctx.lineTo(-12, 4.5);
-    ctx.lineTo(4, 6.5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#2ef2b8';
-    ctx.beginPath();
-    ctx.ellipse(4, 0, 5.2, 2.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-
+    // Engine collar and swept fins sit behind the shaded fuselage.
+    ctx.fillStyle = '#344b5c';
+    ctx.fillRect(-19, -4, 6, 8);
+    ctx.fillStyle = '#20b99b';
+    ctx.beginPath(); ctx.moveTo(-7,-6); ctx.lineTo(-18,-13); ctx.lineTo(-15,-4); ctx.lineTo(-15,4); ctx.lineTo(-18,13); ctx.lineTo(-7,6); ctx.closePath(); ctx.fill();
+    const hull = ctx.createLinearGradient(0,-9,0,9);
+    hull.addColorStop(0,'#ffffff'); hull.addColorStop(0.55,'#dce8eb'); hull.addColorStop(1,'#8da4ac');
+    ctx.fillStyle = hull;
+    ctx.beginPath(); ctx.moveTo(22,0); ctx.quadraticCurveTo(10,-10,-10,-7); ctx.lineTo(-16,-5); ctx.lineTo(-16,5); ctx.lineTo(-10,7); ctx.quadraticCurveTo(10,10,22,0); ctx.fill();
+    ctx.strokeStyle = '#849ca7';
+    ctx.lineWidth = 0.65;
+    ctx.beginPath(); ctx.moveTo(-10, -6); ctx.lineTo(-10, 6); ctx.stroke();
+    ctx.fillStyle = '#20b99b';
+    ctx.beginPath(); ctx.moveTo(22, 0); ctx.quadraticCurveTo(17, -4, 13, -5); ctx.lineTo(13, 5); ctx.quadraticCurveTo(17, 4, 22, 0); ctx.fill();
+    ctx.fillStyle = isCashed ? '#2de8b4' : '#173f4b';
+    ctx.beginPath(); ctx.arc(5,0,4,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#829eab'; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.fillStyle = '#b4e9ed';
+    ctx.beginPath(); ctx.arc(4, -1, 1.3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#708996';
+    ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(-3, 0); ctx.lineTo(-17, 4); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
@@ -2688,15 +2634,34 @@
     container.innerHTML = html;
   }
 
+  let leaderboardReturnFocus = null;
+
   function openLeaderboard() {
+    leaderboardReturnFocus = document.activeElement;
     Sound.click();
     if (el.leaderboardModal) el.leaderboardModal.classList.add('active');
+    el.btnCloseLeaderboard?.focus();
     loadLeaderboard();
   }
 
   function closeLeaderboard() {
     if (el.leaderboardModal) el.leaderboardModal.classList.remove('active');
+    leaderboardReturnFocus?.focus();
   }
+
+  document.addEventListener('keydown', (event) => {
+    if (!el.leaderboardModal?.classList.contains('active')) return;
+    if (event.key === 'Escape') closeLeaderboard();
+    if (event.key !== 'Tab') return;
+    const buttons = [...el.leaderboardModal.querySelectorAll('button')];
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  });
 
   // =========================================================================
   // 12. VIEW SWITCHER (HOME HUB <-> ALL GAMES <-> MINES <-> CRASH)
@@ -3059,7 +3024,7 @@
 
   // Spacebar Shortcut for Instant Cashout / Bet
   window.addEventListener('keydown', (e) => {
-    if (e.code !== 'Space') return;
+    if (e.defaultPrevented || document.querySelector('.fairness-modal.active') || e.code !== 'Space') return;
     const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
 
@@ -3272,6 +3237,25 @@
   if (el.sidebarSupport) el.sidebarSupport.addEventListener('click', openFairness);
   if (el.btnCloseFairness) el.btnCloseFairness.addEventListener('click', closeFairness);
   if (el.btnDoneFairness) el.btnDoneFairness.addEventListener('click', closeFairness);
+
+  document.querySelectorAll('.mf-catalog-card').forEach((card) => {
+    const action = card.querySelector('button');
+    if (action) {
+      card.setAttribute('aria-label', card.querySelector('.mf-card-title').textContent);
+      action.tabIndex = -1;
+      card.addEventListener('click', (event) => {
+        if (event.target.closest('button') || card.dataset.catalogGame || card.id) return;
+        action.click();
+      });
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          event.stopPropagation();
+          card.click();
+        }
+      });
+    }
+  });
 
   // =========================================================================
   // 15. BOOTSTRAP
