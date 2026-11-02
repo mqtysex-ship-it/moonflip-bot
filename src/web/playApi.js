@@ -1,3 +1,4 @@
+import { setupInstantGameApi } from './instantGameApi.js';
 import crypto from 'crypto';
 import { signSession, verifySession } from './sessionSecurity.js';
 import { EmbedBuilder } from 'discord.js';
@@ -712,6 +713,7 @@ export async function shutdownWebCrash() {
 }
 
 export function setupPlayApi(app) {
+  setupInstantGameApi(app,{resolvePlayer,pool:databasePool,economyEvents,onRound:round=>broadcastArenaEvent('instant_round',round)});
   startCrashSweeper(300000, 1200);
   // 0. GET /api/play/stream - Real-Time SSE Stream for Continuous Crash & Live Discord Wallet Sync
   app.get('/api/play/stream', async (req, res) => {

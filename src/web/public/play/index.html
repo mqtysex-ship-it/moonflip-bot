@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/style.css?v=7.0">
+  <link rel="stylesheet" href="/play/style.css?v=8.0">
 </head>
 <body class="moonflip-theme">
 
@@ -138,7 +138,8 @@
 
       <div class="mf-sidebar-divider"></div>
 
-      <!-- Games Navigation (Mines & Crash Only) -->
+      <!-- Games Navigation -->
+<button type="button" class="mf-side-link" data-instant-game="coinflip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M9 8h6M12 8v8M9 16h6"/></svg><span>Coinflip</span></button><button type="button" class="mf-side-link" data-instant-game="plinko"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M9 8h6M12 8v8M9 16h6"/></svg><span>Plinko</span></button>
       <div class="mf-sidebar-group">
         <button type="button" class="mf-side-link" id="btnSwitchMines" data-game="mines">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -359,7 +360,7 @@
                   <p class="mf-card-desc">Instant high-speed 50/50 coin toss in solo or PvP vs other players.</p>
                 </div>
                 <button type="button" class="mf-card-btn mf-card-btn-outline">
-                  <span>Game Rules &amp; Play</span>
+                  <span>Play Coinflip</span>
                   <span>ℹ</span>
                 </button>
               </div>
@@ -398,10 +399,10 @@
         <!-- Filter Tabs Bar -->
         <div class="mf-catalog-filter-bar">
           <div class="mf-catalog-filter-tabs">
-            <button type="button" class="catalog-filter-pill active" data-filter="all">All Games <span class="pill-count">6</span></button>
-            <button type="button" class="catalog-filter-pill" data-filter="originals">Originals <span class="pill-count">2</span></button>
+            <button type="button" class="catalog-filter-pill active" data-filter="all">All Games <span class="pill-count">7</span></button>
+            <button type="button" class="catalog-filter-pill" data-filter="originals">Originals <span class="pill-count">4</span></button>
             <button type="button" class="catalog-filter-pill" data-filter="table">Table &amp; Cards <span class="pill-count">1</span></button>
-            <button type="button" class="catalog-filter-pill" data-filter="arcade">Arcade &amp; Lottery <span class="pill-count">3</span></button>
+            <button type="button" class="catalog-filter-pill" data-filter="arcade">Arcade &amp; Lottery <span class="pill-count">2</span></button>
           </div>
         </div>
 
@@ -512,8 +513,16 @@
             </div>
           </div>
 
+<div class="mf-catalog-card" data-category="originals" data-title="plinko ball pegs risk rows" data-catalog-game="plinko" role="button" tabindex="0">
+      <div class="mf-card-cover-wrap"><img src="/play/assets/cover-plinko.svg" alt="Plinko" class="mf-card-cover-img" loading="lazy"></div>
+      <div class="mf-card-content"><div class="mf-card-header"><h3 class="mf-card-title">Plinko</h3></div><button type="button" class="mf-card-btn"><span>Play Plinko</span></button></div>
+    </div>
+<div class="mf-catalog-card" data-category="originals" data-title="plinko ball pegs risk rows" data-catalog-game="plinko" role="button" tabindex="0">
+      <div class="mf-card-cover-wrap"><img src="/play/assets/cover-plinko.svg" alt="Plinko" class="mf-card-cover-img" loading="lazy"></div>
+      <div class="mf-card-content"><div class="mf-card-header"><h3 class="mf-card-title">Plinko</h3></div><button type="button" class="mf-card-btn"><span>Play Plinko</span></button></div>
+    </div>
           <!-- COINFLIP -->
-          <div class="mf-catalog-card" data-category="arcade" data-title="coinflip heads tails toss pvp solo" data-catalog-game="coinflip" role="button" tabindex="0">
+          <div class="mf-catalog-card" data-category="originals" data-title="coinflip heads tails toss solo" data-catalog-game="coinflip" role="button" tabindex="0">
             <div class="mf-card-cover-wrap">
               <img src="/play/assets/cover-coinflip.svg?v=7" alt="Coinflip Game" class="mf-card-cover-img" loading="lazy">
               <span class="mf-card-badge">PVP &amp; SOLO</span>
@@ -527,7 +536,7 @@
                 <p class="mf-card-desc">Instant high-speed 50/50 coin toss in solo or PvP vs other players.</p>
               </div>
               <button type="button" class="mf-card-btn mf-card-btn-outline">
-                <span>Game Rules &amp; Play</span>
+                <span>Play Coinflip</span>
                 <span>ℹ</span>
               </button>
             </div>
@@ -551,7 +560,7 @@
             <span>←</span>
             <span>Lobby</span>
           </button>
-          <div class="mf-game-tabs">
+          <div class="mf-game-tabs"><button type="button" class="mf-game-tab" data-instant-game="coinflip">Coinflip</button><button type="button" class="mf-game-tab" data-instant-game="plinko">Plinko</button>
             <button type="button" class="mf-game-tab active" id="tabPlayMines">💣 Mines</button>
             <button type="button" class="mf-game-tab" id="tabPlayCrash">📈 Crash <span class="mf-live-dot"></span></button>
           </div>
@@ -878,6 +887,27 @@
         </section>
       </div>
 
+      <section class="instant-chassis" id="instantChassis" hidden aria-labelledby="instantTitle">
+        <form class="instant-controls" id="instantForm">
+          <h1 id="instantTitle">Coinflip</h1>
+          <div class="instant-field"><label for="instantWager">Bet amount <span>Tokens</span></label>
+            <div class="instant-amount"><img src="/play/assets/token.png" alt="" width="20" height="20"><input id="instantWager" type="number" min="10" max="1000000" step="1" value="100" required><button type="button" data-instant-adjust="half" aria-label="Halve bet">½</button><button type="button" data-instant-adjust="double" aria-label="Double bet">2×</button></div>
+          </div>
+          <fieldset class="instant-choice" id="coinflipOptions"><legend>Choose your side</legend><div class="instant-sides"><label><input type="radio" name="coinSide" value="heads" checked><span>◉ &nbsp; Heads</span></label><label><input type="radio" name="coinSide" value="tails"><span>☾ &nbsp; Tails</span></label></div></fieldset>
+          <div id="plinkoOptions" hidden><div class="instant-field"><label for="plinkoRisk">Risk</label><select id="plinkoRisk"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div><div class="instant-field"><label for="plinkoRows">Rows</label><select id="plinkoRows"><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option></select></div></div>
+          <button class="instant-play" id="instantPlay" type="submit">Flip coin</button>
+          <p id="instantMessage" class="instant-message" role="status" aria-live="polite">Link your Discord wallet to play.</p>
+          <dl class="instant-specs"><div><dt>Balance</dt><dd id="instantBalance">—</dd></div><div><dt>House edge</dt><dd id="instantEdge">4%</dd></div><div id="coinflipPayout"><dt>Winning payout</dt><dd>1.92×</dd></div></dl>
+          <p class="instant-disclosure" id="instantDisclosure">Heads and tails each have a 50% chance. Payout includes your stake. Payouts round down to whole tokens.</p>
+        </form>
+        <div class="instant-arena">
+          <div class="instant-arena-header"><span id="instantArenaLabel">Coinflip</span><span class="instant-wallet-label">Discord wallet</span></div>
+          <div class="coin-stage" id="coinStage"><div class="coin-perspective"><div class="coin-3d" id="instantCoin"><div class="coin-face coin-heads"><span>◉</span><small>HEADS</small></div><div class="coin-face coin-tails"><span>☾</span><small>TAILS</small></div></div></div><p class="coin-hint">Make your call.</p></div>
+          <div class="plinko-stage" id="plinkoStage" hidden><svg id="plinkoBoard" viewBox="0 0 720 560" role="img" aria-label="Plinko peg board"></svg><div id="plinkoBucketDetail" class="plinko-detail">Select a payout bucket to see its multiplier and probability.</div></div>
+          <div class="instant-result" id="instantResult" role="status" aria-live="polite"><strong>Ready when you are</strong><span>Choose your bet to begin.</span></div>
+          <div class="instant-history"><div class="instant-history-heading"><h2>Your recent rounds</h2><button type="button" id="instantRefresh">Refresh</button></div><div id="instantHistory">Link your Discord wallet to see your rounds.</div></div>
+        </div>
+      </section>
       <!-- ===================================================================
            5. BOTTOM SPLIT: LIVE ACTIVITY & TOP LEADERBOARD (EXACT MOCKUP MATCH)
            =================================================================== -->
@@ -1064,6 +1094,7 @@
     </div>
   </div>
 
-  <script src="/play/app.js?v=7.0"></script>
+  <script src="/play/instant-games.js?v=1.0"></script>
+  <script src="/play/app.js?v=8.0"></script>
 </body>
 </html>

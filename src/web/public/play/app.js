@@ -26,7 +26,7 @@
   }
 
   const initialGameParam = urlParams.get('game');
-  const initialView = (initialGameParam === 'mines' || initialGameParam === 'crash' || initialGameParam === 'all-games' || initialGameParam === 'games')
+  const initialView = (initialGameParam === 'coinflip' || initialGameParam === 'plinko' || initialGameParam === 'mines' || initialGameParam === 'crash' || initialGameParam === 'all-games' || initialGameParam === 'games')
     ? (initialGameParam === 'games' ? 'all-games' : initialGameParam)
     : 'home';
 
@@ -80,6 +80,7 @@
     crashEjectMarkers: [],
 
     // Leaderboard & Activity State
+    instantActivity: [],
     minesLeaderboard: null,
     crashLeaderboard: null,
     activeModalTab: 'mines-multipliers',
@@ -107,6 +108,7 @@
   // 2. STUDIO-GRADE WEB AUDIO SYNTHESIZER
   // =========================================================================
 
+  let instantGamesUi = null;
   let audioCtx = null;
   let thrusterState = null;
 
@@ -1491,6 +1493,7 @@
   function updateBalanceDisplay(newBalance, animate = false) {
     if (typeof newBalance !== 'number' || isNaN(newBalance)) return;
     state.balance = newBalance;
+    instantGamesUi?.sync();
     const formatted = Number(newBalance).toLocaleString();
     if (el.balanceNumber) el.balanceNumber.textContent = formatted;
     if (el.auxBalance) el.auxBalance.textContent = formatted;
@@ -1556,7 +1559,7 @@
 
     const res = await fetch(`${API_BASE}${endpoint}`, opts);
     const json = await res.json();
-    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    if (!res.ok) { const error = new Error(json.error || `HTTP ${res.status}`); error.status = res.status; throw error; }
     return json;
   }
 
@@ -1572,6 +1575,10 @@
     if (guestId) qs.set('guestId', guestId);
 
     sseSource = new EventSource(`${API_BASE}/stream?${qs.toString()}`);
+
+    sseSource.addEventListener('instant_round', (event) => {
+      try { state.instantActivity.unshift(JSON.parse(event.data)); state.instantActivity=state.instantActivity.slice(0,20); renderLiveActivityTable(state.activeStageTab); } catch {}
+    });
 
     sseSource.addEventListener('wallet', (e) => {
       try {
@@ -2402,13 +2409,15 @@
 
   async function loadLeaderboard() {
     try {
-      const [minesRes, crashRes] = await Promise.allSettled([
+      const [minesRes, crashRes, instantRes] = await Promise.allSettled([
         api('/mines/leaderboard'),
         api('/crash/leaderboard'),
+        api('/instant/activity'),
       ]);
 
       if (minesRes.status === 'fulfilled') state.minesLeaderboard = minesRes.value;
       if (crashRes.status === 'fulfilled') state.crashLeaderboard = crashRes.value;
+      if (instantRes.status === 'fulfilled') state.instantActivity = instantRes.value.rounds;
 
       renderLiveActivityTable(state.activeStageTab);
       renderMiniLeaderboard();
@@ -2430,7 +2439,7 @@
     } else if (category === 'crash-multipliers') {
       list = (cData.topMultipliers || []).map((w) => ({ ...w, gameName: 'Crash' }));
     } else {
-      list = [...minesWins, ...crashWins].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      list = [...minesWins, ...crashWins, ...state.instantActivity].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     }
 
     list = list.slice(0, 6);
@@ -2442,8 +2451,8 @@
 
     let html = '';
     list.forEach((w) => {
-      const mult = Number(w.multiplier || 1.0);
-      const profit = Number(w.profit || w.payout || 0);
+      const mult = Number(w.multiplier ?? 1.0);
+      const payout = Number(w.payout ?? w.profit ?? 0);
       const gameLabel = w.gameName || (w.bombs !== undefined ? 'Mines' : 'Crash');
       html += `
         <tr>
@@ -2456,7 +2465,7 @@
           <td class="mf-game-col">${escapeHtml(gameLabel)}</td>
           <td style="text-align:center;"><span class="lb-mult-chip">${mult.toFixed(2)}×</span></td>
           <td style="text-align:right;">
-            <span class="mf-payout-cell">${SVG_COIN_INLINE} +${profit.toLocaleString()}</span>
+            <span class="mf-payout-cell">${SVG_COIN_INLINE} ${payout.toLocaleString()}</span>
           </td>
           <td style="text-align:right;"><span class="lb-time">${formatTimeAgo(w.timestamp)}</span></td>
         </tr>
@@ -2668,6 +2677,11 @@
   // =========================================================================
 
   function switchView(targetView, playSound = false) {
+    if (instantGamesUi?.isBusy()) return;
+    if (!['coinflip','plinko'].includes(targetView)) instantGamesUi?.hide();
+    document.querySelectorAll('[data-instant-game]').forEach(button => button.classList.toggle('active',button.dataset.instantGame===targetView));
+    const ribbon=document.querySelector('.multiplier-ribbon');
+    if(ribbon) ribbon.hidden=['coinflip','plinko'].includes(targetView);
     if (playSound) Sound.click();
     state.currentView = targetView;
     if (targetView === 'mines' || targetView === 'crash') {
@@ -2707,6 +2721,14 @@
       // Reset filter and search
       if (el.gamesSearchInput) el.gamesSearchInput.value = '';
       if (typeof filterCatalogGames === 'function') filterCatalogGames('all', '');
+    } else if (targetView === 'coinflip' || targetView === 'plinko') {
+      if(el.homeChassis) el.homeChassis.style.display='none';
+      if(el.gamesCatalogChassis) el.gamesCatalogChassis.style.display='none';
+      if(el.activeGameTopbar) el.activeGameTopbar.style.display='flex';
+      if(el.minesChassis) el.minesChassis.style.display='none';
+      if(el.crashChassis) el.crashChassis.style.display='none';
+      stopCrashCanvasLoop();
+      instantGamesUi?.show(targetView);
     } else if (targetView === 'crash') {
       if (el.homeChassis) el.homeChassis.style.display = 'none';
       if (el.gamesCatalogChassis) el.gamesCatalogChassis.style.display = 'none';
@@ -2756,6 +2778,7 @@
       if (el.userAvatar && data.avatarUrl) el.userAvatar.src = data.avatarUrl;
       updateBalanceDisplay(data.balance);
       updateDiscordSyncUI();
+      instantGamesUi?.profile();
 
       if (Array.isArray(data.history)) state.minesHistory = data.history;
       if (Array.isArray(data.crashHistory)) state.crashHistory = data.crashHistory;
@@ -2898,7 +2921,8 @@
     card.addEventListener('click', (e) => {
       // Don't open if clicked directly on an external button
       const gameKey = card.dataset.catalogGame;
-      if (gameKey) openGameInfoModal(gameKey);
+      if (gameKey === 'coinflip' || gameKey === 'plinko') switchView(gameKey,true);
+      else if (gameKey) openGameInfoModal(gameKey);
     });
   });
 
@@ -3260,6 +3284,9 @@
   // =========================================================================
   // 15. BOOTSTRAP
   // =========================================================================
+
+  instantGamesUi = window.createInstantGamesUI({api,updateBalance:updateBalanceDisplay,refreshProfile,state});
+  document.querySelectorAll('[data-instant-game]').forEach(button=>button.addEventListener('click',()=>switchView(button.dataset.instantGame,true)));
 
   buildGrid();
   updateMinesTelemetry();

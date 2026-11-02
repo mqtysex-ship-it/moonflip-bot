@@ -32,22 +32,13 @@ async function runTests() {
     const jsRes = await fetch(`${baseUrl}/play/app.js`);
     assert.strictEqual(jsRes.status, 200);
 
-    const gameImages = [
-      'game-mines.png',
-      'game-crash.png',
-      'game-blackjack.png',
-      'game-keno.png',
-      'game-slots.png',
-      'game-coinflip.png',
-    ];
-    for (const img of gameImages) {
-      const imgRes = await fetch(`${baseUrl}/play/assets/${img}`);
-      assert.strictEqual(imgRes.status, 200, `Image asset ${img} should return 200`);
-      const len = Number(imgRes.headers.get('content-length') || 0);
-      assert.ok(len > 1000, `Image asset ${img} should not be empty`);
+    const gameImages = [...htmlText.matchAll(/src="(\/play\/assets\/cover-[^"?]+\.svg)/g)].map(match=>match[1]);
+    assert.equal(new Set(gameImages).size,7);
+    for (const url of new Set(gameImages)) {
+      const response=await fetch(`${baseUrl}${url}`);
+      assert.equal(response.status,200,`Cover ${url} should be served`);
+      assert.match(await response.text(), /<svg/);
     }
-    console.log('✓ Test 2 Passed: Static assets and all 6 game covers served.');
-
     // 3. Verify Session Creation & Profile API
     console.log('Test 3: Session Creation & GET /api/play/profile');
     const testUser = {
@@ -186,12 +177,8 @@ async function runTests() {
     // 10. Verify All Games Catalog in HTML
     console.log('Test 10: All Games Catalog in HTML');
     assert(htmlText.includes('id="gamesCatalogChassis"'));
-    assert(htmlText.includes('game-mines.png'));
-    assert(htmlText.includes('game-crash.png'));
-    assert(htmlText.includes('game-blackjack.png'));
-    assert(htmlText.includes('game-keno.png'));
-    assert(htmlText.includes('game-slots.png'));
-    assert(htmlText.includes('game-coinflip.png'));
+    assert(htmlText.includes('id="instantChassis"'));
+    assert(htmlText.includes('/play/instant-games.js'));
     console.log('✓ Test 10 Passed: All Games catalog and 6 game cards present in HTML.');
 
     console.log('--- ALL 10 WEB ARENA TESTS PASSED PERFECTLY! ---');
