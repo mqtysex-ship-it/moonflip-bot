@@ -9,7 +9,8 @@ import {
   TextInputStyle,
 } from 'discord.js';
 import { secureRandomInt, secureRandomFloat } from './rng.js';
-import { getBalance, deductTokens, addTokens } from './economy.js';
+import { getBalance, deductTokens, addTokens, databaseEconomy } from './economy.js';
+import { randomUUID } from 'node:crypto';
 import { buildKenoAttachment } from '../canvas/gameCardRenderer.js';
 
 const TOTAL_NUMBERS = 20;
@@ -716,8 +717,6 @@ export async function playModernKeno(
 
   try {
     // 1. Atomic upfront balance settlement (0ms in-memory)
-    (await deductTokens(userId, cleanBet));
-
     const picksArray = Array.from(playerPicks).sort((a, b) => a - b);
     const pickCount = picksArray.length;
 
@@ -735,11 +734,14 @@ export async function playModernKeno(
     const payout = Math.floor(cleanBet * multiplier);
     const profit = payout - cleanBet;
 
-    if (payout > 0) {
-      (await addTokens(userId, payout, true));
+    let newBalance;
+    if (databaseEconomy) {
+      ({ balance: newBalance } = await databaseEconomy.playInstantRound(randomUUID(), userId, 'keno', cleanBet, payout, { picks: picksArray, drawn: drawnSequence, risk: resolvedRisk, multiplier }));
+    } else {
+      await deductTokens(userId, cleanBet);
+      if (payout > 0) await addTokens(userId, payout, true);
+      newBalance = await getBalance(userId);
     }
-
-    const newBalance = (await getBalance(userId));
 
     if (payout > cleanBet) {
       session.streak = (session.streak || 0) + 1;

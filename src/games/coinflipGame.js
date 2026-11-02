@@ -9,7 +9,8 @@ import {
   TextInputStyle,
 } from 'discord.js';
 import { flipCoin } from './rng.js';
-import { getBalance, deductTokens, addTokens } from './economy.js';
+import { getBalance, deductTokens, addTokens, databaseEconomy } from './economy.js';
+import { randomUUID } from 'node:crypto';
 import { buildCoinflipAttachment } from '../canvas/gameCardRenderer.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -98,8 +99,6 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
 
   try {
     // 1. Atomic upfront settlement (0ms in-memory)
-    (await deductTokens(userId, cleanBet));
-
     const prevStreak = userStreaks.get(userId) || 0;
     const outcome = flipCoin(normalizedChoice, cleanBet, prevStreak); // 'heads' or 'tails'
     const won = normalizedChoice === outcome;
@@ -107,14 +106,20 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
     const payout = won ? Math.floor(cleanBet * winMultiplier) : 0;
     const profit = payout - cleanBet;
 
+    let newBalance;
+    if (databaseEconomy) {
+      ({ balance: newBalance } = await databaseEconomy.playInstantRound(randomUUID(), userId, 'coinflip', cleanBet, payout, { choice: normalizedChoice, outcome, multiplier: winMultiplier }));
+    } else {
+      await deductTokens(userId, cleanBet);
+      if (won) await addTokens(userId, payout, true);
+      newBalance = await getBalance(userId);
+    }
     if (won) {
-      (await addTokens(userId, payout, true));
       userStreaks.set(userId, (userStreaks.get(userId) || 0) + 1);
     } else {
       userStreaks.set(userId, 0);
     }
 
-    const newBalance = (await getBalance(userId));
     const currentStreak = userStreaks.get(userId) || 0;
     recentFlips.unshift(outcome);
     if (recentFlips.length > 8) recentFlips.pop();

@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { PostgresEconomy } from '../src/games/postgresEconomy.js';
+let calls = [];
+const client = { async query(sql) { calls.push(sql); if (sql.includes('start_game_round')) return {rows:[{balance_after:'900',applied:true}]}; if (sql.includes('settle_game_round')) return {rows:[{balance_after:'1100',applied:true}]}; return {rows:[]}; }, release() {} };
+const store = new PostgresEconomy({query(){}, async connect(){return client;}});
+const result = await store.playInstantRound('00000000-0000-4000-8000-000000000111','123','slots',100,200,{reels:['a']});
+assert.equal(result.balance,1100);
+assert.equal(calls[0],'BEGIN');
+assert.equal(calls.at(-1),'COMMIT');
+calls=[];
+client.query=async sql=>{calls.push(sql);if(sql.includes('settle_game_round'))throw new Error('database failure');return {rows:[{balance_after:'900',applied:true}]}};
+await assert.rejects(store.playInstantRound('00000000-0000-4000-8000-000000000111','123','slots',100,200,{}),/database failure/);
+assert.equal(calls.at(-1),'ROLLBACK');
+console.log('Instant game settlement commits or rolls back atomically');

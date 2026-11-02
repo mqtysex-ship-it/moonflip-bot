@@ -9,7 +9,8 @@ import {
   TextInputStyle,
 } from 'discord.js';
 import { spinSlots, SLOT_SYMBOLS, secureRandomInt } from './rng.js';
-import { getBalance, deductTokens, addTokens } from './economy.js';
+import { getBalance, deductTokens, addTokens, databaseEconomy } from './economy.js';
+import { randomUUID } from 'node:crypto';
 import { buildSlotsAttachment } from '../canvas/gameCardRenderer.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -174,18 +175,19 @@ export async function playSlots(interaction, betAmount = 100) {
 
   try {
     // 1. Atomic upfront settlement (0ms in-memory)
-    (await deductTokens(userId, cleanBet));
-
     const result = spinSlots();
     const [f1, f2, f3] = result.reels;
     const winAmount = result.multiplier > 0 ? Math.floor(cleanBet * result.multiplier) : 0;
     const profit = winAmount - cleanBet;
 
-    if (winAmount > 0) {
-      (await addTokens(userId, winAmount, true));
+    let newBalance;
+    if (databaseEconomy) {
+      ({ balance: newBalance } = await databaseEconomy.playInstantRound(randomUUID(), userId, 'slots', cleanBet, winAmount, { reels: result.reels, multiplier: result.multiplier }));
+    } else {
+      await deductTokens(userId, cleanBet);
+      if (winAmount > 0) await addTokens(userId, winAmount, true);
+      newBalance = await getBalance(userId);
     }
-
-    const newBalance = (await getBalance(userId));
 
     const r1_locked = [getRandomSymbol(), f1, getRandomSymbol()];
     const r2_locked = [getRandomSymbol(), f2, getRandomSymbol()];

@@ -17,6 +17,21 @@ export class PostgresEconomy {
     if (!pool || typeof pool.query !== 'function') throw new Error('Database pool required');
     this.pool = pool;
   }
+  async playInstantRound(roundId, userId, game, wager, payout, state) {
+    identity(roundId, 'round'); identity(userId, 'user'); identity(game, 'game');
+    amount(wager, 'wager', 1); amount(payout, 'payout');
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('select * from moonflip_private.start_game_round($1::uuid,$2,$3,$4::bigint,$5::jsonb)', [roundId, userId, game, wager, JSON.stringify(state)]);
+      const result = await client.query('select * from moonflip_private.settle_game_round($1::uuid,$2,$3::bigint)', [roundId, userId, payout]);
+      await client.query('COMMIT');
+      return { balance: number(result.rows[0].balance_after, 'balance'), applied: result.rows[0].applied };
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally { client.release(); }
+  }
   async changeBalance(operationId, userId, kind, value) {
     identity(operationId, 'operation'); identity(userId, 'user'); amount(value, 'amount');
     if (!['bet', 'win', 'credit'].includes(kind)) throw new Error('Invalid wallet operation');
