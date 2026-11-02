@@ -50,6 +50,7 @@
     currentMult: 1.0,
     currentWin: 0,
     revealedIndices: new Set(),
+    lastAllBombs: [],
     isProcessing: false,
     gameId: null,
     roundId: 0,
@@ -407,7 +408,7 @@
     </svg>
   `;
 
-  const SVG_COIN_INLINE = `<svg viewBox="0 0 24 24" width="15" height="15" style="vertical-align:-2px;flex-shrink:0;"><use href="#mf-coin-icon"/></svg>`;
+  const SVG_COIN_INLINE = `<img src="/play/assets/token.png?v=5.0" alt="Token" class="mf-token-img">`;
 
   // =========================================================================
   // 4. MINES PARTICLE CANVAS ENGINE (ON-DEMAND)
@@ -1888,7 +1889,7 @@
     }
   }
 
-  function revealPeek(idx, isBomb) {
+  function revealPeek(idx, isBomb, playClick = true) {
     const tile = getTile(idx);
     if (!tile || tile.classList.contains('revealed')) return;
 
@@ -1902,7 +1903,16 @@
       tile.classList.add('is-gem');
       back.innerHTML = SVG_GEM;
     }
-    Sound.click();
+    if (playClick) Sound.click();
+  }
+
+  function revealFullBoardPeek(allBombs = []) {
+    const bombSet = new Set(Array.isArray(allBombs) ? allBombs.map(Number) : []);
+    for (let idx = 0; idx < 25; idx++) {
+      const tile = getTile(idx);
+      if (!tile || tile.classList.contains('revealed')) continue;
+      revealPeek(idx, bombSet.has(idx), false);
+    }
   }
 
   async function startMinesGame() {
@@ -1929,6 +1939,7 @@
     state.activeGame = false;
     state.cashedOut = false;
     state.peekMode = false;
+    state.lastAllBombs = [];
     state.revealedIndices.clear();
     buildGrid();
 
@@ -1948,13 +1959,13 @@
 
       updateBalanceDisplay(res.balance);
       enterActiveMinesState();
-      setMinesHud('Active', 'Round in progress. Uncover safe tiles or Cash Out anytime!', 'active');
+      setMinesHud('Active', 'Round in progress. Uncover at least 1 safe tile to unlock Cashout!', 'active');
     } catch (err) {
       setMinesHud('Error', err.message, 'lost');
       resetMinesToIdleState();
     } finally {
       state.isProcessing = false;
-      el.mainActionButton.disabled = false;
+      el.mainActionButton.disabled = state.activeGame && state.revealedIndices.size === 0;
     }
   }
 
@@ -1963,12 +1974,16 @@
 
     if (state.peekMode) {
       if (tileEl.classList.contains('revealed')) return;
+      if (Array.isArray(state.lastAllBombs) && state.lastAllBombs.length > 0) {
+        revealPeek(idx, state.lastAllBombs.includes(idx), true);
+        return;
+      }
       state.isProcessing = true;
       const currentRound = state.roundId;
       try {
         const res = await api('/mines/peek', 'POST', { tileIdx: idx, gameId: state.gameId });
         if (state.roundId === currentRound) {
-          revealPeek(idx, res.isBomb);
+          revealPeek(idx, res.isBomb, true);
         }
       } catch {} finally {
         state.isProcessing = false;
@@ -2003,7 +2018,7 @@
 
         setMinesHud('Detonated', `Hit a mine! Lost ${state.wager.toLocaleString()}. Click Bet to play again.`, 'lost');
         resetMinesToIdleState();
-        refreshProfile();
+        refreshProfile(false);
         loadLeaderboard();
         return;
       }
@@ -2014,19 +2029,24 @@
       revealGem(idx, true);
       updateMinesTelemetry();
 
+      el.mainActionButton.disabled = false;
+      el.mainActionButton.className = 'btn-stake-cta btn-cashout';
+      el.actionBtnTitle.textContent = 'Cashout';
       el.actionBtnSub.textContent = `${Number(state.currentWin).toLocaleString()}`;
       el.hudMultVal.textContent = `${state.currentMult.toFixed(2)}×`;
       el.hudProfitVal.textContent = `+${Number(res.profit).toLocaleString()}`;
 
       if (res.won) {
         state.activeGame = false;
+        state.cashedOut = true;
+        state.lastAllBombs = Array.isArray(res.allBombs) ? res.allBombs : [];
         updateBalanceDisplay(res.balance, true);
         Sound.cashout();
         spawnCoinShower();
         showMinesVictory('PERFECT CLEAR!', res.multiplier, res.profit);
         setMinesHud('Perfect', `Cleared all safe gems! Won ${res.winAmount.toLocaleString()}!`, 'won');
         resetMinesToIdleState();
-        refreshProfile();
+        refreshProfile(false);
         loadLeaderboard();
         return;
       }
@@ -2040,7 +2060,11 @@
   }
 
   async function cashOutMines() {
-    if (!state.activeGame || state.isProcessing || state.revealedIndices.size === 0) return;
+    if (!state.activeGame || state.isProcessing) return;
+    if (state.revealedIndices.size === 0) {
+      setMinesHud('Pick a Tile', 'Uncover at least 1 safe tile on the board before cashing out!', 'ready');
+      return;
+    }
     state.isProcessing = true;
     el.mainActionButton.disabled = true;
     Sound.click();
@@ -2054,19 +2078,22 @@
       state.activeGame = false;
       state.cashedOut = true;
       state.peekMode = true;
+      state.lastAllBombs = Array.isArray(res.allBombs) ? res.allBombs : [];
 
       updateBalanceDisplay(res.balance, true);
       Sound.cashout();
       spawnCoinShower();
 
-      showMinesVictory('CASHED OUT', res.multiplier, res.profit);
-      setMinesHud('Cashed Out', `Locked in +${res.winAmount.toLocaleString()}! (Click remaining tiles to peek)`, 'won');
-
-      el.mainActionButton.className = 'btn-stake-cta btn-replay';
-      el.actionBtnTitle.textContent = 'Play Again';
+      el.wagerInput.disabled = false;
+      el.minesCountSelect.disabled = false;
+      el.mainActionButton.className = 'btn-stake-cta btn-bet';
+      el.actionBtnTitle.textContent = 'Bet';
       el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()}`;
 
-      refreshProfile();
+      showMinesVictory('CASHED OUT', res.multiplier, res.profit);
+      setMinesHud('Cashed Out', `Locked in +${res.winAmount.toLocaleString()}! Click Bet to start a new round.`, 'won');
+
+      refreshProfile(false);
       loadLeaderboard();
     } catch (err) {
       setMinesHud('Error', err.message, 'lost');
@@ -2080,9 +2107,17 @@
     el.wagerInput.disabled = true;
     el.minesCountSelect.disabled = true;
 
-    el.mainActionButton.className = 'btn-stake-cta btn-cashout';
-    el.actionBtnTitle.textContent = 'Cashout';
-    el.actionBtnSub.textContent = `${Number(state.currentWin).toLocaleString()}`;
+    if (state.revealedIndices.size === 0) {
+      el.mainActionButton.disabled = true;
+      el.mainActionButton.className = 'btn-stake-cta btn-locked';
+      el.actionBtnTitle.textContent = 'Pick a Tile';
+      el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()}`;
+    } else {
+      el.mainActionButton.disabled = false;
+      el.mainActionButton.className = 'btn-stake-cta btn-cashout';
+      el.actionBtnTitle.textContent = 'Cashout';
+      el.actionBtnSub.textContent = `${Number(state.currentWin).toLocaleString()}`;
+    }
 
     el.hudProfitBox.style.display = 'flex';
     el.hudMultVal.textContent = `${state.currentMult.toFixed(2)}×`;
@@ -2474,7 +2509,7 @@
   // 13. PROFILE INITIALIZATION & RECOVERY
   // =========================================================================
 
-  async function refreshProfile() {
+  async function refreshProfile(allowRestore = false) {
     try {
       const data = await api('/profile');
       state.authenticated = Boolean(data.authenticated);
@@ -2495,13 +2530,14 @@
         applyServerCrashState(data.crashArena || data.crashState);
       }
 
-      if (data.activeGame && !state.activeGame) {
+      if (allowRestore && data.activeGame && !data.activeGame.cashedOut && !state.activeGame && !state.cashedOut) {
         state.gameId = data.activeGame.gameId || null;
         state.activeGame = true;
         state.wager = data.activeGame.wager;
         state.bombs = data.activeGame.bombs;
         state.currentMult = data.activeGame.multiplier;
         state.currentWin = data.activeGame.currentWin;
+        state.revealedIndices.clear();
 
         if (el.wagerInput) el.wagerInput.value = state.wager;
         if (el.minesCountSelect) el.minesCountSelect.value = String(state.bombs);
@@ -2565,7 +2601,21 @@
   }
 
   if (el.btnModalClose) {
-    el.btnModalClose.addEventListener('click', hideMinesVictory);
+    el.btnModalClose.addEventListener('click', () => {
+      Sound.click();
+      hideMinesVictory();
+      if (state.lastAllBombs && state.lastAllBombs.length > 0) {
+        revealFullBoardPeek(state.lastAllBombs);
+      }
+      state.activeGame = false;
+      el.wagerInput.disabled = false;
+      el.minesCountSelect.disabled = false;
+      el.mainActionButton.disabled = false;
+      el.mainActionButton.className = 'btn-stake-cta btn-bet';
+      el.actionBtnTitle.textContent = 'Bet';
+      el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()}`;
+      setMinesHud('Board Revealed', 'Full board shown! Click Bet on the left to start your next round.', 'won');
+    });
   }
 
   // Crash Primary CTA
@@ -2820,7 +2870,7 @@
   resizeCrashCanvas();
 
   switchView(state.currentView);
-  refreshProfile();
+  refreshProfile(true);
   connectRealtimeStream();
   loadLeaderboard();
 

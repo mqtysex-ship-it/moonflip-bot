@@ -98,17 +98,41 @@ html, body {
 }
 
 .mf-brand-logo {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(46, 242, 184, 0.32);
+  box-shadow: 0 0 14px rgba(46, 242, 184, 0.22);
+  background: #060b0f;
+  flex-shrink: 0;
 }
 
-.mf-logo-svg {
-  width: 36px;
-  height: 36px;
-  filter: drop-shadow(0 0 10px rgba(46, 242, 184, 0.25));
+.mf-logo-img {
+  width: 112%;
+  height: 112%;
+  object-fit: cover;
+  display: block;
+}
+
+.mf-token-img {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: inline-block;
+  vertical-align: -3px;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(46, 242, 184, 0.3);
+}
+
+.mf-token-img.mf-token-lg {
+  width: 21px;
+  height: 21px;
+  vertical-align: -4px;
 }
 
 .mf-brand-wordmark {
@@ -502,27 +526,33 @@ html, body {
 
 .mf-hero-artwork {
   position: relative;
-  width: 260px;
-  height: 195px;
+  width: 320px;
+  height: 210px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1;
+  flex-shrink: 0;
 }
 
 .mf-hero-glow {
   position: absolute;
-  width: 220px;
-  height: 220px;
+  width: 240px;
+  height: 240px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(46, 242, 184, 0.24) 0%, rgba(46, 242, 184, 0) 70%);
   pointer-events: none;
 }
 
-.mf-hero-emblem-svg {
-  width: 245px;
-  height: 205px;
-  filter: drop-shadow(0 0 22px rgba(46, 242, 184, 0.28));
+.mf-hero-emblem-img {
+  width: 320px;
+  height: 215px;
+  object-fit: contain;
+  display: block;
+  mix-blend-mode: lighten;
+  -webkit-mask-image: radial-gradient(ellipse 74% 78% at 50% 50%, #000000 56%, rgba(0, 0, 0, 0) 98%);
+  mask-image: radial-gradient(ellipse 74% 78% at 50% 50%, #000000 56%, rgba(0, 0, 0, 0) 98%);
+  filter: drop-shadow(0 0 24px rgba(46, 242, 184, 0.25));
 }
 
 /* Games Section */

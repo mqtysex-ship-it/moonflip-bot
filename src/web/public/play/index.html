@@ -7,30 +7,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/style.css?v=4.0">
+  <link rel="stylesheet" href="/play/style.css?v=5.0">
 </head>
 <body class="moonflip-theme">
-
-  <!-- Reusable SVG Definitions (Moonflip Crescent-Coin Icon) -->
-  <svg width="0" height="0" style="position:absolute;visibility:hidden;" aria-hidden="true">
-    <defs>
-      <g id="mf-coin-icon">
-        <path d="M18.5 3.2A9.5 9.5 0 1 0 21.2 16.5A7.8 7.8 0 0 1 11.5 5.8C11.5 4.8 11.7 3.9 12.1 3.1A9.4 9.4 0 0 1 18.5 3.2Z" fill="#2ef2b8"/>
-        <path d="M15.5 7.2L16.4 9.5L18.7 10.4L16.4 11.3L15.5 13.6L14.6 11.3L12.3 10.4L14.6 9.5L15.5 7.2Z" fill="#2ef2b8"/>
-      </g>
-    </defs>
-  </svg>
 
   <!-- TOP NAVIGATION BAR -->
   <header class="mf-topbar">
     <div class="mf-topbar-left">
       <a href="/play" class="mf-brand" id="brandHomeLink">
         <div class="mf-brand-logo">
-          <svg viewBox="0 0 36 36" fill="none" class="mf-logo-svg">
-            <circle cx="18" cy="18" r="16" fill="rgba(46, 242, 184, 0.08)" stroke="rgba(46, 242, 184, 0.25)" stroke-width="1.5"/>
-            <path d="M24.8 22.8C20.2 26.8 13.2 26.3 9.2 21.7C5.2 17.1 5.7 10.1 10.3 6.1C11.4 5.1 12.7 4.4 14.1 4.0C11.2 7.6 11.5 12.9 14.9 16.3C18.3 19.7 23.6 20.0 27.2 17.1C26.7 19.3 25.9 21.3 24.8 22.8Z" fill="#2ef2b8"/>
-            <path d="M21.5 8.5L22.6 11.4L25.5 12.5L22.6 13.6L21.5 16.5L20.4 13.6L17.5 12.5L20.4 11.4L21.5 8.5Z" fill="#2ef2b8"/>
-          </svg>
+          <img src="/play/assets/logo.png?v=5.0" alt="Moonflip" class="mf-logo-img">
         </div>
         <span class="mf-brand-wordmark">moon<span class="text-mint">flip</span></span>
       </a>
@@ -88,9 +74,7 @@
 
       <!-- Balance Pill -->
       <div class="mf-balance-pill" title="Synchronized Discord Token Balance">
-        <svg viewBox="0 0 24 24" width="18" height="18" class="mf-coin-svg">
-          <use href="#mf-coin-icon"/>
-        </svg>
+        <img src="/play/assets/token.png?v=5.0" alt="Token" class="mf-token-img mf-token-lg">
         <span class="mf-balance-val" id="balanceNumber">1,000</span>
         <span class="mf-chevron">⌄</span>
       </div>
@@ -232,29 +216,7 @@
           <!-- 3D Mint Crescent Coin Emblem -->
           <div class="mf-hero-artwork" aria-hidden="true">
             <div class="mf-hero-glow"></div>
-            <svg viewBox="0 0 260 220" fill="none" class="mf-hero-emblem-svg">
-              <!-- Outer Mint Crescent Moon -->
-              <path d="M188 175C142 214 72 208 35 162C-2 116 4 46 50 9C66 -4 85 -11 104 -13C67 24 66 84 103 124C140 164 200 168 240 133C230 150 211 165 188 175Z" fill="url(#heroMoonGrad)" transform="translate(10, 12) scale(0.92)"/>
-              <!-- Tilted 3D Coin Ring Inside Crescent -->
-              <g transform="translate(142, 102) rotate(-28)">
-                <ellipse cx="0" cy="12" rx="52" ry="30" fill="#091915" stroke="#2ef2b8" stroke-width="3"/>
-                <ellipse cx="0" cy="0" rx="52" ry="30" fill="#0d261f" stroke="#2ef2b8" stroke-width="3.5"/>
-                <ellipse cx="0" cy="0" rx="40" ry="21" fill="none" stroke="#2ef2b8" stroke-width="2" opacity="0.65"/>
-                <!-- Coin Edge Notches -->
-                <line x1="-36" y1="21" x2="-36" y2="33" stroke="#2ef2b8" stroke-width="3"/>
-                <line x1="-12" y1="28" x2="-12" y2="40" stroke="#2ef2b8" stroke-width="3"/>
-                <line x1="14" y1="28" x2="14" y2="40" stroke="#2ef2b8" stroke-width="3"/>
-                <line x1="36" y1="21" x2="36" y2="33" stroke="#2ef2b8" stroke-width="3"/>
-                <!-- Center 4-Point Star -->
-                <path d="M0 -13L4 -4L15 0L4 4L0 13L-4 4L-15 0L-4 -4L0 -13Z" fill="#2ef2b8"/>
-              </g>
-              <defs>
-                <linearGradient id="heroMoonGrad" x1="20" y1="0" x2="210" y2="200" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#3df5be"/>
-                  <stop offset="1" stop-color="#10b981"/>
-                </linearGradient>
-              </defs>
-            </svg>
+            <img src="/play/assets/hero-emblem.png?v=5.0" alt="Moonflip Emblem" class="mf-hero-emblem-img">
           </div>
         </section>
 
@@ -347,7 +309,7 @@
               
               <div class="stake-input-group">
                 <span class="group-addon-left">
-                  <svg viewBox="0 0 24 24" width="16" height="16"><use href="#mf-coin-icon"/></svg>
+                  <img src="/play/assets/token.png?v=5.0" alt="Token" class="mf-token-img">
                 </span>
                 <input type="number" id="wagerInput" min="10" max="1000000" step="10" value="100" autocomplete="off" spellcheck="false">
                 <div class="group-addon-right">
@@ -477,7 +439,7 @@
                 <p class="modal-subtext" id="modalSubtext">Winnings synced with your Discord wallet.</p>
                 <div class="modal-actions">
                   <button type="button" class="btn-modal-primary" id="btnModalPlayAgain">PLAY AGAIN</button>
-                  <button type="button" class="btn-modal-secondary" id="btnModalClose">PEEK BOARD</button>
+                  <button type="button" class="btn-modal-secondary" id="btnModalClose">SHOW BOARD</button>
                 </div>
               </div>
             </div>
@@ -505,7 +467,7 @@
               
               <div class="stake-input-group">
                 <span class="group-addon-left">
-                  <svg viewBox="0 0 24 24" width="16" height="16"><use href="#mf-coin-icon"/></svg>
+                  <img src="/play/assets/token.png?v=5.0" alt="Token" class="mf-token-img">
                 </span>
                 <input type="number" id="crashWagerInput" min="10" max="1000000" step="10" value="100" autocomplete="off" spellcheck="false">
                 <div class="group-addon-right">
@@ -779,6 +741,6 @@
     </div>
   </div>
 
-  <script src="/play/app.js?v=4.0"></script>
+  <script src="/play/app.js?v=5.0"></script>
 </body>
 </html>

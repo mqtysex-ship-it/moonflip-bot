@@ -625,7 +625,7 @@ export function setupPlayApi(app) {
       const activeGame = activeWebMines.get(gameKey);
 
       let safeGame = null;
-      if (activeGame && !activeGame.gameOver) {
+      if (activeGame && !activeGame.gameOver && !activeGame.cashedOut) {
         safeGame = {
           gameId: activeGame.id,
           wager: activeGame.wager,
@@ -891,7 +891,24 @@ export function setupPlayApi(app) {
       const { gameId } = req.body || {};
       const game = activeWebMines.get(gameKey);
 
-      if (!game || game.gameOver || game.cashedOut || game.revealed.length === 0) {
+      if (game && game.cashedOut) {
+        const winAmount = Math.floor(game.wager * game.multiplier);
+        const profit = winAmount - game.wager;
+        const currentBalance = authenticated ? getBalance(session.userId) : (session.demoBalance ?? 1000);
+        return res.json({
+          success: true,
+          cashedOut: true,
+          alreadyCashedOut: true,
+          gameId: game.id,
+          multiplier: game.multiplier,
+          winAmount,
+          profit,
+          allBombs: Array.from(game.bombIndices),
+          balance: currentBalance,
+        });
+      }
+
+      if (!game || game.gameOver || game.revealed.length === 0) {
         return res.status(400).json({ error: 'Cannot cash out without uncovering at least 1 safe gem.' });
       }
 
