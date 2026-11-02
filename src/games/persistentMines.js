@@ -22,14 +22,14 @@ export class PersistentMines {
       return { gameId: roundId, wager, bombs, balance: concurrent.balanceAfterWager, multiplier: 1 };
     }
   }
-  async reveal(operationId, roundId, userId, tile) {
+  async reveal(operationId, roundId, userId, tile, loadedRound = null) {
     if (!Number.isInteger(tile) || tile < 0 || tile > 24) throw new Error('invalid tile');
     const prior = await this.store.loadTransition(operationId, roundId, userId);
     if (prior) {
       if (prior.state.lastAction?.type !== 'reveal' || prior.state.lastAction.tile !== tile) throw new Error('operation id reused');
       return this.revealResult(roundId, prior.state, prior.balance, prior.payout);
     }
-    const round = await this.store.loadRound(roundId, userId);
+    const round = loadedRound || await this.store.loadRound(roundId, userId);
     if (!round || round.game !== 'mines') throw new Error('round not found');
     if (round.status !== 'active' || round.state.revealed.includes(tile)) {
       const completed = await this.store.loadTransition(operationId, roundId, userId);
@@ -54,13 +54,13 @@ export class PersistentMines {
     if (gameOver) { result.payout = payout; result.allBombs = state.bombIndices; }
     return result;
   }
-  async cashout(operationId, roundId, userId) {
+  async cashout(operationId, roundId, userId, loadedRound = null) {
     const prior = await this.store.loadTransition(operationId, roundId, userId);
     if (prior) {
       if (prior.state.lastAction?.type !== 'cashout') throw new Error('operation id reused');
       return { gameId: roundId, payout: prior.payout, balance: prior.balance, multiplier: prior.state.multiplier, allBombs: prior.state.bombIndices };
     }
-    const round = await this.store.loadRound(roundId, userId);
+    const round = loadedRound || await this.store.loadRound(roundId, userId);
     if (!round || round.game !== 'mines') throw new Error('round not found');
     if (round.status !== 'active') {
       const completed = await this.store.loadTransition(operationId, roundId, userId);

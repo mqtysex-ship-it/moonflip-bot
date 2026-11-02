@@ -135,9 +135,6 @@ async function resolvePlayer(req) {
   if (token && webPlaySessions.has(token)) {
     const sess = webPlaySessions.get(token);
     if ((!sess.expiresAt || sess.expiresAt > Date.now()) && (!token.startsWith('mf1.') || verifyTokenPayload(token))) {
-      if (sess.userId) {
-        await setUserMeta(sess.userId, sess.username, sess.avatarUrl);
-      }
       return { authenticated: true, session: sess, token };
     }
   }
@@ -628,8 +625,8 @@ async function databaseMinesAction(action, req, session) {
     return { tileIdx: tile, isBomb: round.state.bombIndices.includes(tile) };
   }
   const result = action === 'reveal'
-    ? await mines.reveal(operationUuid(round.roundId, `reveal:${body.tileIdx}`), round.roundId, userId, Number(body.tileIdx))
-    : await mines.cashout(operationUuid(round.roundId, 'cashout'), round.roundId, userId);
+    ? await mines.reveal(operationUuid(round.roundId, `reveal:${body.tileIdx}`), round.roundId, userId, Number(body.tileIdx), round)
+    : await mines.cashout(operationUuid(round.roundId, 'cashout'), round.roundId, userId, round);
   const payout = result.payout;
   if (payout > 0) {
     await recordMinesWin({ id: round.roundId, userId, username: session.username, avatarUrl: session.avatarUrl,
