@@ -7,14 +7,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/style.css?v=2.2">
+  <link rel="stylesheet" href="/play/style.css?v=3.0">
 </head>
 <body class="casino-theme">
 
   <!-- Top Global Navigation -->
   <header class="casino-navbar">
     <div class="nav-left">
-      <a href="/" class="casino-brand">
+      <a href="/play" class="casino-brand">
         <div class="brand-crest">
           <svg viewBox="0 0 36 36" fill="none" class="brand-svg">
             <path d="M28.5 18C28.5 24.3513 23.3513 29.5 17 29.5C11.5309 29.5 6.94586 25.6883 5.75391 20.584C6.69975 20.854 7.69708 21 8.72727 21C14.4007 21 19 16.4007 19 10.7273C19 8.27376 18.1407 6.02102 16.7027 4.25098C23.3857 4.90807 28.5 10.8291 28.5 18Z" fill="url(#crestGrad)" />
@@ -29,7 +29,7 @@
         </div>
         <div class="brand-meta">
           <span class="brand-title">MOONFLIP</span>
-          <span class="brand-tag">ORIGINALS</span>
+          <span class="brand-tag">WEB ARENA</span>
         </div>
       </a>
 
@@ -42,6 +42,7 @@
         <button type="button" class="btn-game-switch" id="btnSwitchCrash" data-game="crash">
           <span class="game-icon">🚀</span>
           <span class="game-name">Orbital Crash</span>
+          <span class="live-tag-pill">LIVE</span>
         </button>
       </div>
     </div>
@@ -56,6 +57,12 @@
     </div>
 
     <div class="nav-right">
+      <!-- Discord Sync Status Pill -->
+      <div class="sync-status-pill" id="discordSyncPill" title="Discord Wallet Sync Status">
+        <span class="sync-dot" id="discordSyncDot"></span>
+        <span class="sync-label" id="discordSyncText">Syncing...</span>
+      </div>
+
       <!-- Leaderboard Trigger -->
       <button class="nav-icon-btn nav-btn-highlight" id="btnOpenLeaderboard" title="Hall of Fame & Leaderboard">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="#ffd700">
@@ -98,6 +105,16 @@
     </div>
   </header>
 
+  <!-- Guest / Unlinked Wallet Warning Banner (Hidden automatically when Discord token is synced) -->
+  <div class="guest-warning-banner" id="guestWarningBanner" style="display:none;">
+    <div class="guest-warning-inner">
+      <span class="guest-warning-badge">DEMO MODE</span>
+      <span class="guest-warning-text">
+        You are currently playing with a temporary <strong>Guest Demo Wallet</strong>. To sync your real Discord tokens &amp; leaderboard stats, type <code>/play</code> or <code>/crash</code> inside the Moonflip Discord server and click your personal launch button!
+      </span>
+    </div>
+  </div>
+
   <!-- Main Game Stage Chassis -->
   <main class="casino-stage">
     
@@ -110,7 +127,7 @@
         <!-- Game Mode Switcher -->
         <div class="mode-tabs">
           <button class="mode-tab active" data-mode="manual">Manual</button>
-          <button class="mode-tab" data-mode="auto" title="Auto Mode coming soon">Auto</button>
+          <button class="mode-tab" data-mode="auto" title="Auto Mode">Auto</button>
         </div>
 
         <div class="deck-form">
@@ -283,16 +300,16 @@
 
     </div>
 
-    <!-- 2. ORBITAL CRASH GAME CHASSIS -->
+    <!-- 2. ORBITAL CRASH GAME CHASSIS (24/7 CONTINUOUS GLOBAL ENGINE) -->
     <div class="game-chassis" id="crashChassis" style="display: none;">
       
-      <!-- LEFT CONTROL DECK (Crash Betting Engine) -->
+      <!-- LEFT CONTROL DECK (Crash Betting & Auto-Loop Engine) -->
       <aside class="control-deck">
         
-        <!-- Game Mode Switcher -->
-        <div class="mode-tabs">
-          <button class="mode-tab active" data-crash-mode="manual">Manual</button>
-          <button class="mode-tab" data-crash-mode="auto">Auto</button>
+        <!-- Game Mode Switcher (Manual vs Auto-Repeat) -->
+        <div class="mode-tabs" id="crashModeTabs">
+          <button type="button" class="mode-tab active" id="btnCrashManualMode" data-crash-mode="manual">Manual</button>
+          <button type="button" class="mode-tab" id="btnCrashAutoMode" data-crash-mode="auto">Auto Bet</button>
         </div>
 
         <div class="deck-form">
@@ -337,7 +354,7 @@
               <span class="group-addon-left">🎯</span>
               <input type="number" id="crashAutoCashoutInput" min="1.01" max="1000" step="0.1" placeholder="e.g. 2.00" autocomplete="off">
               <div class="group-addon-right">
-                <button type="button" class="btn-math" id="btnCrashClearAuto">✕</button>
+                <button type="button" class="btn-math" id="btnCrashClearAuto" title="Clear Auto Cashout">✕</button>
               </div>
             </div>
 
@@ -363,22 +380,33 @@
                 <span class="tele-val text-emerald" id="crashWinRate">49.0%</span>
               </div>
               <div class="tele-item">
-                <span class="tele-label">House Edge</span>
-                <span class="tele-val text-gold">2.0%</span>
+                <span class="tele-label">Flight #</span>
+                <span class="tele-val text-gold" id="crashRoundNumber">#1042</span>
               </div>
             </div>
             <div class="telemetry-subrow">
-              <span class="tele-sub-label">Estimated Payout:</span>
+              <span class="tele-sub-label">Target Payout:</span>
               <span class="tele-sub-val" id="crashEstPayout">200 🪙</span>
             </div>
           </div>
 
-          <!-- PRIMARY ACTION BUTTON (Launch Flight / Cash Out) -->
+          <!-- PRIMARY ACTION BUTTON (Bet / Queue Next Round / Cash Out) -->
           <div class="cta-wrapper">
             <button class="btn-stake-cta btn-bet" id="crashActionButton">
-              <span class="cta-label" id="crashActionTitle">Launch Flight</span>
+              <span class="cta-label" id="crashActionTitle">Place Bet</span>
               <span class="cta-sub" id="crashActionSub">100 🪙</span>
             </button>
+          </div>
+
+          <!-- LIVE IN-FLIGHT PLAYERS ROSTER -->
+          <div class="crash-players-box">
+            <div class="crash-players-header">
+              <span class="crash-players-title">LIVE FLIGHT TELEMETRY</span>
+              <span class="crash-players-count" id="crashPlayersCount">0 Pilots</span>
+            </div>
+            <div class="crash-players-list" id="crashPlayersList">
+              <!-- Populated in real time -->
+            </div>
           </div>
 
         </div>
@@ -387,7 +415,7 @@
         <div class="deck-footer">
           <div class="fairness-badge" id="btnOpenCrashFairness">
             <span class="pulsing-emerald-dot"></span>
-            <span>Provably Fair Verified</span>
+            <span>24/7 Continuous Multiplayer Engine</span>
           </div>
         </div>
 
@@ -399,8 +427,8 @@
         <!-- Live Floating Status HUD -->
         <div class="matrix-hud" id="crashHud">
           <div class="hud-left">
-            <span class="hud-badge ready" id="crashHudBadge">Ready</span>
-            <span class="hud-message" id="crashHudMessage">Set your wager and click <strong>Launch Flight</strong>.</span>
+            <span class="hud-badge ready" id="crashHudBadge">LIVE</span>
+            <span class="hud-message" id="crashHudMessage">Continuous Orbital Crash — Place your bet before launch or queue for the next flight!</span>
           </div>
           <div class="hud-right" id="crashHudProfitBox" style="display:none;">
             <div class="hud-stat">
@@ -408,7 +436,7 @@
               <span class="hud-stat-val text-cyan" id="crashHudMultVal">1.00×</span>
             </div>
             <div class="hud-stat">
-              <span class="hud-stat-lbl">Profit</span>
+              <span class="hud-stat-lbl">Live Payout</span>
               <span class="hud-stat-val text-emerald" id="crashHudProfitVal">+0 🪙</span>
             </div>
           </div>
@@ -418,29 +446,29 @@
         <div class="matrix-grid-frame crash-radar-frame">
           <canvas id="crashCanvas" class="crash-canvas"></canvas>
 
-          <!-- Floating Large Center Multiplier Readout -->
-          <div class="crash-center-readout" id="crashCenterReadout">
-            <div class="crash-live-mult" id="crashLiveMult">1.00×</div>
-            <div class="crash-live-status" id="crashLiveStatus">STANDBY</div>
+          <!-- Top-Left Atmosphere Telemetry Overlay -->
+          <div class="crash-telemetry-corner">
+            <span class="corner-dot"></span>
+            <span class="corner-text" id="crashCornerZone">ORBITAL RADAR • CONTINUOUS STREAM</span>
           </div>
 
-          <!-- Victory / Cashout Modal Overlay for Crash -->
-          <div class="victory-modal" id="crashVictoryModal">
-            <div class="modal-card">
-              <div class="modal-gem-glow crash-glow"></div>
-              <div class="modal-badge-wrapper">
-                <span class="modal-badge" id="crashModalBadge">FLIGHT CASHOUT</span>
-              </div>
-              <div class="modal-mult" id="crashModalMult">2.45×</div>
-              <div class="modal-payout-box">
-                <span class="modal-payout-label">TOTAL PAYOUT</span>
-                <span class="modal-payout-amount" id="crashModalWinAmount">+245 🪙</span>
-              </div>
-              <p class="modal-subtext">Winnings credited to your Discord wallet.</p>
-              <div class="modal-actions">
-                <button type="button" class="btn-modal-primary" id="btnCrashModalAgain">FLY AGAIN</button>
-                <button type="button" class="btn-modal-secondary" id="btnCrashModalClose">CLOSE</button>
-              </div>
+          <!-- Floating Large Center Multiplier & Countdown Readout -->
+          <div class="crash-center-readout" id="crashCenterReadout">
+            <div class="crash-live-mult" id="crashLiveMult">1.00×</div>
+            <div class="crash-live-status" id="crashLiveStatus">PREPARING LAUNCH</div>
+            <!-- Countdown Progress Bar (Shown during 5s BETTING phase) -->
+            <div class="crash-countdown-wrap" id="crashCountdownWrap" style="display: none;">
+              <div class="crash-countdown-bar" id="crashCountdownBar"></div>
+            </div>
+          </div>
+
+          <!-- Non-Intrusive Cashout Toast Banner -->
+          <div class="crash-win-toast" id="crashWinToast">
+            <div class="crash-win-toast-badge">EJECTION LOCKED</div>
+            <div class="crash-win-toast-main">
+              <span id="crashToastMult">2.45×</span>
+              <span class="crash-win-toast-divider">•</span>
+              <span id="crashToastProfit">+245 🪙</span>
             </div>
           </div>
         </div>
@@ -459,8 +487,8 @@
             </svg>
           </div>
           <div>
-            <h2 class="lb-section-heading">Web Arena Leaderboard & Hall of Fame</h2>
-            <span class="lb-section-sub">Verified crypto-grade winnings & high-stakes multipliers</span>
+            <h2 class="lb-section-heading">Web Arena Leaderboard &amp; Hall of Fame</h2>
+            <span class="lb-section-sub">Real-time synchronized Discord wallet rankings &amp; record multipliers</span>
           </div>
         </div>
         <div class="lb-stage-tabs">
@@ -494,7 +522,7 @@
 
       <div class="fairness-body">
         <p class="fairness-desc">
-          Moonflip uses a cryptographically verifiable random seed generator. The outcome of each round is determined before launch and cannot be altered by either the server or client.
+          Moonflip uses a cryptographically verifiable random seed generator. Every round outcome is computed prior to action and synced directly with the Discord economy ledger.
         </p>
 
         <div class="fairness-input-block">
@@ -513,7 +541,7 @@
 
         <div class="fairness-input-block">
           <label>Algorithm</label>
-          <span class="algorithm-tag">HMAC-SHA256 • Exponential Flight Curve</span>
+          <span class="algorithm-tag">HMAC-SHA256 • 24/7 Continuous Orbital Curve</span>
         </div>
       </div>
 
@@ -557,6 +585,6 @@
     </div>
   </div>
 
-  <script src="/play/app.js?v=2.2"></script>
+  <script src="/play/app.js?v=3.0"></script>
 </body>
 </html>

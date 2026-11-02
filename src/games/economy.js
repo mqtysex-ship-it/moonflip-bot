@@ -135,6 +135,8 @@ export function getEconomyStats() {
 export function getEconomyPlayers() {
   return Object.entries(db.users || {}).map(([userId, data]) => ({
     userId,
+    username: data.username || null,
+    avatarUrl: data.avatarUrl || null,
     balance: data.balance || 0,
     totalBet: data.totalBet || 0,
     totalWon: data.totalWon || 0,
@@ -142,6 +144,24 @@ export function getEconomyPlayers() {
     lastDaily: data.lastDaily || null,
     createdAt: data.createdAt || null,
   })).sort((a, b) => b.balance - a.balance);
+}
+
+export function setUserMeta(userId, username, avatarUrl) {
+  if (!userId) return;
+  const user = getUser(userId);
+  let changed = false;
+  if (username && user.username !== username) {
+    user.username = username;
+    changed = true;
+  }
+  if (avatarUrl && user.avatarUrl !== avatarUrl) {
+    user.avatarUrl = avatarUrl;
+    changed = true;
+  }
+  if (changed) {
+    scheduleSave();
+  }
+  return user;
 }
 
 function emitEconomyChange(userId, action, amount) {

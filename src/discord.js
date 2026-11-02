@@ -253,7 +253,7 @@ export async function getDiscordClient() {
               `🪙 **Current Wallet**: \`${getBalance(interaction.user.id).toLocaleString()} 🪙\`\n` +
               `🎮 **Game Mode**: **\`${isCrash ? '🚀 Orbital Crash (60 FPS Canvas)' : '💣 5x5 Mines (3D Matrix)'}\`**\n` +
               `⚡ **Features**: 60 FPS Physics • Studio Web Audio Synthesizer • Live Leaderboard\n` +
-              `🔒 **Session**: 60-minute cryptographically secured login token\n` +
+              `🔒 **Session**: Permanent cryptographically signed Discord wallet link\n` +
               `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
               `👉 **Click the button below to launch the window in your browser!**`
             )

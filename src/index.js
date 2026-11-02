@@ -31,18 +31,22 @@ async function main() {
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
 
-  console.error('[Discord MCP] Starting server with StdioServerTransport...');
-  await server.connect(transport);
-  console.error('[Discord MCP] Server running on stdio.');
+  // 1. Launch Web Dashboard & Web Arena Control Center immediately so HTTP healthchecks pass at 0ms
+  const webPort = process.env.PORT || 3000;
+  webServer = startWebServer(webPort);
 
-  // Connect Discord Gateway in background to listen for button interactions
+  // 2. Connect Discord Gateway in background to listen for button & slash command interactions
   getDiscordClient().catch((err) => {
     console.error('[Discord Gateway Init Error]', err.message);
   });
 
-  // Launch Web Dashboard Control Center on port 3000
-  const webPort = process.env.PORT || 3000;
-  webServer = startWebServer(webPort);
+  // 3. Connect MCP Stdio transport in non-blocking mode for local CLI / agent integration
+  console.error('[Discord MCP] Starting server with StdioServerTransport...');
+  server.connect(transport).then(() => {
+    console.error('[Discord MCP] Server running on stdio.');
+  }).catch((err) => {
+    console.error('[Discord MCP Stdio Note]', err.message);
+  });
 }
 
 main().catch((err) => {

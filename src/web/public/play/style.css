@@ -1658,6 +1658,325 @@ body.casino-theme {
   background: radial-gradient(circle, rgba(255, 170, 0, 0.3) 0%, transparent 70%) !important;
 }
 
+/* ==========================================================================
+   V3.0 CONTINUOUS CRASH & DISCORD SYNC TELEMETRY ENHANCEMENTS
+   ========================================================================== */
+
+.live-tag-pill {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(0, 231, 1, 0.18);
+  color: var(--c-emerald);
+  border: 1px solid rgba(0, 231, 1, 0.35);
+  letter-spacing: 0.04em;
+}
+
+.sync-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 11px;
+  border-radius: 6px;
+  background: rgba(15, 33, 46, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.sync-status-pill.synced {
+  background: rgba(0, 231, 1, 0.09);
+  border-color: rgba(0, 231, 1, 0.32);
+  color: #4ade80;
+}
+
+.sync-status-pill.guest {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.sync-status-pill.synced .sync-dot {
+  background: var(--c-emerald);
+  box-shadow: 0 0 8px var(--c-emerald);
+}
+
+.sync-status-pill.guest .sync-dot {
+  background: var(--c-gold);
+  box-shadow: 0 0 8px var(--c-gold);
+}
+
+.guest-warning-banner {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.14), rgba(239, 68, 68, 0.12));
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 8px 20px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #fef3c7;
+}
+
+.guest-warning-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guest-warning-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #f59e0b;
+  color: #071824;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+.guest-warning-text code {
+  font-family: var(--font-mono);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #00f0ff;
+  font-weight: 700;
+}
+
+/* Queued Next-Round CTA State */
+.btn-queued {
+  background: linear-gradient(180deg, #f59e0b, #d97706) !important;
+  color: #09131c !important;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4) !important;
+}
+
+.btn-armed {
+  background: #213743 !important;
+  color: #00f0ff !important;
+  border: 1.5px solid rgba(0, 240, 255, 0.45) !important;
+}
+
+/* Live In-Flight Players Roster */
+.crash-players-box {
+  background: #0f212e;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-deck);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.crash-players-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 11px;
+  background: rgba(7, 24, 36, 0.65);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.crash-players-title {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.crash-players-count {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--c-cyan);
+}
+
+.crash-players-list {
+  max-height: 126px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  divide-y: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.crash-pilot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  font-size: 0.74rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.crash-pilot-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.crash-pilot-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.crash-pilot-name {
+  font-weight: 700;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 96px;
+}
+
+.crash-pilot-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.crash-pilot-mult {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+}
+
+.crash-pilot-mult.cashed {
+  background: rgba(0, 231, 1, 0.16);
+  color: var(--c-emerald);
+  border: 1px solid rgba(0, 231, 1, 0.3);
+}
+
+.crash-pilot-win {
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.crash-pilot-win.cashed {
+  color: var(--c-emerald);
+}
+
+/* Radar Corner Overlay & Countdown Progress Bar */
+.crash-telemetry-corner {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(7, 24, 36, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.corner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-cyan);
+  box-shadow: 0 0 8px var(--c-cyan);
+}
+
+.corner-text {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-main);
+}
+
+.crash-countdown-wrap {
+  width: 220px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.crash-countdown-bar {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #00f0ff, #00e701);
+  transform-origin: left center;
+  transition: width 0.08s linear;
+}
+
+/* Non-Intrusive Cashout Toast Banner */
+.crash-win-toast {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(15px);
+  z-index: 25;
+  background: rgba(10, 28, 22, 0.94);
+  border: 1.5px solid var(--c-emerald);
+  border-radius: 10px;
+  padding: 10px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 231, 1, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.crash-win-toast.active {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.crash-win-toast-badge {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--c-emerald);
+}
+
+.crash-win-toast-main {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.crash-win-toast-divider {
+  color: var(--text-muted);
+}
+
+.ribbon-chip.chip-purple {
+  background: rgba(217, 70, 239, 0.2);
+  color: #e879f9;
+  border: 1px solid rgba(217, 70, 239, 0.45);
+}
+
 /* Crash Button States */
 .btn-launch {
   background: linear-gradient(180deg, #ff9900 0%, #e67300 100%) !important;

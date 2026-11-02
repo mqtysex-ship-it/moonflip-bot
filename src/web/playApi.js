@@ -1,12 +1,15 @@
 import crypto from 'crypto';
+import { EmbedBuilder } from 'discord.js';
 import { generateMinesBombs, calculateMinesMultiplier, generateCrashMultiplier } from '../games/rng.js';
-import { getBalance, deductTokens, addTokens, getUser } from '../games/economy.js';
+import { getBalance, deductTokens, addTokens, getUser, setUserMeta, economyEvents } from '../games/economy.js';
 import { recordMinesWin, getMinesLeaderboard } from '../games/minesLeaderboard.js';
 import { recordCrashWin, getCrashLeaderboard } from '../games/crashLeaderboard.js';
+import { getDiscordClient } from '../discord.js';
 
 export const webPlaySessions = new Map();
 export const activeWebMines = new Map();
 export const activeWebCrash = new Map();
+const guestBalances = new Map();
 
 // Per-player concurrency lock to ensure rapid clicks or network reordering never race
 const playerLocks = new Set();
@@ -24,72 +27,583 @@ export const recentPlayHistory = [
 ];
 
 // Recent crash multipliers for live crash history ticker
-export const recentCrashHistory = [2.45, 1.18, 8.45, 1.85, 12.50, 3.20];
+export const recentCrashHistory = [2.45, 1.18, 8.45, 1.85, 12.50, 3.20, 1.42, 4.60, 2.15, 19.40];
 
-// Clean up expired sessions every 10 minutes
-const sessionCleanupTimer = setInterval(() => {
-  const now = Date.now();
-  for (const [token, sess] of webPlaySessions.entries()) {
-    if (sess.expiresAt < now) {
-      webPlaySessions.delete(token);
-      if (sess.userId) {
-        activeWebMines.delete(sess.userId);
-        activeWebCrash.delete(sess.userId);
+// Active SSE Clients for Web Arena (/api/play/stream)
+const arenaSseClients = new Set();
+
+function broadcastArenaEvent(eventName, payload) {
+  if (arenaSseClients.size === 0) return;
+  const msg = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const client of arenaSseClients) {
+    try {
+      client.res.write(msg);
+    } catch {
+      arenaSseClients.delete(client);
+    }
+  }
+}
+
+// Forward live Discord / Dashboard wallet balance updates to the specific Web Arena player at 0ms
+economyEvents.on('balanceChanged', (change) => {
+  if (!change || !change.userId || arenaSseClients.size === 0) return;
+  const msg = `event: wallet\ndata: ${JSON.stringify({
+    userId: change.userId,
+    balance: change.balance,
+    action: change.action,
+    amount: change.amount,
+    timestamp: Date.now(),
+  })}\n\n`;
+
+  for (const client of arenaSseClients) {
+    if (client.userId === change.userId) {
+      try {
+        client.res.write(msg);
+      } catch {
+        arenaSseClients.delete(client);
       }
     }
   }
-}, 10 * 60 * 1000);
-if (sessionCleanupTimer.unref) sessionCleanupTimer.unref();
+});
 
-export function createWebPlaySession(user) {
-  const token = crypto.randomBytes(24).toString('hex');
+// ============================================================================
+// CRYPTOGRAPHIC STATELESS SESSION TOKENS (SURVIVES SERVER RESTARTS / REDEPLOYS)
+// ============================================================================
+
+function getSigningSecret() {
+  return process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || 'moonflip_quantum_secret_2026';
+}
+
+function signTokenPayload(payloadObj) {
+  const b64 = Buffer.from(JSON.stringify(payloadObj), 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', getSigningSecret()).update(b64).digest('base64url');
+  return `mf1.${b64}.${sig}`;
+}
+
+function verifyTokenPayload(token) {
+  if (!token || typeof token !== 'string' || !token.startsWith('mf1.')) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [, b64, sig] = parts;
+  const expectedSig = crypto.createHmac('sha256', getSigningSecret()).update(b64).digest('base64url');
+  if (sig !== expectedSig) return null;
+  try {
+    return JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function createWebPlaySession(userOrId, maybeUsername, maybeAvatarUrl) {
+  const user =
+    typeof userOrId === 'object' && userOrId !== null
+      ? userOrId
+      : { id: userOrId, username: maybeUsername, avatarUrl: maybeAvatarUrl };
+
+  const avatarUrl =
+    typeof user.displayAvatarURL === 'function'
+      ? user.displayAvatarURL({ extension: 'png', size: 128 })
+      : user.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+  // Persist user profile metadata into economy DB so it survives restarts
+  setUserMeta(user.id, user.username, avatarUrl);
+
+  const token = signTokenPayload({
+    u: String(user.id),
+    n: String(user.username || 'Player'),
+    a: String(avatarUrl),
+    t: Date.now(),
+  });
+
   const session = {
-    userId: user.id,
-    username: user.username,
-    avatarUrl: typeof user.displayAvatarURL === 'function' ? user.displayAvatarURL() : user.avatarUrl,
-    expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour session
+    userId: String(user.id),
+    username: String(user.username || 'Player'),
+    avatarUrl,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days
     demoBalance: 1000,
   };
   webPlaySessions.set(token, session);
   return token;
 }
 
-export function getPublicBaseUrl(interaction = null) {
+export function getPublicBaseUrl() {
   if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, '');
   if (process.env.RENDER_EXTERNAL_URL) return process.env.RENDER_EXTERNAL_URL.replace(/\/$/, '');
-  return 'http://localhost:3000';
+  return 'https://moonflip.onrender.com';
 }
 
 function resolvePlayer(req) {
-  const token = req.headers['x-play-token'] || req.query.token || req.body?.token;
+  const token = req.headers['x-play-token'] || req.query?.token || req.body?.token;
+
+  // 1. Check in-memory session map first (supports custom test tokens & cached tokens)
   if (token && webPlaySessions.has(token)) {
     const sess = webPlaySessions.get(token);
-    if (sess.expiresAt > Date.now()) {
-      sess.expiresAt = Date.now() + 60 * 60 * 1000;
+    if (!sess.expiresAt || sess.expiresAt > Date.now()) {
+      sess.expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      if (sess.userId) {
+        setUserMeta(sess.userId, sess.username, sess.avatarUrl);
+      }
       return { authenticated: true, session: sess, token };
     }
   }
-  return {
-    authenticated: false,
-    session: {
+
+  // 2. Verify stateless HMAC-signed token (survives server restarts & Render deploys!)
+  const verified = verifyTokenPayload(token);
+  if (verified && verified.u) {
+    const dbUser = getUser(verified.u);
+    const session = {
+      userId: String(verified.u),
+      username: verified.n || dbUser.username || 'Discord Player',
+      avatarUrl: verified.a || dbUser.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png',
+      createdAt: verified.t || Date.now(),
+      expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    };
+    setUserMeta(session.userId, session.username, session.avatarUrl);
+    webPlaySessions.set(token, session);
+    return { authenticated: true, session, token };
+  }
+
+  // 3. Persistent Demo Guest Session (keyed by guestId or IP so demo balance doesn't reset every click)
+  const guestKey = req.headers['x-guest-id'] || req.ip || 'default_guest';
+  if (!guestBalances.has(guestKey)) {
+    guestBalances.set(guestKey, {
       userId: null,
       username: 'Guest Player',
-      avatarUrl: null,
+      avatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png',
       demoBalance: 1000,
-    },
+    });
+  }
+
+  return {
+    authenticated: false,
+    session: guestBalances.get(guestKey),
     token: null,
+    guestKey,
   };
 }
 
+// ============================================================================
+// DISCORD SERVER LIVE WIN FEED BROADCASTER
+// ============================================================================
+
+let lastDiscordBroadcastAt = 0;
+
+async function broadcastWinToDiscord({ game, username, userId, avatarUrl, wager, multiplier, payout, profit }) {
+  // Broadcast wins to Discord if authenticated and either profit >= 250 or multiplier >= 2.0x (throttled to avoid rate-limits)
+  if (!userId || String(userId).startsWith('test_')) return;
+  if (profit < 150 && multiplier < 1.8) return;
+
+  const now = Date.now();
+  if (now - lastDiscordBroadcastAt < 4000) return;
+  lastDiscordBroadcastAt = now;
+
+  try {
+    const client = await getDiscordClient().catch(() => null);
+    if (!client || !client.isReady()) return;
+
+    const guild = client.guilds.cache.first();
+    if (!guild) return;
+
+    const targetKeyword = game === 'crash' ? 'crash' : 'mines';
+    const channel = guild.channels.cache.find(
+      (c) => c.isTextBased?.() && c.name?.toLowerCase().includes(targetKeyword)
+    );
+    if (!channel) return;
+
+    const isCrash = game === 'crash';
+    const embed = new EmbedBuilder()
+      .setColor(multiplier >= 10 ? 0xffd700 : isCrash ? 0xff9900 : 0x00e701)
+      .setAuthor({
+        name: `${username} • Live Web Arena Win`,
+        iconURL: avatarUrl || undefined,
+      })
+      .setDescription(
+        `${isCrash ? '🚀 **ORBITAL CRASH CASHOUT**' : '💎 **5x5 MINES CASHOUT**'} — <@${userId}> locked in **\`${multiplier.toFixed(2)}×\`** for **\`+${payout.toLocaleString()} 🪙\`** *(Net Profit: **\`+${profit.toLocaleString()} 🪙\`**, Wager: \`${wager.toLocaleString()} 🪙\`)*!`
+      )
+      .setFooter({ text: 'Moonflip Web Arena • Instant Discord Wallet Settlement' })
+      .setTimestamp();
+
+    await channel.send({ embeds: [embed] }).catch(() => {});
+  } catch {
+    // Ignore broadcast errors so game loop is never affected
+  }
+}
+
+// ============================================================================
+// 24/7 CONTINUOUS GLOBAL MULTIPLAYER CRASH ENGINE
+// ============================================================================
+
+const AI_PILOT_POOL = [
+  { id: 'ai_1', username: 'VortexPilot', avatarUrl: 'https://cdn.discordapp.com/embed/avatars/1.png' },
+  { id: 'ai_2', username: 'LunarWhale', avatarUrl: 'https://cdn.discordapp.com/embed/avatars/2.png' },
+  { id: 'ai_3', username: 'HyperNova', avatarUrl: 'https://cdn.discordapp.com/embed/avatars/3.png' },
+  { id: 'ai_4', username: 'ApexTrader', avatarUrl: 'https://cdn.discordapp.com/embed/avatars/4.png' },
+  { id: 'ai_5', username: 'CyberDrifter', avatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png' },
+  { id: 'ai_6', username: 'StarlightX', avatarUrl: 'https://cdn.discordapp.com/embed/avatars/1.png' },
+];
+
+class GlobalCrashArenaEngine {
+  constructor() {
+    this.phase = 'BETTING'; // 'BETTING' | 'IN_FLIGHT' | 'CRASHED'
+    this.roundNumber = 1042;
+    this.roundId = ` global_${Date.now()}`;
+    this.countdownMs = 5000;
+    this.cooldownMs = 3000;
+    this.phaseStartTime = Date.now();
+    this.flightStartTime = null;
+    this.crashPoint = 2.0;
+    this.flightDurationMs = 5000;
+    this.currentMultiplier = 1.0;
+
+    // Active bets in current round: gameKey -> BetEntry
+    this.bets = new Map();
+    // Queued bets for next round: gameKey -> QueuedBet
+    this.queuedBets = new Map();
+
+    this.timer = null;
+    this.tickTimer = null;
+    this.startLoop();
+  }
+
+  startLoop() {
+    this.enterBettingPhase();
+  }
+
+  seedAmbientPilots() {
+    // Populate 2-4 realistic ambient telemetry pilots so the live flight feed is always vibrant
+    const count = 2 + Math.floor(Math.random() * 3);
+    const shuffled = [...AI_PILOT_POOL].sort(() => Math.random() - 0.5).slice(0, count);
+    const wagers = [100, 250, 500, 1000, 1500, 2500];
+    const targets = [1.45, 1.85, 2.10, 2.50, 3.40, 5.00, 8.50];
+
+    for (const bot of shuffled) {
+      const wager = wagers[Math.floor(Math.random() * wagers.length)];
+      const autoCashout = targets[Math.floor(Math.random() * targets.length)];
+      this.bets.set(bot.id, {
+        key: bot.id,
+        userId: null,
+        username: bot.username,
+        avatarUrl: bot.avatarUrl,
+        wager,
+        autoCashout,
+        cashedOut: false,
+        cashoutMult: null,
+        winAmount: 0,
+        profit: 0,
+        isAmbient: true,
+      });
+    }
+  }
+
+  enterBettingPhase() {
+    this.roundNumber++;
+    this.roundId = `cround_${this.roundNumber}_${Date.now()}`;
+    this.phase = 'BETTING';
+    this.phaseStartTime = Date.now();
+    this.flightStartTime = null;
+    this.currentMultiplier = 1.0;
+    this.bets.clear();
+
+    this.seedAmbientPilots();
+
+    // Promote any queued bets from players who bet during the previous flight
+    for (const [gameKey, q] of this.queuedBets.entries()) {
+      this.queuedBets.delete(gameKey);
+      this.placeBetInternal(gameKey, q);
+    }
+
+    this.broadcastState('crash_phase');
+
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      this.enterFlightPhase();
+    }, this.countdownMs);
+    if (this.timer.unref) this.timer.unref();
+  }
+
+  enterFlightPhase() {
+    this.phase = 'IN_FLIGHT';
+    this.phaseStartTime = Date.now();
+    this.flightStartTime = this.phaseStartTime;
+    this.currentMultiplier = 1.0;
+
+    // Calculate total human wager for RNG calibration
+    let totalHumanWager = 0;
+    for (const b of this.bets.values()) {
+      if (!b.isAmbient) totalHumanWager += b.wager;
+    }
+
+    this.crashPoint = generateCrashMultiplier(totalHumanWager);
+    this.flightDurationMs = Math.max(80, Math.round(Math.log(this.crashPoint) / 0.00006));
+
+    this.broadcastState('crash_phase');
+
+    // High-frequency server tick (every 100ms) for auto-cashouts & live SSE telemetry
+    if (this.tickTimer) clearInterval(this.tickTimer);
+    this.tickTimer = setInterval(() => {
+      this.onFlightTick();
+    }, 100);
+    if (this.tickTimer.unref) this.tickTimer.unref();
+
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      this.enterCrashedPhase();
+    }, this.flightDurationMs);
+    if (this.timer.unref) this.timer.unref();
+  }
+
+  onFlightTick() {
+    if (this.phase !== 'IN_FLIGHT') return;
+    const elapsed = Math.max(0, Date.now() - this.flightStartTime);
+    const liveMult = Math.min(this.crashPoint, Math.max(1.0, Math.exp(0.00006 * elapsed)));
+    this.currentMultiplier = Math.round(liveMult * 100) / 100;
+
+    const cashedPlayers = [];
+    for (const bet of this.bets.values()) {
+      if (!bet.cashedOut && bet.autoCashout && liveMult >= bet.autoCashout && this.crashPoint >= bet.autoCashout) {
+        this.executeBetCashout(bet, bet.autoCashout);
+        cashedPlayers.push(this.serializeBet(bet));
+      }
+    }
+
+    for (const p of cashedPlayers) {
+      broadcastArenaEvent('crash_cashout', {
+        ...this.getPublicSnapshot(),
+        player: p,
+      });
+    }
+  }
+
+  executeBetCashout(bet, achievedMult) {
+    if (bet.cashedOut) return null;
+    const cleanMult = Math.max(1.01, Math.round(achievedMult * 100) / 100);
+    const winAmount = Math.floor(bet.wager * cleanMult);
+    const profit = winAmount - bet.wager;
+
+    bet.cashedOut = true;
+    bet.cashoutMult = cleanMult;
+    bet.winAmount = winAmount;
+    bet.profit = profit;
+
+    let newBalance = 0;
+    if (!bet.isAmbient) {
+      if (bet.authenticated && bet.userId) {
+        addTokens(bet.userId, winAmount, true);
+        newBalance = getBalance(bet.userId);
+      } else if (bet.session) {
+        bet.session.demoBalance = (bet.session.demoBalance || 0) + winAmount;
+        newBalance = bet.session.demoBalance;
+      }
+
+      // Sync with individual activeWebCrash map if tracked
+      const flight = activeWebCrash.get(bet.key);
+      if (flight) {
+        flight.cashedOut = true;
+        flight.finalMult = cleanMult;
+        if (Array.isArray(flight.monitorResolvers)) {
+          flight.monitorResolvers.forEach((fn) => {
+            try { fn(); } catch {}
+          });
+        }
+      }
+
+      recordCrashWin({
+        userId: bet.userId,
+        username: bet.username,
+        avatarUrl: bet.avatarUrl,
+        wager: bet.wager,
+        multiplier: cleanMult,
+        payout: winAmount,
+        profit,
+      });
+
+      broadcastWinToDiscord({
+        game: 'crash',
+        username: bet.username,
+        userId: bet.userId,
+        avatarUrl: bet.avatarUrl,
+        wager: bet.wager,
+        multiplier: cleanMult,
+        payout: winAmount,
+        profit,
+      });
+    }
+
+    return { winAmount, profit, multiplier: cleanMult, balance: newBalance };
+  }
+
+  enterCrashedPhase() {
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
+
+    this.phase = 'CRASHED';
+    this.phaseStartTime = Date.now();
+    this.currentMultiplier = this.crashPoint;
+
+    recentCrashHistory.unshift(this.crashPoint);
+    if (recentCrashHistory.length > 20) recentCrashHistory.pop();
+
+    this.broadcastState('crash_phase');
+
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      this.enterBettingPhase();
+    }, this.cooldownMs);
+    if (this.timer.unref) this.timer.unref();
+  }
+
+  placeBetInternal(gameKey, { authenticated, session, wager, autoCashout }) {
+    const currentBalance = authenticated ? getBalance(session.userId) : (session.demoBalance ?? 1000);
+    if (currentBalance < wager) {
+      return { error: `Insufficient balance! You have ${currentBalance.toLocaleString()} 🪙.`, balance: currentBalance };
+    }
+
+    let newBalance = currentBalance;
+    if (authenticated) {
+      deductTokens(session.userId, wager);
+      newBalance = getBalance(session.userId);
+    } else {
+      session.demoBalance = currentBalance - wager;
+      newBalance = session.demoBalance;
+    }
+
+    const betEntry = {
+      key: gameKey,
+      authenticated,
+      session,
+      userId: session.userId,
+      username: session.username || 'Player',
+      avatarUrl: session.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png',
+      wager,
+      autoCashout,
+      cashedOut: false,
+      cashoutMult: null,
+      winAmount: 0,
+      profit: 0,
+      isAmbient: false,
+    };
+
+    this.bets.set(gameKey, betEntry);
+    return { success: true, balance: newBalance, bet: this.serializeBet(betEntry) };
+  }
+
+  serializeBet(b) {
+    return {
+      userId: b.userId || b.key,
+      username: b.username,
+      avatarUrl: b.avatarUrl,
+      wager: b.wager,
+      autoCashout: b.autoCashout,
+      cashedOut: b.cashedOut,
+      cashoutMult: b.cashoutMult,
+      winAmount: b.winAmount,
+      profit: b.profit,
+    };
+  }
+
+  getPublicSnapshot(gameKey = null) {
+    const now = Date.now();
+    let elapsedMs = Math.max(0, now - this.phaseStartTime);
+    let remainingMs = 0;
+
+    if (this.phase === 'BETTING') {
+      remainingMs = Math.max(0, this.countdownMs - elapsedMs);
+    } else if (this.phase === 'CRASHED') {
+      remainingMs = Math.max(0, this.cooldownMs - elapsedMs);
+    } else if (this.phase === 'IN_FLIGHT') {
+      elapsedMs = Math.max(0, now - this.flightStartTime);
+      this.currentMultiplier = Math.min(this.crashPoint, Math.max(1.0, Math.exp(0.00006 * elapsedMs)));
+    }
+
+    const players = Array.from(this.bets.values()).map((b) => this.serializeBet(b));
+    const myBet = gameKey && this.bets.has(gameKey) ? this.serializeBet(this.bets.get(gameKey)) : null;
+    const myQueued = gameKey && this.queuedBets.has(gameKey) ? {
+      wager: this.queuedBets.get(gameKey).wager,
+      autoCashout: this.queuedBets.get(gameKey).autoCashout,
+    } : null;
+
+    const roundedMult = Math.round(this.currentMultiplier * 100) / 100;
+
+    return {
+      roundId: this.roundId,
+      roundNumber: this.roundNumber,
+      phase: this.phase,
+      serverNow: now,
+      phaseStartTime: this.phaseStartTime,
+      flightStartTime: this.flightStartTime,
+      elapsedMs,
+      remainingMs,
+      countdownTotalMs: this.countdownMs,
+      bettingDurationMs: this.countdownMs,
+      multiplier: roundedMult,
+      currentMult: roundedMult,
+      crashPoint: this.phase === 'CRASHED' ? this.crashPoint : undefined,
+      history: recentCrashHistory.slice(0, 12),
+      players,
+      myBet,
+      myQueued,
+      myQueuedBet: myQueued,
+    };
+  }
+
+  broadcastState(eventType = 'crash_state') {
+    broadcastArenaEvent(eventType, this.getPublicSnapshot());
+  }
+}
+
+export const globalCrashEngine = new GlobalCrashArenaEngine();
+
+// ============================================================================
+// EXPRESS PLAY API ROUTES
+// ============================================================================
+
 export function setupPlayApi(app) {
+  // 0. GET /api/play/stream - Real-Time SSE Stream for Continuous Crash & Live Discord Wallet Sync
+  app.get('/api/play/stream', (req, res) => {
+    const { session, token, guestKey } = resolvePlayer(req);
+    const gameKey = session.userId || token || guestKey || 'demo';
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.flushHeaders?.();
+
+    const clientEntry = { res, userId: session.userId, gameKey };
+    arenaSseClients.add(clientEntry);
+
+    // Push immediate snapshot
+    const snapshot = globalCrashEngine.getPublicSnapshot(gameKey);
+    res.write(`event: crash_phase\ndata: ${JSON.stringify(snapshot)}\n\n`);
+
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(': heartbeat\n\n');
+      } catch {
+        clearInterval(heartbeat);
+        arenaSseClients.delete(clientEntry);
+      }
+    }, 15000);
+    if (heartbeat.unref) heartbeat.unref();
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      arenaSseClients.delete(clientEntry);
+    });
+  });
+
   // 1. GET /api/play/profile - Live User Wallet & Active Game State
   app.get('/api/play/profile', (req, res) => {
     try {
-      const { authenticated, session, token } = resolvePlayer(req);
-      const balance = authenticated ? getBalance(session.userId) : (session.demoBalance || 1000);
-      const gameKey = authenticated && session.userId ? session.userId : (token || 'demo');
+      const { authenticated, session, token, guestKey } = resolvePlayer(req);
+      const balance = authenticated ? getBalance(session.userId) : (session.demoBalance ?? 1000);
+      const gameKey = authenticated && session.userId ? session.userId : (token || guestKey || 'demo');
       const activeGame = activeWebMines.get(gameKey);
-      const activeCrash = activeWebCrash.get(gameKey);
 
       let safeGame = null;
       if (activeGame && !activeGame.gameOver) {
@@ -106,15 +620,7 @@ export function setupPlayApi(app) {
         };
       }
 
-      let safeCrash = null;
-      if (activeCrash && !activeCrash.crashed && !activeCrash.cashedOut) {
-        safeCrash = {
-          flightId: activeCrash.id,
-          wager: activeCrash.wager,
-          autoCashout: activeCrash.autoCashout,
-          startTime: activeCrash.startTime,
-        };
-      }
+      const crashSnapshot = globalCrashEngine.getPublicSnapshot(gameKey);
 
       res.json({
         authenticated,
@@ -123,9 +629,10 @@ export function setupPlayApi(app) {
         avatarUrl: session.avatarUrl,
         balance,
         activeGame: safeGame,
-        activeCrash: safeCrash,
-        history: recentPlayHistory.slice(0, 10),
-        crashHistory: recentCrashHistory.slice(0, 10),
+        crashState: crashSnapshot,
+        crashArena: crashSnapshot,
+        history: recentPlayHistory.slice(0, 12),
+        crashHistory: recentCrashHistory.slice(0, 12),
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -134,8 +641,8 @@ export function setupPlayApi(app) {
 
   // 2. POST /api/play/mines/start - Initialize a new 5x5 Mines Round
   app.post('/api/play/mines/start', (req, res) => {
-    const { authenticated, session, token } = resolvePlayer(req);
-    const gameKey = authenticated ? session.userId : (token || 'demo');
+    const { authenticated, session, token, guestKey } = resolvePlayer(req);
+    const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
 
     if (playerLocks.has(gameKey)) {
       return res.status(429).json({ error: 'Action in progress, please wait.' });
@@ -150,7 +657,7 @@ export function setupPlayApi(app) {
 
       const currentBalance = authenticated
         ? getBalance(session.userId)
-        : (session.demoBalance || 1000);
+        : (session.demoBalance ?? 1000);
 
       if (currentBalance < cleanBet) {
         return res.status(400).json({
@@ -159,20 +666,18 @@ export function setupPlayApi(app) {
         });
       }
 
-      // If an existing game was still running, terminate it so delayed clicks cannot leak
       const existing = activeWebMines.get(gameKey);
       if (existing) {
         existing.gameOver = true;
         activeWebMines.delete(gameKey);
       }
 
-      // Atomic Token Deduction
       let newBalance = currentBalance;
       if (authenticated) {
         deductTokens(session.userId, cleanBet);
         newBalance = getBalance(session.userId);
       } else {
-        session.demoBalance -= cleanBet;
+        session.demoBalance = currentBalance - cleanBet;
         newBalance = session.demoBalance;
       }
 
@@ -195,7 +700,6 @@ export function setupPlayApi(app) {
       };
 
       activeWebMines.set(gameKey, gameState);
-
       const nextMult = calculateMinesMultiplier(25, cleanBombs, 1);
 
       res.json({
@@ -217,8 +721,8 @@ export function setupPlayApi(app) {
 
   // 3. POST /api/play/mines/reveal - Click a Tile (0..24)
   app.post('/api/play/mines/reveal', (req, res) => {
-    const { authenticated, session, token } = resolvePlayer(req);
-    const gameKey = authenticated ? session.userId : (token || 'demo');
+    const { authenticated, session, token, guestKey } = resolvePlayer(req);
+    const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
 
     if (playerLocks.has(gameKey)) {
       return res.status(429).json({ error: 'Action in progress, please wait.' });
@@ -239,7 +743,6 @@ export function setupPlayApi(app) {
         return res.status(400).json({ error: 'No active game in progress. Start a new bet!' });
       }
 
-      // Check for round desync / stale action
       if (gameId && game.id !== gameId) {
         return res.status(400).json({ error: 'Stale game round. Please refresh.' });
       }
@@ -294,7 +797,8 @@ export function setupPlayApi(app) {
         recentPlayHistory.unshift({ multiplier: mult, won: true });
         if (recentPlayHistory.length > 20) recentPlayHistory.pop();
 
-        // Record to persistent Mines Leaderboard
+        const profit = currentWin - game.wager;
+
         recordMinesWin({
           userId: session.userId,
           username: session.username,
@@ -304,7 +808,18 @@ export function setupPlayApi(app) {
           gemsFound: game.revealed.length,
           multiplier: mult,
           payout: currentWin,
-          profit: currentWin - game.wager,
+          profit,
+        });
+
+        broadcastWinToDiscord({
+          game: 'mines',
+          username: session.username,
+          userId: session.userId,
+          avatarUrl: session.avatarUrl,
+          wager: game.wager,
+          multiplier: mult,
+          payout: currentWin,
+          profit,
         });
 
         return res.json({
@@ -314,7 +829,7 @@ export function setupPlayApi(app) {
           tileIdx: idx,
           multiplier: mult,
           winAmount: currentWin,
-          profit: currentWin - game.wager,
+          profit,
           allBombs: Array.from(game.bombIndices),
           balance: finalBalance,
         });
@@ -345,8 +860,8 @@ export function setupPlayApi(app) {
 
   // 4. POST /api/play/mines/cashout - Lock in Winnings & Enter Exploration Mode
   app.post('/api/play/mines/cashout', (req, res) => {
-    const { authenticated, session, token } = resolvePlayer(req);
-    const gameKey = authenticated ? session.userId : (token || 'demo');
+    const { authenticated, session, token, guestKey } = resolvePlayer(req);
+    const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
 
     if (playerLocks.has(gameKey)) {
       return res.status(429).json({ error: 'Action in progress, please wait.' });
@@ -357,7 +872,7 @@ export function setupPlayApi(app) {
       const { gameId } = req.body || {};
       const game = activeWebMines.get(gameKey);
 
-      if (!game || game.gameOver || game.revealed.length === 0) {
+      if (!game || game.gameOver || game.cashedOut || game.revealed.length === 0) {
         return res.status(400).json({ error: 'Cannot cash out without uncovering at least 1 safe gem.' });
       }
 
@@ -366,6 +881,7 @@ export function setupPlayApi(app) {
       }
 
       const winAmount = Math.floor(game.wager * game.multiplier);
+      const profit = winAmount - game.wager;
       let newBalance = 0;
 
       if (authenticated) {
@@ -376,7 +892,6 @@ export function setupPlayApi(app) {
         newBalance = session.demoBalance;
       }
 
-      // Switch to Curiosity Peek Mode so player can explore remaining tiles!
       game.cashedOut = true;
       game.peekMode = true;
       game.peekRevealed = [];
@@ -384,7 +899,6 @@ export function setupPlayApi(app) {
       recentPlayHistory.unshift({ multiplier: game.multiplier, won: true });
       if (recentPlayHistory.length > 20) recentPlayHistory.pop();
 
-      // Record to persistent Mines Leaderboard
       recordMinesWin({
         userId: session.userId,
         username: session.username,
@@ -394,7 +908,18 @@ export function setupPlayApi(app) {
         gemsFound: game.revealed.length,
         multiplier: game.multiplier,
         payout: winAmount,
-        profit: winAmount - game.wager,
+        profit,
+      });
+
+      broadcastWinToDiscord({
+        game: 'mines',
+        username: session.username,
+        userId: session.userId,
+        avatarUrl: session.avatarUrl,
+        wager: game.wager,
+        multiplier: game.multiplier,
+        payout: winAmount,
+        profit,
       });
 
       res.json({
@@ -403,7 +928,7 @@ export function setupPlayApi(app) {
         gameId: game.id,
         multiplier: game.multiplier,
         winAmount,
-        profit: winAmount - game.wager,
+        profit,
         allBombs: Array.from(game.bombIndices),
         balance: newBalance,
       });
@@ -417,11 +942,11 @@ export function setupPlayApi(app) {
   // 5. POST /api/play/mines/peek - Reveal Remaining Tiles Post-Cashout
   app.post('/api/play/mines/peek', (req, res) => {
     try {
-      const { authenticated, session, token } = resolvePlayer(req);
+      const { authenticated, session, token, guestKey } = resolvePlayer(req);
       const { tileIdx, gameId } = req.body || {};
       const idx = Number(tileIdx);
 
-      const gameKey = authenticated ? session.userId : (token || 'demo');
+      const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
       const game = activeWebMines.get(gameKey);
 
       if (!game || !game.peekMode) {
@@ -457,13 +982,118 @@ export function setupPlayApi(app) {
   });
 
   // =========================================================================
-  // ORBITAL CRASH ENGINE API
+  // CONTINUOUS ORBITAL CRASH ENGINE API
   // =========================================================================
 
-  // 7. POST /api/play/crash/start - Initialize a new Orbital Crash Flight
+  // 7. GET /api/play/crash/state - Current Global Continuous Crash State
+  app.get('/api/play/crash/state', (req, res) => {
+    const { authenticated, session, token, guestKey } = resolvePlayer(req);
+    const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
+    res.json(globalCrashEngine.getPublicSnapshot(gameKey));
+  });
+
+  // 8. POST /api/play/crash/bet - Place or Queue Bet in the Global Continuous Crash Loop
+  app.post('/api/play/crash/bet', (req, res) => {
+    const { authenticated, session, token, guestKey } = resolvePlayer(req);
+    const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
+
+    if (playerLocks.has(gameKey)) {
+      return res.status(429).json({ error: 'Action in progress, please wait.' });
+    }
+    playerLocks.add(gameKey);
+
+    try {
+      const { wager, autoCashout, cancelQueue } = req.body || {};
+
+      // Allow canceling a queued next-round bet
+      if (cancelQueue) {
+        globalCrashEngine.queuedBets.delete(gameKey);
+        const balance = authenticated ? getBalance(session.userId) : (session.demoBalance ?? 1000);
+        return res.json({
+          success: true,
+          canceledQueue: true,
+          balance,
+          crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+        });
+      }
+
+      const cleanBet = Math.max(10, Math.floor(Number(wager)) || 100);
+      const cleanAuto =
+        autoCashout && !isNaN(Number(autoCashout)) && Number(autoCashout) >= 1.01
+          ? Math.round(Number(autoCashout) * 100) / 100
+          : null;
+
+      const currentBalance = authenticated ? getBalance(session.userId) : (session.demoBalance ?? 1000);
+      if (currentBalance < cleanBet) {
+        return res.status(400).json({
+          error: `Insufficient balance! You have ${currentBalance.toLocaleString()} 🪙, but bet is ${cleanBet.toLocaleString()} 🪙.`,
+          balance: currentBalance,
+        });
+      }
+
+      // If currently in BETTING phase, join this round immediately!
+      if (globalCrashEngine.phase === 'BETTING') {
+        if (globalCrashEngine.bets.has(gameKey)) {
+          return res.status(400).json({ error: 'You already placed a bet for this flight!' });
+        }
+
+        const result = globalCrashEngine.placeBetInternal(gameKey, {
+          authenticated,
+          session,
+          wager: cleanBet,
+          autoCashout: cleanAuto,
+        });
+
+        if (result.error) {
+          return res.status(400).json(result);
+        }
+
+        globalCrashEngine.broadcastState('crash_bet');
+        return res.json({
+          success: true,
+          status: 'placed',
+          queued: false,
+          roundId: globalCrashEngine.roundId,
+          wager: cleanBet,
+          autoCashout: cleanAuto,
+          bet: result.bet,
+          balance: result.balance,
+          crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+        });
+      }
+
+      // If currently IN_FLIGHT or CRASHED, queue the bet for the next countdown!
+      const queuedBetObj = {
+        wager: cleanBet,
+        autoCashout: cleanAuto,
+      };
+      globalCrashEngine.queuedBets.set(gameKey, {
+        authenticated,
+        session,
+        ...queuedBetObj,
+      });
+
+      return res.json({
+        success: true,
+        status: 'queued',
+        queued: true,
+        wager: cleanBet,
+        autoCashout: cleanAuto,
+        queuedBet: queuedBetObj,
+        balance: currentBalance,
+        crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    } finally {
+      playerLocks.delete(gameKey);
+    }
+  });
+
+  // 9. POST /api/play/crash/start - Compatibility endpoint (places bet or starts flight)
   app.post('/api/play/crash/start', (req, res) => {
-    const { authenticated, session, token } = resolvePlayer(req);
-    const gameKey = authenticated ? session.userId : (token || 'demo');
+    const { authenticated, session, token, guestKey } = resolvePlayer(req);
+    const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
 
     if (playerLocks.has(gameKey)) {
       return res.status(429).json({ error: 'Action in progress, please wait.' });
@@ -473,13 +1103,14 @@ export function setupPlayApi(app) {
     try {
       const { wager, autoCashout } = req.body || {};
       const cleanBet = Math.max(10, Math.floor(Number(wager)) || 100);
-      const cleanAuto = autoCashout && !isNaN(Number(autoCashout)) && Number(autoCashout) >= 1.01
-        ? Math.round(Number(autoCashout) * 100) / 100
-        : null;
+      const cleanAuto =
+        autoCashout && !isNaN(Number(autoCashout)) && Number(autoCashout) >= 1.01
+          ? Math.round(Number(autoCashout) * 100) / 100
+          : null;
 
       const currentBalance = authenticated
         ? getBalance(session.userId)
-        : (session.demoBalance || 1000);
+        : (session.demoBalance ?? 1000);
 
       if (currentBalance < cleanBet) {
         return res.status(400).json({
@@ -488,7 +1119,6 @@ export function setupPlayApi(app) {
         });
       }
 
-      // If an existing flight was still running, terminate it
       const existing = activeWebCrash.get(gameKey);
       if (existing) {
         existing.crashed = true;
@@ -500,13 +1130,12 @@ export function setupPlayApi(app) {
         activeWebCrash.delete(gameKey);
       }
 
-      // Atomic Token Deduction
       let newBalance = currentBalance;
       if (authenticated) {
         deductTokens(session.userId, cleanBet);
         newBalance = getBalance(session.userId);
       } else {
-        session.demoBalance -= cleanBet;
+        session.demoBalance = currentBalance - cleanBet;
         newBalance = session.demoBalance;
       }
 
@@ -546,12 +1175,12 @@ export function setupPlayApi(app) {
     }
   });
 
-  // 8. POST /api/play/crash/monitor - Synchronous Flight Monitor
+  // 10. POST /api/play/crash/monitor - Flight Monitor
   app.post('/api/play/crash/monitor', async (req, res) => {
     try {
-      const { authenticated, session, token } = resolvePlayer(req);
+      const { authenticated, session, token, guestKey } = resolvePlayer(req);
       const { flightId } = req.body || {};
-      const gameKey = authenticated ? session.userId : (token || 'demo');
+      const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
       const flight = activeWebCrash.get(gameKey);
 
       if (!flight || flight.id !== flightId) {
@@ -602,10 +1231,10 @@ export function setupPlayApi(app) {
     }
   });
 
-  // 9. POST /api/play/crash/cashout - Lock in Flight Winnings
+  // 11. POST /api/play/crash/cashout - Lock in Flight Winnings (Supports both Global Continuous Loop & Direct Flight)
   app.post('/api/play/crash/cashout', (req, res) => {
-    const { authenticated, session, token } = resolvePlayer(req);
-    const gameKey = authenticated ? session.userId : (token || 'demo');
+    const { authenticated, session, token, guestKey } = resolvePlayer(req);
+    const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
 
     if (playerLocks.has(gameKey)) {
       return res.status(429).json({ error: 'Action in progress, please wait.' });
@@ -614,8 +1243,49 @@ export function setupPlayApi(app) {
 
     try {
       const { flightId } = req.body || {};
-      const flight = activeWebCrash.get(gameKey);
 
+      // A. Check Global Continuous Crash Engine first (when no custom flightId is passed or matches roundId)
+      const globalBet = globalCrashEngine.bets.get(gameKey);
+      if (globalBet && (!flightId || flightId === globalCrashEngine.roundId)) {
+        if (globalCrashEngine.phase !== 'IN_FLIGHT' || globalBet.cashedOut) {
+          return res.status(400).json({ error: 'No active flight to cash out.' });
+        }
+
+        const elapsedMs = Math.max(0, Date.now() - globalCrashEngine.flightStartTime);
+        if (elapsedMs > globalCrashEngine.flightDurationMs + 120) {
+          const balance = authenticated ? getBalance(session.userId) : session.demoBalance;
+          return res.json({
+            crashed: true,
+            crashPoint: globalCrashEngine.crashPoint,
+            balance,
+          });
+        }
+
+        let achievedMult = Math.min(globalCrashEngine.crashPoint, Math.exp(0.00006 * elapsedMs));
+        if (globalBet.autoCashout && achievedMult >= globalBet.autoCashout) {
+          achievedMult = globalBet.autoCashout;
+        }
+
+        const out = globalCrashEngine.executeBetCashout(globalBet, achievedMult);
+        broadcastArenaEvent('crash_cashout', {
+          ...globalCrashEngine.getPublicSnapshot(),
+          player: globalCrashEngine.serializeBet(globalBet),
+        });
+
+        return res.json({
+          success: true,
+          cashedOut: true,
+          flightId: globalCrashEngine.roundId,
+          multiplier: out.multiplier,
+          winAmount: out.winAmount,
+          profit: out.profit,
+          balance: out.balance,
+          crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+        });
+      }
+
+      // B. Fallback: Direct Flight Session (for unit tests or legacy flightId)
+      const flight = activeWebCrash.get(gameKey);
       if (!flight || flight.crashed || flight.cashedOut) {
         return res.status(400).json({ error: 'No active flight to cash out.' });
       }
@@ -626,7 +1296,6 @@ export function setupPlayApi(app) {
 
       const elapsedMs = Date.now() - flight.startTime;
 
-      // Check if flight already crashed
       if (elapsedMs > flight.durationMs + 150) {
         flight.crashed = true;
         activeWebCrash.delete(gameKey);
@@ -671,17 +1340,26 @@ export function setupPlayApi(app) {
       recentCrashHistory.unshift(achievedMult);
       if (recentCrashHistory.length > 20) recentCrashHistory.pop();
 
-      // Wake up monitor listener
       if (Array.isArray(flight.monitorResolvers)) {
         flight.monitorResolvers.forEach((fn) => {
           try { fn(); } catch {}
         });
       }
 
-      // Record to Crash Leaderboard
       recordCrashWin({
         userId: session.userId,
         username: session.username,
+        avatarUrl: session.avatarUrl,
+        wager: flight.wager,
+        multiplier: achievedMult,
+        payout: winAmount,
+        profit,
+      });
+
+      broadcastWinToDiscord({
+        game: 'crash',
+        username: session.username,
+        userId: session.userId,
         avatarUrl: session.avatarUrl,
         wager: flight.wager,
         multiplier: achievedMult,
@@ -706,7 +1384,7 @@ export function setupPlayApi(app) {
     }
   });
 
-  // 10. GET /api/play/crash/leaderboard - Real-time Crash Hall of Fame
+  // 12. GET /api/play/crash/leaderboard - Real-time Crash Hall of Fame
   app.get('/api/play/crash/leaderboard', (req, res) => {
     try {
       res.json(getCrashLeaderboard());

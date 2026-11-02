@@ -61,8 +61,13 @@ export function createWebServer() {
 
   app.use(express.json());
   app.use(express.static(path.join(__dirname, 'public'), {
-    maxAge: 0,
-    etag: false,
+    maxAge: '1h',
+    etag: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    },
   }));
 
   // Web Casino Arena route
@@ -823,4 +828,7 @@ export function startWebServer(port = 3000) {
 if (process.argv[1] && process.argv[1].endsWith('server.js')) {
   const PORT = process.env.PORT || 3000;
   startWebServer(PORT);
+  getDiscordClient().catch((err) => {
+    console.error('[Discord Gateway Init Error]', err.message);
+  });
 }

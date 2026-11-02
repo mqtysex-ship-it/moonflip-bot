@@ -508,7 +508,7 @@ export async function handleChatInputCommand(interaction) {
         `🪙 **Current Wallet**: \`${getBalance(interaction.user.id).toLocaleString()} 🪙\`\n` +
         `🎮 **Featured Games**: 🚀 **Orbital Crash (60 FPS Canvas)** & 💣 **5x5 Mines (3D Matrix)**\n` +
         `⚡ **Features**: 60 FPS Physics • Studio Web Audio Synthesizer • Live Leaderboard\n` +
-        `🔒 **Session**: 60-minute cryptographically secured login token\n` +
+        `🔒 **Session**: Permanent cryptographically signed Discord wallet link\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
         `👉 **Click the button below to open the game window!**`
       )

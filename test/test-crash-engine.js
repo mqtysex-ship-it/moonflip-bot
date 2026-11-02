@@ -1,7 +1,7 @@
 import express from 'express';
 import http from 'http';
 import assert from 'assert';
-import { setupPlayApi, webPlaySessions, activeWebCrash } from '../src/web/playApi.js';
+import { setupPlayApi, webPlaySessions, activeWebCrash, createWebPlaySession } from '../src/web/playApi.js';
 import { getCrashLeaderboard, recordCrashWin, flushCrashLeaderboardSync } from '../src/games/crashLeaderboard.js';
 import { getBalance, setBalance } from '../src/games/economy.js';
 
@@ -137,6 +137,36 @@ async function runTests() {
     assert.strictEqual(profileRes.status, 200, 'Profile should return 200');
     assert.ok(Array.isArray(profileRes.data.crashHistory), 'Profile should contain crashHistory array');
     console.log('  [PASS] Profile returned crashHistory count:', profileRes.data.crashHistory.length);
+
+    // -----------------------------------------------------------------------
+    // Test 6: Stateless HMAC Token Survives In-Memory Wipe (Server Restart)
+    // -----------------------------------------------------------------------
+    console.log('\n--- Test 6: Stateless HMAC Token Persistence Across Restarts ---');
+    const signedToken = createWebPlaySession(testUserId, 'PersistentPilot', 'https://cdn.discordapp.com/embed/avatars/1.png');
+    // Simulate a full server restart / Render redeploy by clearing all in-memory sessions
+    webPlaySessions.clear();
+
+    const restartProfileRes = await request(baseUrl, '/api/play/profile', 'GET', null, signedToken);
+    assert.strictEqual(restartProfileRes.status, 200, 'Profile after restart should return 200');
+    assert.strictEqual(restartProfileRes.data.authenticated, true, 'Token must remain authenticated after server restart!');
+    assert.strictEqual(restartProfileRes.data.userId, testUserId, 'UserId must match after server restart');
+    assert.strictEqual(restartProfileRes.data.username, 'PersistentPilot', 'Username must match after server restart');
+    console.log('  [PASS] Stateless HMAC token survived in-memory wipe with full Discord wallet sync.');
+
+    // -----------------------------------------------------------------------
+    // Test 7: 24/7 Continuous Multiplayer Crash State & Betting
+    // -----------------------------------------------------------------------
+    console.log('\n--- Test 7: 24/7 Continuous Crash Arena State & Betting ---');
+    const stateRes = await request(baseUrl, '/api/play/crash/state', 'GET', null, signedToken);
+    assert.strictEqual(stateRes.status, 200, 'Crash state should return 200');
+    assert.ok(['BETTING', 'IN_FLIGHT', 'CRASHED'].includes(stateRes.data.phase), 'Valid continuous phase required');
+    assert.ok(Array.isArray(stateRes.data.players), 'Players telemetry list should be an array');
+
+    const betRes = await request(baseUrl, '/api/play/crash/bet', 'POST', { wager: 100, autoCashout: 2.0 }, signedToken);
+    assert.strictEqual(betRes.status, 200, 'Continuous Crash bet/queue should return 200');
+    assert.strictEqual(betRes.data.success, true, 'Continuous Crash bet/queue should succeed');
+    assert.ok(['placed', 'queued'].includes(betRes.data.status), 'Status should be placed or queued');
+    console.log(`  [PASS] Continuous Crash Engine active in phase "${stateRes.data.phase}", bet status: "${betRes.data.status}".`);
 
     console.log('\n=== ALL CRASH TESTS PASSED SUCCESSFULLY! ===\n');
   } catch (err) {
