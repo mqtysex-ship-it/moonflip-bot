@@ -10,6 +10,9 @@ import {
   MessageFlags,
 } from 'discord.js';
 import fs from 'fs';
+import { databasePool } from '../database.js';
+import { readDocument, writeDocument, updateDocument } from '../documentStore.js';
+import { mergeTicketChanges } from './ticketPersistence.js';
 import { getDataDirectory } from '../dataDirectory.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -35,7 +38,8 @@ function ensureStorage() {
   }
 }
 
-export function loadDepartments() {
+export async function loadDepartments() {
+  if (databasePool) return readDocument('departments', []);
   ensureStorage();
   try {
     if (fs.existsSync(DEPARTMENTS_FILE)) {
@@ -83,12 +87,19 @@ export function loadDepartments() {
   ];
 }
 
-export function saveDepartments(departments) {
+export async function saveDepartments(departments) {
+  if (databasePool) return writeDocument('departments', departments);
   ensureStorage();
   fs.writeFileSync(DEPARTMENTS_FILE, JSON.stringify(departments, null, 2), 'utf-8');
 }
 
-function loadData() {
+const ticketSnapshots = new WeakMap();
+async function loadData() {
+  if (databasePool) {
+    const data = await readDocument('tickets', { counter: 0, activeTickets: {} });
+    ticketSnapshots.set(data, structuredClone(data));
+    return data;
+  }
   ensureStorage();
   try {
     const raw = fs.readFileSync(TICKETS_FILE, 'utf-8');
@@ -98,7 +109,14 @@ function loadData() {
   }
 }
 
-function saveData(data) {
+async function saveData(data) {
+  if (databasePool) {
+    const before = ticketSnapshots.get(data);
+    if (!before) throw new Error('Ticket snapshot missing');
+    await updateDocument('tickets', { counter: 0, activeTickets: {} }, current => mergeTicketChanges(before, data, current));
+    ticketSnapshots.set(data, structuredClone(data));
+    return;
+  }
   ensureStorage();
   fs.writeFileSync(TICKETS_FILE, JSON.stringify(data, null, 2), 'utf-8');
 }
@@ -250,7 +268,7 @@ export async function setupTicketPanel(guild) {
     await m.delete().catch(() => {});
   }
 
-  const departments = loadDepartments();
+  const departments = await loadDepartments();
 
   let desc = `> Welcome to the official **Moonflip Support Portal**!\n` +
     `> Need assistance with your token wallet, have questions regarding gameplay, encountered a glitch, or wish to claim a promotional reward? Select a department below to open a private ticket.\n\n` +
@@ -321,7 +339,7 @@ export async function handleTicketInteraction(interaction) {
     // 1. Create Ticket Button Handlers
     if (customId.startsWith('ticket_open_')) {
       const typeKey = customId.replace('ticket_open_', '');
-      const depts = loadDepartments();
+      const depts = await loadDepartments();
       const ticketConfig = depts.find((d) => d.id === typeKey) || {
         id: typeKey,
         prefix: typeKey,
@@ -338,7 +356,7 @@ export async function handleTicketInteraction(interaction) {
       }
 
       // Check if user already has an active open ticket in the server
-      const data = loadData();
+      const data = await loadData();
       const existing = Object.entries(data.activeTickets).find(
         ([, t]) => t.userId === user.id && t.status === 'open'
       );
@@ -353,7 +371,7 @@ export async function handleTicketInteraction(interaction) {
         } else {
           // Channel was deleted manually, clean up record
           delete data.activeTickets[exChanId];
-          saveData(data);
+          await saveData(data);
         }
       }
 
@@ -450,7 +468,7 @@ export async function handleTicketInteraction(interaction) {
       claimedBy: null,
       status: 'open',
     };
-    saveData(data);
+    await saveData(data);
 
     // Build Ticket Welcome Embed
     const welcomeEmbed = new EmbedBuilder()
@@ -499,7 +517,7 @@ export async function handleTicketInteraction(interaction) {
 
     // Store message ID to update status later
     data.activeTickets[ticketChannel.id].messageId = initialMsg.id;
-    saveData(data);
+    await saveData(data);
 
     // Notify Staff HQ (#🎁┃redemption-review for redemptions, #🔨┃mod-operations for general/wallet/bug)
     try {
@@ -539,7 +557,7 @@ export async function handleTicketInteraction(interaction) {
       });
     }
 
-    const data = loadData();
+    const data = await loadData();
     const ticket = data.activeTickets[interaction.channelId];
 
     if (!ticket) {
@@ -558,7 +576,7 @@ export async function handleTicketInteraction(interaction) {
 
     ticket.claimedBy = user.id;
     ticket.status = 'in_progress';
-    saveData(data);
+    await saveData(data);
 
     // Update welcome message embed if found
     if (ticket.messageId) {
@@ -611,7 +629,7 @@ export async function handleTicketInteraction(interaction) {
 
   // 3. Close Ticket Prompt
   if (customId === 'ticket_action_close') {
-    const data = loadData();
+    const data = await loadData();
     const ticket = data.activeTickets[interaction.channelId];
 
     // Allowed to close: ticket creator or staff
@@ -655,7 +673,7 @@ export async function handleTicketInteraction(interaction) {
 
   // 5. Confirm Close Action
   if (customId === 'ticket_confirm_close') {
-    const data = loadData();
+    const data = await loadData();
     const ticket = data.activeTickets[interaction.channelId];
 
     await interaction.reply({
@@ -725,7 +743,7 @@ export async function handleTicketInteraction(interaction) {
     // Clean from active data
     if (ticket) {
       delete data.activeTickets[interaction.channelId];
-      saveData(data);
+      await saveData(data);
     }
 
     // Delete channel after 5 seconds
@@ -744,7 +762,7 @@ export async function handleTicketInteraction(interaction) {
   if (customId === 'ticket_action_transcript') {
     await interaction.deferReply();
 
-    const data = loadData();
+    const data = await loadData();
     const ticket = data.activeTickets[interaction.channelId];
     const transcriptAttachment = await generateTranscriptFile(interaction.channel, ticket);
 
