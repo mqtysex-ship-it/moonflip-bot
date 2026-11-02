@@ -401,8 +401,13 @@ class GlobalCrashArenaEngine {
     let newBalance = 0;
     if (!bet.isAmbient) {
       if (bet.authenticated && bet.userId) {
-        await addTokens(bet.userId, winAmount, true);
-        newBalance = await getBalance(bet.userId);
+        if (databaseEconomy && bet.roundId) {
+          const res = await databaseEconomy.settleRound(bet.roundId, bet.userId, winAmount);
+          newBalance = res.balance;
+        } else {
+          await addTokens(bet.userId, winAmount, true);
+          newBalance = await getBalance(bet.userId);
+        }
       } else if (bet.session) {
         bet.session.demoBalance = (bet.session.demoBalance || 0) + winAmount;
         newBalance = bet.session.demoBalance;
@@ -457,6 +462,8 @@ class GlobalCrashArenaEngine {
     for (const bet of this.bets.values()) {
       if (!bet.cashedOut && bet.autoCashout && bet.autoCashout <= this.crashPoint) {
         await this.executeBetCashout(bet, bet.autoCashout);
+      } else if (!bet.cashedOut && !bet.isAmbient && bet.authenticated && bet.userId && bet.roundId && databaseEconomy) {
+        await databaseEconomy.settleRound(bet.roundId, bet.userId, 0).catch(reportCrashError);
       }
     }
 
@@ -483,9 +490,19 @@ class GlobalCrashArenaEngine {
     }
 
     let newBalance = currentBalance;
+    let roundId = null;
     if (authenticated) {
-      await deductTokens(session.userId, wager);
-      newBalance = await getBalance(session.userId);
+      if (databaseEconomy) {
+        roundId = crypto.randomUUID();
+        const res = await databaseEconomy.startRound(roundId, session.userId, 'crash', wager, {
+          autoCashout,
+          roundNumber: this.roundNumber,
+        });
+        newBalance = res.balance;
+      } else {
+        await deductTokens(session.userId, wager);
+        newBalance = await getBalance(session.userId);
+      }
     } else {
       session.demoBalance = currentBalance - wager;
       newBalance = session.demoBalance;
@@ -493,6 +510,7 @@ class GlobalCrashArenaEngine {
 
     const betEntry = {
       key: gameKey,
+      roundId,
       authenticated,
       session,
       userId: session.userId,
@@ -646,6 +664,9 @@ async function databaseMinesAction(action, req, session) {
 // ============================================================================
 
 export function setupPlayApi(app) {
+  if (databaseEconomy) {
+    databaseEconomy.recoverInterruptedRounds('crash', true).catch(() => {});
+  }
   // 0. GET /api/play/stream - Real-Time SSE Stream for Continuous Crash & Live Discord Wallet Sync
   app.get('/api/play/stream', async (req, res) => {
     const { session, token, guestKey } = await resolvePlayer(req);
@@ -1222,9 +1243,18 @@ export function setupPlayApi(app) {
       }
 
       let newBalance = currentBalance;
+      let roundId = null;
       if (authenticated) {
-        await deductTokens(session.userId, cleanBet);
-        newBalance = await getBalance(session.userId);
+        if (databaseEconomy) {
+          roundId = crypto.randomUUID();
+          const res = await databaseEconomy.startRound(roundId, session.userId, 'crash', cleanBet, {
+            autoCashout: cleanAuto,
+          });
+          newBalance = res.balance;
+        } else {
+          await deductTokens(session.userId, cleanBet);
+          newBalance = await getBalance(session.userId);
+        }
       } else {
         session.demoBalance = currentBalance - cleanBet;
         newBalance = session.demoBalance;
@@ -1235,6 +1265,7 @@ export function setupPlayApi(app) {
       const flightId = 'cf_' + Date.now() + '_' + crypto.randomBytes(6).toString('hex');
 
       const flightState = {
+        roundId,
         id: flightId,
         userId: session.userId,
         wager: cleanBet,
@@ -1304,6 +1335,9 @@ export function setupPlayApi(app) {
       if (!flight.cashedOut && !flight.crashed) {
         flight.crashed = true;
         activeWebCrash.delete(gameKey);
+        if (authenticated && databaseEconomy && flight.roundId) {
+          await databaseEconomy.settleRound(flight.roundId, session.userId, 0).catch(() => {});
+        }
         recentCrashHistory.unshift(flight.crashPoint);
         if (recentCrashHistory.length > 20) recentCrashHistory.pop();
       }
@@ -1452,8 +1486,13 @@ export function setupPlayApi(app) {
 
       let newBalance = 0;
       if (authenticated) {
-        await addTokens(session.userId, winAmount, true);
-        newBalance = await getBalance(session.userId);
+        if (databaseEconomy && flight.roundId) {
+          const res = await databaseEconomy.settleRound(flight.roundId, session.userId, winAmount);
+          newBalance = res.balance;
+        } else {
+          await addTokens(session.userId, winAmount, true);
+          newBalance = await getBalance(session.userId);
+        }
       } else {
         session.demoBalance += winAmount;
         newBalance = session.demoBalance;

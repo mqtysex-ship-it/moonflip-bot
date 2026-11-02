@@ -46,9 +46,11 @@ console.log('Postgres economy adapter passed');
 let activeQueries = 0;
 const activeStore = new PostgresEconomy({ async query(sql, params) {
   activeQueries++;
-  assert.match(sql, /game_type = 'mines'/);
+  assert.match(sql, /game_type = 'mines'|game_type = 'blackjack'|game_type = 'crash'/);
   assert.deepEqual(params, ['123456789']);
   return { rows: [{ round_id: 'round', discord_user_id: '123456789', game_type: 'mines', wager: '200', game_state: { bombs: 3 }, status: 'active', version: '2', balance_after_wager: '800' }] };
 } });
 assert.equal((await activeStore.loadActiveMines('123456789')).balanceAfterWager, 800);
-assert.equal(activeQueries, 1);
+assert.equal((await activeStore.loadActiveBlackjack('123456789')).balanceAfterWager, 800);
+assert.equal((await activeStore.loadActiveCrash('123456789')).balanceAfterWager, 800);
+assert.equal(activeQueries, 3);

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   ActionRowBuilder,
   AttachmentBuilder,
@@ -10,8 +11,10 @@ import {
   TextInputStyle,
 } from 'discord.js';
 import { generateCrashMultiplier } from './rng.js';
-import { getBalance, deductTokens, addTokens } from './economy.js';
+import { getBalance, deductTokens, addTokens, databaseEconomy } from './economy.js';
 import { getCrashPreviewGif } from './animator.js';
+import { databasePool } from '../database.js';
+import { readDocument, updateDocument } from '../documentStore.js';
 
 // Active per-user Crash flights: userId -> FlightState
 export const activeCrashFlights = new Map();
@@ -22,10 +25,17 @@ const processingCrashUsers = new Set();
 // Persistent per-user preferences (betAmount, autoCashout, winStreak)
 const userCrashPrefs = new Map();
 
-// Global recent crash multipliers for live casino history
-const recentCrashHistory = ['2.45x', '1.18x', '8.45x', '1.85x', '12.50x', '3.20x'];
-
-let globalFlightCounter = 0;
+if (databasePool) {
+  readDocument('user_preferences', {})
+    .then((doc) => {
+      if (doc && typeof doc === 'object') {
+        for (const [userId, prefs] of Object.entries(doc)) {
+          if (prefs?.crash) userCrashPrefs.set(userId, prefs.crash);
+        }
+      }
+    })
+    .catch(() => {});
+}
 
 function getOrCreateUserPrefs(userId) {
   if (!userCrashPrefs.has(userId)) {
@@ -37,6 +47,21 @@ function getOrCreateUserPrefs(userId) {
   }
   return userCrashPrefs.get(userId);
 }
+
+function saveUserCrashPrefs(userId, prefs) {
+  userCrashPrefs.set(userId, prefs);
+  if (databasePool) {
+    updateDocument('user_preferences', {}, (doc) => {
+      doc[userId] = doc[userId] || {};
+      doc[userId].crash = prefs;
+    }).catch(() => {});
+  }
+}
+
+// Global recent crash multipliers for live casino history
+const recentCrashHistory = ['2.45x', '1.18x', '8.45x', '1.85x', '12.50x', '3.20x'];
+
+let globalFlightCounter = 0;
 
 function recordCrashHistory(mult) {
   recentCrashHistory.unshift(`${mult.toFixed(2)}x`);
@@ -491,6 +516,9 @@ class ContinuousCrashEngine {
       const payload = buildCrashLobbyPanel();
       this.message = await this.channel.send(payload);
       this.isRunning = true;
+      if (databaseEconomy) {
+        await databaseEconomy.recoverInterruptedRounds('crash', true).catch(() => {});
+      }
       console.log('[Crash Engine] Deployed Moonflip Orbital Crash panel in #' + this.channel.name);
     } catch (err) {
       console.error('[Crash Engine Start Error]', err.message);
@@ -515,7 +543,13 @@ class ContinuousCrashEngine {
       let autoNotice = null;
 
       // Auto-recover if player had a previous unfinished flight (never let a player get stuck!)
-      if (activeCrashFlights.has(userId)) {
+      if (databaseEconomy) {
+        const existing = await databaseEconomy.loadActiveCrash(userId);
+        if (existing) {
+          await databaseEconomy.settleRound(existing.roundId, userId, existing.wager);
+          autoNotice = `🔄 **Launchpad Reset**: Refunded your previous unfinished **${existing.wager.toLocaleString()} 🪙** launch and ignited a fresh rocket!`;
+        }
+      } else if (activeCrashFlights.has(userId)) {
         const oldFlight = activeCrashFlights.get(userId);
         oldFlight.stopped = true;
         if (oldFlight.stepTimer) {
@@ -527,10 +561,10 @@ class ContinuousCrashEngine {
         if (!oldFlight.cashedOut && !oldFlight.crashed) {
           if (oldFlight.currentMultiplier > 1.0) {
             const autoWin = Math.floor(oldFlight.betAmount * oldFlight.currentMultiplier);
-            (await addTokens(userId, autoWin, true));
+            await addTokens(userId, autoWin, true);
             autoNotice = `✅ **Auto-Eject**: Settled your previous active flight at **${oldFlight.currentMultiplier.toFixed(2)}x** for **+${autoWin.toLocaleString()} 🪙**!`;
           } else {
-            (await addTokens(userId, oldFlight.betAmount, false));
+            await addTokens(userId, oldFlight.betAmount, false);
             autoNotice = `🔄 **Launchpad Reset**: Refunded your untouched **${oldFlight.betAmount.toLocaleString()} 🪙** launch and ignited a fresh rocket!`;
           }
         }
@@ -556,15 +590,26 @@ class ContinuousCrashEngine {
         return await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
       }
 
-      // Deduct tokens upfront (0ms in-memory)
-      (await deductTokens(userId, cleanAmount));
-      prefs.betAmount = cleanAmount;
-      prefs.autoCashout = targetAuto;
-
       const crashPoint = generateCrashMultiplier(cleanAmount);
       const flightId = ++globalFlightCounter;
+      const roundId = randomUUID();
+
+      if (databaseEconomy) {
+        await databaseEconomy.startRound(roundId, userId, 'crash', cleanAmount, {
+          crashPoint,
+          autoCashout: targetAuto,
+          startTime: Date.now(),
+        });
+      } else {
+        await deductTokens(userId, cleanAmount);
+      }
+
+      prefs.betAmount = cleanAmount;
+      prefs.autoCashout = targetAuto;
+      saveUserCrashPrefs(userId, prefs);
 
       const state = {
+        roundId,
         flightId,
         userId,
         user: interaction.user,
@@ -657,10 +702,15 @@ class ContinuousCrashEngine {
       state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
 
       activeCrashFlights.delete(state.userId);
-      (await addTokens(state.userId, state.winAmount, true));
+      if (databaseEconomy && state.roundId) {
+        await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
+      } else {
+        (await addTokens(state.userId, state.winAmount, true));
+      }
 
       const prefs = getOrCreateUserPrefs(state.userId);
       prefs.streak = (prefs.streak || 0) + 1;
+      saveUserCrashPrefs(state.userId, prefs);
       recordCrashHistory(state.crashPoint);
 
       const finalEmbed = (await buildCrashCockpitEmbed(state, state.user));
@@ -679,9 +729,13 @@ class ContinuousCrashEngine {
       state.currentMultiplier = state.crashPoint;
 
       activeCrashFlights.delete(state.userId);
+      if (databaseEconomy && state.roundId) {
+        await databaseEconomy.settleRound(state.roundId, state.userId, 0);
+      }
 
       const prefs = getOrCreateUserPrefs(state.userId);
       prefs.streak = 0;
+      saveUserCrashPrefs(state.userId, prefs);
       recordCrashHistory(state.crashPoint);
 
       const crashEmbed = (await buildCrashCockpitEmbed(state, state.user));
@@ -755,10 +809,15 @@ class ContinuousCrashEngine {
 
     state.cashoutMult = state.currentMultiplier;
     state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
-    (await addTokens(userId, state.winAmount, true));
+    if (databaseEconomy && state.roundId) {
+      await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
+    } else {
+      (await addTokens(userId, state.winAmount, true));
+    }
 
     const prefs = getOrCreateUserPrefs(userId);
     prefs.streak = (prefs.streak || 0) + 1;
+    saveUserCrashPrefs(userId, prefs);
     recordCrashHistory(state.crashPoint);
 
     const finalEmbed = (await buildCrashCockpitEmbed(state, interaction.user));

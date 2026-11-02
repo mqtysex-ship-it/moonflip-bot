@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -9,10 +10,29 @@ import {
   TextInputStyle,
 } from 'discord.js';
 import { secureRandomInt, secureRandomFloat } from './rng.js';
-import { getBalance, deductTokens, addTokens } from './economy.js';
+import { getBalance, deductTokens, addTokens, databaseEconomy } from './economy.js';
 
 export const activeBJGames = new Map();
 const processingBJUsers = new Set();
+
+async function getActiveBlackjack(userId) {
+  if (databaseEconomy) {
+    const round = await databaseEconomy.loadActiveBlackjack(userId);
+    if (!round) return null;
+    return {
+      roundId: round.roundId,
+      userId: round.userId,
+      betAmount: round.wager,
+      baseBet: round.state.baseBet || round.wager,
+      playerHand: round.state.playerHand,
+      dealerHand: round.state.dealerHand,
+      version: round.version,
+      active: round.status === 'active',
+      isDatabase: true,
+    };
+  }
+  return activeBJGames.get(userId) || null;
+}
 
 const SUITS = ['♠️', '♥️', '♦️', '♣️'];
 const VALUES = [
@@ -217,11 +237,15 @@ export async function startBlackjack(interaction, betAmount = 100) {
     let autoNotice = null;
 
     // Auto-recover if player had a previous unfinished hand (never lock out!)
-    if (activeBJGames.has(userId)) {
-      const oldState = activeBJGames.get(userId);
-      activeBJGames.delete(userId);
-      (await addTokens(userId, oldState.betAmount, false));
-      autoNotice = `🔄 **Table Reset**: Refunded your previous unfinished **${oldState.betAmount.toLocaleString()} 🪙** hand and dealt a fresh hand!`;
+    const existing = await getActiveBlackjack(userId);
+    if (existing) {
+      if (databaseEconomy) {
+        await databaseEconomy.settleRound(existing.roundId, userId, existing.betAmount);
+      } else {
+        activeBJGames.delete(userId);
+        await addTokens(userId, existing.betAmount, false);
+      }
+      autoNotice = `🔄 **Table Reset**: Refunded your previous unfinished **${existing.betAmount.toLocaleString()} 🪙** hand and dealt a fresh hand!`;
     }
 
     const cleanBet = Math.max(10, Math.floor(betAmount) || 100);
@@ -235,8 +259,6 @@ export async function startBlackjack(interaction, betAmount = 100) {
       return await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
     }
 
-    (await deductTokens(userId, cleanBet));
-
     let playerHand = [drawCard(), drawCard()];
     const dealerHand = [drawCard(), drawCard()];
     // Slight dampening on raw initial 21s so 2.5x natural blackjacks remain a rare treat
@@ -244,6 +266,7 @@ export async function startBlackjack(interaction, betAmount = 100) {
       playerHand = [drawCard(), drawCard()];
     }
     const playerScore = calculateHand(playerHand);
+    const roundId = randomUUID();
 
     const isEphemeralCard =
       interaction.isButton() && interaction.message?.flags?.has(MessageFlags.Ephemeral);
@@ -251,7 +274,17 @@ export async function startBlackjack(interaction, betAmount = 100) {
     // Natural Blackjack check (21 on initial 2 cards)
     if (playerScore === 21) {
       const payout = Math.floor(cleanBet * 2.5);
-      (await addTokens(userId, payout, true));
+      if (databaseEconomy) {
+        await databaseEconomy.playInstantRound(roundId, userId, 'blackjack', cleanBet, payout, {
+          playerHand,
+          dealerHand,
+          status: 'natural',
+          multiplier: 2.5,
+        });
+      } else {
+        await deductTokens(userId, cleanBet);
+        await addTokens(userId, payout, true);
+      }
 
       const embed = (await renderBJEmbed(
         playerHand,
@@ -278,17 +311,37 @@ export async function startBlackjack(interaction, betAmount = 100) {
       });
     }
 
-    const gameState = {
+    if (databaseEconomy) {
+      await databaseEconomy.startRound(roundId, userId, 'blackjack', cleanBet, {
+        playerHand,
+        dealerHand,
+        baseBet: cleanBet,
+        status: 'playing',
+      });
+    } else {
+      await deductTokens(userId, cleanBet);
+      const gameState = {
+        userId,
+        betAmount: cleanBet,
+        baseBet: cleanBet,
+        playerHand,
+        dealerHand,
+        active: true,
+        createdAt: Date.now(),
+      };
+      activeBJGames.set(userId, gameState);
+    }
+
+    const currentGameState = {
+      roundId,
       userId,
       betAmount: cleanBet,
       baseBet: cleanBet,
       playerHand,
       dealerHand,
+      version: 0,
       active: true,
-      createdAt: Date.now(),
     };
-
-    activeBJGames.set(userId, gameState);
 
     const embed = (await renderBJEmbed(
       playerHand,
@@ -300,7 +353,7 @@ export async function startBlackjack(interaction, betAmount = 100) {
       interaction.user,
       autoNotice
     ));
-    const row = (await buildActiveRow(gameState));
+    const row = (await buildActiveRow(currentGameState));
 
     if (isEphemeralCard && !interaction.replied && !interaction.deferred) {
       return await interaction.update({ embeds: [embed], components: [row] });
@@ -393,7 +446,7 @@ export async function handleBlackjackButton(interaction) {
     return interaction.deferUpdate().catch(() => {});
   }
 
-  const state = activeBJGames.get(userId);
+  const state = await getActiveBlackjack(userId);
   if (!state) {
     return startBlackjack(interaction, 100);
   }
@@ -405,49 +458,108 @@ export async function handleBlackjackButton(interaction) {
 
     // 1. Double Down (doubles wager, draws 1 card, then stands)
     if (customId === 'bj_double') {
-      if (state.playerHand.length === 2 && (await getBalance(userId)) >= state.betAmount) {
-        (await deductTokens(userId, state.betAmount));
-        state.betAmount *= 2;
-      }
-      state.playerHand.push(drawPlayerHitCard(state.playerHand, true));
-      const score = calculateHand(state.playerHand);
+      const balance = await getBalance(userId);
+      if (state.playerHand.length === 2 && balance >= state.baseBet) {
+        const extraWager = state.baseBet;
+        const totalWager = state.betAmount + extraWager;
+        const card = drawPlayerHitCard(state.playerHand, true);
+        const newPlayerHand = [...state.playerHand, card];
+        const score = calculateHand(newPlayerHand);
 
-      if (score > 21) {
-        activeBJGames.delete(userId);
-        const embed = (await renderBJEmbed(
-          state.playerHand,
-          state.dealerHand,
+        if (score > 21) {
+          if (databaseEconomy) {
+            await databaseEconomy.doubleRound(
+              randomUUID(), state.roundId, userId, state.version, extraWager,
+              { playerHand: newPlayerHand, dealerHand: state.dealerHand, score, status: 'bust', isDouble: true },
+              0
+            );
+          } else {
+            activeBJGames.delete(userId);
+            await deductTokens(userId, extraWager);
+          }
+          const embed = await renderBJEmbed(
+            newPlayerHand,
+            state.dealerHand,
+            false,
+            'bust',
+            totalWager,
+            0,
+            interaction.user
+          );
+          return await interaction.update({
+            embeds: [embed],
+            components: [buildReplayRow(state.baseBet)],
+          });
+        }
+
+        const dealerHand = resolveProHouseDealerHand(state.dealerHand, score);
+        const dealerScore = calculateHand(dealerHand);
+        let status = 'lose';
+        let payout = 0;
+        if (dealerScore > 21) {
+          status = 'dealer_bust';
+          payout = totalWager * 2;
+        } else if (score > dealerScore) {
+          status = 'win';
+          payout = totalWager * 2;
+        } else if (score === dealerScore) {
+          status = 'push';
+          payout = totalWager;
+        }
+
+        if (databaseEconomy) {
+          await databaseEconomy.doubleRound(
+            randomUUID(), state.roundId, userId, state.version, extraWager,
+            { playerHand: newPlayerHand, dealerHand, playerScore: score, dealerScore, status, isDouble: true },
+            payout
+          );
+        } else {
+          activeBJGames.delete(userId);
+          await deductTokens(userId, extraWager);
+          if (payout > 0) await addTokens(userId, payout, status !== 'push');
+        }
+
+        const embed = await renderBJEmbed(
+          newPlayerHand,
+          dealerHand,
           false,
-          'bust',
-          state.betAmount,
-          0,
+          status,
+          totalWager,
+          payout,
           interaction.user
-        ));
+        );
         return await interaction.update({
           embeds: [embed],
-          components: [buildReplayRow(state.baseBet || state.betAmount)],
+          components: [buildReplayRow(state.baseBet)],
         });
       }
-
-      return await resolveStand(interaction, state);
     }
 
     // 2. Hit
     if (customId === 'bj_hit') {
-      state.playerHand.push(drawPlayerHitCard(state.playerHand, false));
-      const score = calculateHand(state.playerHand);
+      const card = drawPlayerHitCard(state.playerHand, false);
+      const newPlayerHand = [...state.playerHand, card];
+      const score = calculateHand(newPlayerHand);
 
       if (score > 21) {
-        activeBJGames.delete(userId);
-        const embed = (await renderBJEmbed(
-          state.playerHand,
+        if (databaseEconomy) {
+          await databaseEconomy.advanceRound(
+            randomUUID(), state.roundId, userId, state.version,
+            { ...state, playerHand: newPlayerHand, score, status: 'bust' },
+            0
+          );
+        } else {
+          activeBJGames.delete(userId);
+        }
+        const embed = await renderBJEmbed(
+          newPlayerHand,
           state.dealerHand,
           false,
           'bust',
           state.betAmount,
           0,
           interaction.user
-        ));
+        );
         return await interaction.update({
           embeds: [embed],
           components: [buildReplayRow(state.baseBet || state.betAmount)],
@@ -455,10 +567,21 @@ export async function handleBlackjackButton(interaction) {
       }
 
       if (score === 21) {
+        state.playerHand = newPlayerHand;
         return await resolveStand(interaction, state);
       }
 
-      const embed = (await renderBJEmbed(
+      if (databaseEconomy) {
+        const nextState = { ...state, playerHand: newPlayerHand, score, status: 'playing' };
+        const adv = await databaseEconomy.advanceRound(
+          randomUUID(), state.roundId, userId, state.version,
+          nextState, null
+        );
+        state.version = adv.version;
+      }
+      state.playerHand = newPlayerHand;
+
+      const embed = await renderBJEmbed(
         state.playerHand,
         state.dealerHand,
         true,
@@ -466,10 +589,10 @@ export async function handleBlackjackButton(interaction) {
         state.betAmount,
         0,
         interaction.user
-      ));
+      );
       return await interaction.update({
         embeds: [embed],
-        components: [(await buildActiveRow(state))],
+        components: [await buildActiveRow(state)],
       });
     }
 
@@ -484,11 +607,11 @@ export async function handleBlackjackButton(interaction) {
 
 async function resolveStand(interaction, state) {
   const userId = state.userId;
-  activeBJGames.delete(userId);
+  if (!databaseEconomy) activeBJGames.delete(userId);
 
   const playerScore = calculateHand(state.playerHand);
-  state.dealerHand = resolveProHouseDealerHand(state.dealerHand, playerScore);
-  const dealerScore = calculateHand(state.dealerHand);
+  const dealerHand = resolveProHouseDealerHand(state.dealerHand, playerScore);
+  const dealerScore = calculateHand(dealerHand);
 
   let status = 'lose';
   let payout = 0;
@@ -496,26 +619,35 @@ async function resolveStand(interaction, state) {
   if (dealerScore > 21) {
     status = 'dealer_bust';
     payout = state.betAmount * 2;
-    (await addTokens(userId, payout, true));
   } else if (playerScore > dealerScore) {
     status = 'win';
     payout = state.betAmount * 2;
-    (await addTokens(userId, payout, true));
   } else if (playerScore === dealerScore) {
     status = 'push';
     payout = state.betAmount;
-    (await addTokens(userId, payout, false));
   }
 
-  const embed = (await renderBJEmbed(
+  if (databaseEconomy) {
+    await databaseEconomy.advanceRound(
+      randomUUID(), state.roundId, userId, state.version,
+      { ...state, playerHand: state.playerHand, dealerHand, playerScore, dealerScore, status },
+      payout
+    );
+  } else {
+    if (payout > 0) {
+      await addTokens(userId, payout, status !== 'push');
+    }
+  }
+
+  const embed = await renderBJEmbed(
     state.playerHand,
-    state.dealerHand,
+    dealerHand,
     false,
     status,
     state.betAmount,
     payout,
     interaction.user
-  ));
+  );
   return interaction.update({
     embeds: [embed],
     components: [buildReplayRow(state.baseBet || state.betAmount)],

@@ -13,6 +13,8 @@ import { getBalance, deductTokens, addTokens } from './economy.js';
 import { buildMinesAttachment } from '../canvas/gameCardRenderer.js';
 import { createWebPlaySession, getPublicBaseUrl } from '../web/playApi.js';
 import { getMinesLeaderboard } from './minesLeaderboard.js';
+import { databasePool } from '../database.js';
+import { readDocument, updateDocument } from '../documentStore.js';
 
 export const activeMinesGames = new Map();
 
@@ -21,6 +23,28 @@ const processingMinesUsers = new Set();
 
 // Remember last bet & bomb settings per user for 1-click replay
 const userMinesPrefs = new Map();
+
+if (databasePool) {
+  readDocument('user_preferences', {})
+    .then((doc) => {
+      if (doc && typeof doc === 'object') {
+        for (const [userId, prefs] of Object.entries(doc)) {
+          if (prefs?.mines) userMinesPrefs.set(userId, prefs.mines);
+        }
+      }
+    })
+    .catch(() => {});
+}
+
+export function saveUserMinesPrefs(userId, prefs) {
+  userMinesPrefs.set(userId, prefs);
+  if (databasePool) {
+    updateDocument('user_preferences', {}, (doc) => {
+      doc[userId] = doc[userId] || {};
+      doc[userId].mines = prefs;
+    }).catch(() => {});
+  }
+}
 
 const TOTAL_TILES = 25; // 5x5 Grid
 const DEFAULT_BOMBS = 3;

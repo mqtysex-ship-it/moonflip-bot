@@ -12,6 +12,7 @@ const tests = [
   'test-dashboard-balance.js', 'test-dashboard-database-adjust.js', 'test-level-balance-sync.js', 'test-mines-invalid-tile.js',
   'test-rng-integrity.js', 'test-session-security.js', 'test-data-directory.js', 'test-web-arena.js',
   'test-crash-engine.js', 'test-mines-leaderboard.js',
+  'test-blackjack-persistence.js', 'test-crash-persistence.js',
 ];
 try {
   fs.cpSync(path.join(project, 'src'), path.join(sandbox, 'src'), { recursive: true });
