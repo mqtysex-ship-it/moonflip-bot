@@ -484,6 +484,13 @@ class GlobalCrashArenaEngine {
   }
 
   async placeBetInternal(gameKey, { authenticated, session, wager, autoCashout }) {
+    if (authenticated && databaseEconomy && session?.userId) {
+      const existing = await databaseEconomy.loadActiveCrash(session.userId);
+      if (existing && !this.bets.has(gameKey)) {
+        await databaseEconomy.settleRound(existing.roundId, session.userId, existing.wager).catch(() => {});
+      }
+    }
+
     const currentBalance = authenticated ? await getBalance(session.userId) : (session.demoBalance ?? 1000);
     if (currentBalance < wager) {
       return { error: `Insufficient balance! You have ${currentBalance.toLocaleString()} 🪙.`, balance: currentBalance };
@@ -660,13 +667,42 @@ async function databaseMinesAction(action, req, session) {
 }
 
 // ============================================================================
-// EXPRESS PLAY API ROUTES
+// EXPRESS PLAY API ROUTES & AUTONOMOUS RECOVERY SWEEPER
 // ============================================================================
 
-export function setupPlayApi(app) {
-  if (databaseEconomy) {
-    databaseEconomy.recoverInterruptedRounds('crash', true, 120).catch(() => {});
+let crashSweeperTimer = null;
+
+export function startCrashSweeper(intervalMs = 300000, olderThanSeconds = 1200) {
+  if (!databaseEconomy) return;
+  const sweep = () => {
+    databaseEconomy.recoverInterruptedRounds('crash', true, olderThanSeconds).catch(() => {});
+  };
+  sweep();
+  if (crashSweeperTimer) clearInterval(crashSweeperTimer);
+  crashSweeperTimer = setInterval(sweep, intervalMs);
+  if (crashSweeperTimer.unref) crashSweeperTimer.unref();
+}
+
+export function stopCrashSweeper() {
+  if (crashSweeperTimer) {
+    clearInterval(crashSweeperTimer);
+    crashSweeperTimer = null;
   }
+}
+
+export async function shutdownWebCrash() {
+  stopCrashSweeper();
+  if (globalCrashEngine) {
+    for (const bet of globalCrashEngine.bets.values()) {
+      if (!bet.cashedOut && !bet.isAmbient && bet.authenticated && bet.userId && bet.roundId && databaseEconomy) {
+        await databaseEconomy.settleRound(bet.roundId, bet.userId, bet.wager).catch(() => {});
+      }
+    }
+  }
+}
+
+export function setupPlayApi(app) {
+  startCrashSweeper(300000, 1200);
   // 0. GET /api/play/stream - Real-Time SSE Stream for Continuous Crash & Live Discord Wallet Sync
   app.get('/api/play/stream', async (req, res) => {
     const { session, token, guestKey } = await resolvePlayer(req);
@@ -1229,6 +1265,13 @@ export function setupPlayApi(app) {
           error: `Insufficient balance! You have ${currentBalance.toLocaleString()} tokens, but bet is ${cleanBet.toLocaleString()} tokens.`,
           balance: currentBalance,
         });
+      }
+
+      if (authenticated && databaseEconomy && session?.userId) {
+        const dbExisting = await databaseEconomy.loadActiveCrash(session.userId);
+        if (dbExisting) {
+          await databaseEconomy.settleRound(dbExisting.roundId, session.userId, dbExisting.wager).catch(() => {});
+        }
       }
 
       const existing = activeWebCrash.get(gameKey);

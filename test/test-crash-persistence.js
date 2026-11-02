@@ -45,15 +45,20 @@ const economy = new PostgresEconomy({
   },
 });
 
-// Test 1: Recovery of interrupted flights upon server reboot
-const recoveredCount = await economy.recoverInterruptedRounds('crash', true, 120);
+// Test 1: Recovery of interrupted flights with 20-minute age window (protects 13-minute Discord flights)
+const recoveredCount = await economy.recoverInterruptedRounds('crash', true, 1200);
 assert.equal(recoveredCount, 2);
 assert.equal(queries[0].sql, 'BEGIN');
 assert.equal(queries.at(-1).sql, 'COMMIT');
 assert(queries.some((q) => q.sql.includes('pg_advisory_xact_lock')));
 assert(queries.some((q) => q.sql.includes('balance = balance + $2')));
 assert(queries.some((q) => q.sql.includes("status = 'settled'")));
-assert(queries.some((q) => q.sql.includes("created_at < now() - ($2 || ' seconds')::interval") && q.params[1] === 120));
+assert(queries.some((q) => q.sql.includes("created_at < now() - ($2 || ' seconds')::interval") && q.params[1] === 1200));
+
+// Test 1b: Verify default age window is 1200 seconds (20 minutes)
+await economy.recoverInterruptedRounds('crash');
+const lastQuery = queries.findLast((q) => q.sql.includes("created_at < now() - ($2 || ' seconds')::interval"));
+assert.equal(lastQuery.params[1], 1200);
 
 // Test 2: Active crash flight lookup
 const lookupQueries = [];

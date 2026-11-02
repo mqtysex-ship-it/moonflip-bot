@@ -277,7 +277,7 @@ export class PostgresEconomy {
       client.release();
     }
   }
-  async recoverInterruptedRounds(game, refund = true, olderThanSeconds = 120) {
+  async recoverInterruptedRounds(game, refund = true, olderThanSeconds = 1200) {
     identity(game, 'game');
     amount(olderThanSeconds, 'olderThanSeconds', 0);
     const client = await this.pool.connect();

@@ -774,6 +774,23 @@ class ContinuousCrashEngine {
     const state = activeCrashFlights.get(userId);
 
     if (!state || state.stopped || state.cashedOut || state.crashed) {
+      if (databaseEconomy) {
+        const existing = await databaseEconomy.loadActiveCrash(userId);
+        if (existing) {
+          await databaseEconomy.settleRound(existing.roundId, userId, existing.wager).catch(() => {});
+          const embed = new EmbedBuilder()
+            .setColor(0xf1c40f)
+            .setTitle('🔄 Flight Recovered & Refunded')
+            .setDescription(
+              `> Your flight was interrupted by a system restart.\n` +
+              `> Your wager of **\`${existing.wager.toLocaleString()} 🪙\`** has been 100% refunded to your wallet!`
+            );
+          if (interaction.replied || interaction.deferred) {
+            return await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral }).catch(() => {});
+          }
+          return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+      }
       // If user clicked on an expired/finished card, smoothly launch a new round with their last bet!
       const prefs = getOrCreateUserPrefs(userId);
       return this.handleBet(interaction, prefs.betAmount, prefs.autoCashout);
@@ -841,3 +858,17 @@ class ContinuousCrashEngine {
 }
 
 export const continuousCrash = new ContinuousCrashEngine();
+
+export async function shutdownContinuousCrash() {
+  for (const [userId, state] of activeCrashFlights.entries()) {
+    if (state.stepTimer) {
+      clearTimeout(state.stepTimer);
+      state.stepTimer = null;
+    }
+    state.stopped = true;
+    if (databaseEconomy && state.roundId && !state.cashedOut && !state.crashed) {
+      await databaseEconomy.settleRound(state.roundId, userId, state.betAmount).catch(() => {});
+    }
+  }
+  activeCrashFlights.clear();
+}

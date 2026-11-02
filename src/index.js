@@ -2,6 +2,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createDiscordMcpServer } from './server.js';
 import { getDiscordClient, destroyDiscordClient } from './discord.js';
 import { startWebServer } from './web/server.js';
+import { shutdownContinuousCrash } from './games/continuousCrash.js';
+import { shutdownWebCrash } from './web/playApi.js';
 
 // Global process error handlers to prevent unhandled rejections from terminating daemon
 process.on('unhandledRejection', (reason) => {
@@ -19,6 +21,10 @@ async function main() {
   const cleanup = async () => {
     console.error('[Discord MCP] Shutting down...');
     try {
+      await Promise.allSettled([
+        shutdownContinuousCrash(),
+        shutdownWebCrash(),
+      ]);
       if (webServer) webServer.close();
       await server.close();
       await destroyDiscordClient();
