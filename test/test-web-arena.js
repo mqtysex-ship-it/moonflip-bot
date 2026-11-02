@@ -25,13 +25,28 @@ async function runTests() {
     assert(htmlText.includes('Web Arena'));
     console.log('✓ Test 1 Passed: GET /play served correctly.');
 
-    // 2. Verify static assets /play/style.css and /play/app.js
-    console.log('Test 2: GET /play/style.css & /play/app.js');
+    // 2. Verify static assets /play/style.css, /play/app.js and all 6 game cover images
+    console.log('Test 2: GET /play/style.css, /play/app.js & 6 Game Covers');
     const cssRes = await fetch(`${baseUrl}/play/style.css`);
     assert.strictEqual(cssRes.status, 200);
     const jsRes = await fetch(`${baseUrl}/play/app.js`);
     assert.strictEqual(jsRes.status, 200);
-    console.log('✓ Test 2 Passed: Static assets served.');
+
+    const gameImages = [
+      'game-mines.png',
+      'game-crash.png',
+      'game-blackjack.png',
+      'game-keno.png',
+      'game-slots.png',
+      'game-coinflip.png',
+    ];
+    for (const img of gameImages) {
+      const imgRes = await fetch(`${baseUrl}/play/assets/${img}`);
+      assert.strictEqual(imgRes.status, 200, `Image asset ${img} should return 200`);
+      const len = Number(imgRes.headers.get('content-length') || 0);
+      assert.ok(len > 1000, `Image asset ${img} should not be empty`);
+    }
+    console.log('✓ Test 2 Passed: Static assets and all 6 game covers served.');
 
     // 3. Verify Session Creation & Profile API
     console.log('Test 3: Session Creation & GET /api/play/profile');
@@ -137,7 +152,49 @@ async function runTests() {
     assert.strictEqual(guestProfile.balance, 1000);
     console.log('✓ Test 8 Passed: Demo mode functions properly.');
 
-    console.log('--- ALL 8 WEB ARENA TESTS PASSED PERFECTLY! ---');
+    // 9. Verify Continuous Crash Bet & Cashout in Web Arena
+    console.log('Test 9: Continuous Crash Bet & Cashout');
+    const { globalCrashEngine } = await import('../src/web/playApi.js');
+    globalCrashEngine.enterBettingPhase();
+
+    const crashBetRes = await fetch(`${baseUrl}/api/play/crash/bet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-play-token': token },
+      body: JSON.stringify({ wager: 100, autoCashout: 5.0 }),
+    });
+    assert.strictEqual(crashBetRes.status, 200);
+    const crashBetData = await crashBetRes.json();
+    assert.strictEqual(crashBetData.success, true);
+    assert.strictEqual(crashBetData.status, 'placed');
+
+    globalCrashEngine.enterFlightPhase();
+    await new Promise((r) => setTimeout(r, 60));
+
+    const crashCashoutRes = await fetch(`${baseUrl}/api/play/crash/cashout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-play-token': token },
+      body: JSON.stringify({}),
+    });
+    assert.strictEqual(crashCashoutRes.status, 200);
+    const crashCashoutData = await crashCashoutRes.json();
+    assert.strictEqual(crashCashoutData.success, true);
+    assert.strictEqual(crashCashoutData.cashedOut, true);
+    assert.ok(crashCashoutData.multiplier >= 1.0);
+    assert.ok(crashCashoutData.winAmount >= 100);
+    console.log(`✓ Test 9 Passed: Crash cashout succeeded at ${crashCashoutData.multiplier}x (+${crashCashoutData.winAmount} tokens).`);
+
+    // 10. Verify All Games Catalog in HTML
+    console.log('Test 10: All Games Catalog in HTML');
+    assert(htmlText.includes('id="gamesCatalogChassis"'));
+    assert(htmlText.includes('game-mines.png'));
+    assert(htmlText.includes('game-crash.png'));
+    assert(htmlText.includes('game-blackjack.png'));
+    assert(htmlText.includes('game-keno.png'));
+    assert(htmlText.includes('game-slots.png'));
+    assert(htmlText.includes('game-coinflip.png'));
+    console.log('✓ Test 10 Passed: All Games catalog and 6 game cards present in HTML.');
+
+    console.log('--- ALL 10 WEB ARENA TESTS PASSED PERFECTLY! ---');
   } finally {
     server.close();
   }

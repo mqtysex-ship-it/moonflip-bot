@@ -165,10 +165,10 @@ function resolvePlayer(req) {
   }
 
   // 3. Persistent Demo Guest Session (keyed by guestId or IP so demo balance doesn't reset every click)
-  const guestKey = req.headers['x-guest-id'] || req.ip || 'default_guest';
+  const guestKey = req.headers['x-guest-id'] || req.query?.guestId || req.body?.guestId || req.ip || 'default_guest';
   if (!guestBalances.has(guestKey)) {
     guestBalances.set(guestKey, {
-      userId: null,
+      userId: guestKey,
       username: 'Guest Player',
       avatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png',
       demoBalance: 1000,
@@ -562,9 +562,9 @@ class GlobalCrashArenaEngine {
       crashPoint: this.phase === 'CRASHED' ? this.crashPoint : undefined,
       history: recentCrashHistory.slice(0, 12),
       players,
-      myBet,
-      myQueued,
-      myQueuedBet: myQueued,
+      myBet: gameKey ? myBet : undefined,
+      myQueued: gameKey ? myQueued : undefined,
+      myQueuedBet: gameKey ? myQueued : undefined,
     };
   }
 
@@ -1265,19 +1265,47 @@ export function setupPlayApi(app) {
       const { flightId } = req.body || {};
 
       // A. Check Global Continuous Crash Engine first (when no custom flightId is passed or matches roundId)
-      const globalBet = globalCrashEngine.bets.get(gameKey);
+      const globalBet = globalCrashEngine.bets.get(gameKey) ||
+        (session?.userId && globalCrashEngine.bets.get(session.userId)) ||
+        (guestKey && globalCrashEngine.bets.get(guestKey));
+
       if (globalBet && (!flightId || flightId === globalCrashEngine.roundId)) {
-        if (globalCrashEngine.phase !== 'IN_FLIGHT' || globalBet.cashedOut) {
-          return res.status(400).json({ error: 'No active flight to cash out.' });
+        if (globalBet.cashedOut) {
+          const balance = authenticated ? getBalance(session.userId) : (session?.demoBalance ?? 1000);
+          return res.json({
+            success: true,
+            cashedOut: true,
+            flightId: globalCrashEngine.roundId,
+            multiplier: globalBet.cashoutMult || 1.0,
+            winAmount: globalBet.winAmount || 0,
+            profit: globalBet.profit || 0,
+            balance,
+            crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+          });
         }
 
-        const elapsedMs = Math.max(0, Date.now() - globalCrashEngine.flightStartTime);
-        if (elapsedMs > globalCrashEngine.flightDurationMs + 120) {
-          const balance = authenticated ? getBalance(session.userId) : session.demoBalance;
+        if (globalCrashEngine.phase === 'CRASHED') {
+          const balance = authenticated ? getBalance(session.userId) : (session?.demoBalance ?? 1000);
           return res.json({
             crashed: true,
             crashPoint: globalCrashEngine.crashPoint,
             balance,
+            crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+          });
+        }
+
+        if (globalCrashEngine.phase !== 'IN_FLIGHT') {
+          return res.status(400).json({ error: 'Flight is not in progress.' });
+        }
+
+        const elapsedMs = Math.max(0, Date.now() - (globalCrashEngine.flightStartTime || globalCrashEngine.phaseStartTime));
+        if (elapsedMs > globalCrashEngine.flightDurationMs + 120) {
+          const balance = authenticated ? getBalance(session.userId) : (session?.demoBalance ?? 1000);
+          return res.json({
+            crashed: true,
+            crashPoint: globalCrashEngine.crashPoint,
+            balance,
+            crashState: globalCrashEngine.getPublicSnapshot(gameKey),
           });
         }
 
@@ -1286,7 +1314,13 @@ export function setupPlayApi(app) {
           achievedMult = globalBet.autoCashout;
         }
 
-        const out = globalCrashEngine.executeBetCashout(globalBet, achievedMult);
+        const out = globalCrashEngine.executeBetCashout(globalBet, achievedMult) || {
+          multiplier: globalBet.cashoutMult || Math.max(1.01, Math.round(achievedMult * 100) / 100),
+          winAmount: globalBet.winAmount || Math.floor(globalBet.wager * (achievedMult || 1.0)),
+          profit: globalBet.profit || 0,
+          balance: authenticated ? getBalance(session.userId) : (session?.demoBalance ?? 1000),
+        };
+
         broadcastArenaEvent('crash_cashout', {
           ...globalCrashEngine.getPublicSnapshot(),
           player: globalCrashEngine.serializeBet(globalBet),

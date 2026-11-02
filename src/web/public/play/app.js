@@ -26,11 +26,13 @@
   }
 
   const initialGameParam = urlParams.get('game');
-  const initialView = (initialGameParam === 'mines' || initialGameParam === 'crash') ? initialGameParam : 'home';
+  const initialView = (initialGameParam === 'mines' || initialGameParam === 'crash' || initialGameParam === 'all-games' || initialGameParam === 'games')
+    ? (initialGameParam === 'games' ? 'all-games' : initialGameParam)
+    : 'home';
 
   const state = {
     // Global Navigation & Player State
-    currentView: initialView, // 'home' | 'mines' | 'crash'
+    currentView: initialView, // 'home' | 'all-games' | 'mines' | 'crash'
     currentGame: initialGameParam === 'crash' ? 'crash' : 'mines',
     authenticated: false,
     userId: null,
@@ -725,7 +727,7 @@
 
       const statusTxt = state.crashMyBet && state.crashMyBet.cashedOut
         ? `CASHED OUT @ ${Number(state.crashMyBet.cashoutMult).toFixed(2)}×`
-        : 'FLIGHT IN PROGRESS • BETTING LOCKED';
+        : (state.crashMyBet ? 'FLIGHT IN PROGRESS • CLICK CASHOUT' : 'FLIGHT IN PROGRESS • BETTING LOCKED');
       updateDomTextIfChanged(el.crashLiveStatus, 'liveStatusText', statusTxt);
 
       if (state.crashMyBet && !state.crashMyBet.cashedOut) {
@@ -733,6 +735,12 @@
         updateDomTextIfChanged(el.crashActionSub, 'actionSubText', `+${livePayout.toLocaleString()} (${multFormatted})`);
         updateDomTextIfChanged(el.crashHudMultVal, 'hudMultText', multFormatted);
         updateDomTextIfChanged(el.crashHudProfitVal, 'hudProfitText', `+${livePayout.toLocaleString()}`);
+
+        if (el.crashActionButton && (el.crashActionButton.disabled || !el.crashActionButton.classList.contains('btn-cashout'))) {
+          el.crashActionButton.disabled = false;
+          el.crashActionButton.className = 'btn-stake-cta btn-cashout';
+          el.crashActionTitle.textContent = 'Cash Out';
+        }
       }
 
       let zone = 'ASCENDING';
@@ -1142,8 +1150,32 @@
 
     // Views
     homeChassis: document.getElementById('homeChassis'),
+    gamesCatalogChassis: document.getElementById('gamesCatalogChassis'),
     minesChassis: document.getElementById('minesChassis'),
     crashChassis: document.getElementById('crashChassis'),
+
+    // Catalog & Games Controls
+    btnHomeViewAllGames: document.getElementById('btnHomeViewAllGames'),
+    btnCatalogPlayMines: document.getElementById('btnCatalogPlayMines'),
+    btnCatalogPlayCrash: document.getElementById('btnCatalogPlayCrash'),
+    btnPlayMinesHome: document.getElementById('btnPlayMinesHome'),
+    btnPlayCrashHome: document.getElementById('btnPlayCrashHome'),
+    gamesSearchInput: document.getElementById('gamesSearchInput'),
+    btnClearSearch: document.getElementById('btnClearSearch'),
+    catalogFilterPills: document.querySelectorAll('.catalog-filter-pill'),
+    catalogEmptySearch: document.getElementById('catalogEmptySearch'),
+
+    // Game Info Modal
+    gameInfoModal: document.getElementById('gameInfoModal'),
+    btnCloseGameInfo: document.getElementById('btnCloseGameInfo'),
+    btnDoneGameInfo: document.getElementById('btnDoneGameInfo'),
+    btnCopyGameCmd: document.getElementById('btnCopyGameCmd'),
+    gameInfoTitle: document.getElementById('gameInfoTitle'),
+    gameInfoDesc: document.getElementById('gameInfoDesc'),
+    gameInfoCmd: document.getElementById('gameInfoCmd'),
+    gameInfoImg: document.getElementById('gameInfoImg'),
+    gameInfoRtp: document.getElementById('gameInfoRtp'),
+    gameInfoMaxWin: document.getElementById('gameInfoMaxWin'),
 
     // Profile, Balance & Sync
     balanceNumber: document.getElementById('balanceNumber'),
@@ -1523,16 +1555,30 @@
   }
 
   function syncMyBetFromPlayers() {
-    const myKey = state.authenticated && state.userId ? state.userId : (playToken || guestId);
-    if (!myKey) return;
-    const found = state.crashPlayers.find((p) => p.userId === myKey || (state.userId && p.userId === state.userId));
-    state.crashMyBet = found || null;
+    const myKey = state.authenticated && state.userId ? String(state.userId) : guestId;
+    if (!myKey && !state.userId) return;
+    const found = state.crashPlayers.find((p) => {
+      const pUid = String(p.userId || p.key || '');
+      return pUid === myKey || (state.userId && pUid === String(state.userId)) || (guestId && pUid === guestId);
+    });
+    if (found) {
+      if (state.crashMyBet) {
+        state.crashMyBet.cashedOut = Boolean(found.cashedOut);
+        if (found.cashoutMult) state.crashMyBet.cashoutMult = found.cashoutMult;
+        if (found.profit !== undefined) state.crashMyBet.profit = found.profit;
+        if (found.winAmount !== undefined) state.crashMyBet.winAmount = found.winAmount;
+        if (found.wager) state.crashMyBet.wager = found.wager;
+      } else {
+        state.crashMyBet = { ...found };
+      }
+    }
   }
 
   function applyServerCrashState(data) {
     if (!data) return;
 
     const prevPhase = state.crashPhase;
+    const prevRound = state.crashRoundNumber;
     state.crashPhase = data.phase || state.crashPhase;
     state.crashRoundNumber = data.roundNumber || state.crashRoundNumber;
     state.crashBettingDurationMs = data.bettingDurationMs || data.countdownTotalMs || 6000;
@@ -1551,9 +1597,16 @@
       state.crashPlayers = data.players;
     }
 
-    if (data.myBet !== undefined) {
+    // Only set crashMyBet from server if an explicit bet object is provided.
+    // Broadcast messages omit myBet, so we NEVER wipe an active bet during flight!
+    if (data.myBet && typeof data.myBet === 'object') {
       state.crashMyBet = data.myBet;
+    } else if (state.crashRoundNumber !== prevRound && prevRound !== 0) {
+      // New round started -> clear previous round's bet and sync
+      state.crashMyBet = null;
+      syncMyBetFromPlayers();
     } else {
+      // Same round -> maintain active bet and sync latest status
       syncMyBetFromPlayers();
     }
 
@@ -1612,6 +1665,7 @@
 
     renderCrashPlayersRoster();
     updateCrashTelemetry();
+    updateCrashActionCTA();
   }
 
   function renderCrashPlayersRoster() {
@@ -1661,6 +1715,7 @@
     if (!el.crashActionButton || !el.crashActionTitle || !el.crashActionSub) return;
 
     const wager = state.crashWager;
+    if (!state.crashMyBet) syncMyBetFromPlayers();
     const myBet = state.crashMyBet;
 
     if (el.crashHudProfitBox) {
@@ -1668,13 +1723,15 @@
     }
 
     // 1. Player has an active uncashed bet during IN_FLIGHT -> Active CASH OUT button!
-    if (state.crashPhase === 'IN_FLIGHT' && myBet && !myBet.cashedOut) {
-      el.crashActionButton.disabled = false;
-      el.crashActionButton.className = 'btn-stake-cta btn-cashout';
-      el.crashActionTitle.textContent = 'Cash Out';
-      const livePayout = Math.floor(myBet.wager * (state.crashCurrentMult || 1.0));
-      el.crashActionSub.textContent = `+${livePayout.toLocaleString()}`;
-      return;
+    if (state.crashPhase === 'IN_FLIGHT') {
+      if (myBet && !myBet.cashedOut) {
+        el.crashActionButton.disabled = false;
+        el.crashActionButton.className = 'btn-stake-cta btn-cashout';
+        el.crashActionTitle.textContent = 'Cash Out';
+        const livePayout = Math.floor(myBet.wager * (state.crashCurrentMult || 1.0));
+        el.crashActionSub.textContent = `+${livePayout.toLocaleString()}`;
+        return;
+      }
     }
 
     // 2. Auto-Bet Mode Active Toggle (Allows stopping auto-bet at any time)
@@ -1722,10 +1779,14 @@
   async function handleCrashPrimaryButton() {
     if (state.crashProcessing) return;
 
+    if (!state.crashMyBet) syncMyBetFromPlayers();
+
     // A. Active uncashed bet during IN_FLIGHT -> Cash Out!
-    if (state.crashPhase === 'IN_FLIGHT' && state.crashMyBet && !state.crashMyBet.cashedOut) {
-      await cashOutContinuousCrash();
-      return;
+    if (state.crashPhase === 'IN_FLIGHT') {
+      if (state.crashMyBet && !state.crashMyBet.cashedOut) {
+        await cashOutContinuousCrash();
+        return;
+      }
     }
 
     // B. Stop Auto-Bet if running
@@ -1785,6 +1846,7 @@
   }
 
   async function cashOutContinuousCrash() {
+    if (!state.crashMyBet) syncMyBetFromPlayers();
     if (state.crashProcessing || state.crashPhase !== 'IN_FLIGHT' || !state.crashMyBet || state.crashMyBet.cashedOut) return;
     state.crashProcessing = true;
     Sound.click();
@@ -2449,7 +2511,7 @@
   }
 
   // =========================================================================
-  // 12. VIEW SWITCHER (HOME HUB <-> MINES <-> CRASH)
+  // 12. VIEW SWITCHER (HOME HUB <-> ALL GAMES <-> MINES <-> CRASH)
   // =========================================================================
 
   function switchView(targetView, playSound = false) {
@@ -2461,6 +2523,8 @@
 
     // Sidebar active states
     if (el.navHome) el.navHome.classList.toggle('active', targetView === 'home');
+    if (el.navAllGames) el.navAllGames.classList.toggle('active', targetView === 'all-games');
+    if (el.topNavGames) el.topNavGames.classList.toggle('active', targetView === 'all-games');
     if (el.btnSwitchMines) el.btnSwitchMines.classList.toggle('active', targetView === 'mines');
     if (el.btnSwitchCrash) el.btnSwitchCrash.classList.toggle('active', targetView === 'crash');
 
@@ -2470,12 +2534,26 @@
 
     if (targetView === 'home') {
       if (el.homeChassis) el.homeChassis.style.display = 'flex';
+      if (el.gamesCatalogChassis) el.gamesCatalogChassis.style.display = 'none';
       if (el.activeGameTopbar) el.activeGameTopbar.style.display = 'none';
       if (el.minesChassis) el.minesChassis.style.display = 'none';
       if (el.crashChassis) el.crashChassis.style.display = 'none';
       stopCrashCanvasLoop();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (targetView === 'all-games') {
+      if (el.homeChassis) el.homeChassis.style.display = 'none';
+      if (el.gamesCatalogChassis) el.gamesCatalogChassis.style.display = 'flex';
+      if (el.activeGameTopbar) el.activeGameTopbar.style.display = 'none';
+      if (el.minesChassis) el.minesChassis.style.display = 'none';
+      if (el.crashChassis) el.crashChassis.style.display = 'none';
+      stopCrashCanvasLoop();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Reset filter and search
+      if (el.gamesSearchInput) el.gamesSearchInput.value = '';
+      if (typeof filterCatalogGames === 'function') filterCatalogGames('all', '');
     } else if (targetView === 'crash') {
       if (el.homeChassis) el.homeChassis.style.display = 'none';
+      if (el.gamesCatalogChassis) el.gamesCatalogChassis.style.display = 'none';
       if (el.activeGameTopbar) el.activeGameTopbar.style.display = 'flex';
       if (el.minesChassis) el.minesChassis.style.display = 'none';
       if (el.crashChassis) el.crashChassis.style.display = 'grid';
@@ -2485,6 +2563,7 @@
       renderHistoryRibbon();
     } else {
       if (el.homeChassis) el.homeChassis.style.display = 'none';
+      if (el.gamesCatalogChassis) el.gamesCatalogChassis.style.display = 'none';
       if (el.activeGameTopbar) el.activeGameTopbar.style.display = 'flex';
       if (el.minesChassis) el.minesChassis.style.display = 'grid';
       if (el.crashChassis) el.crashChassis.style.display = 'none';
@@ -2567,10 +2646,12 @@
       switchView('home', true);
     });
   }
-  if (el.topNavGames) el.topNavGames.addEventListener('click', () => switchView('home', true));
+  // Topbar & Sidebar Navigation
+  if (el.topNavGames) el.topNavGames.addEventListener('click', () => switchView('all-games', true));
   if (el.navHome) el.navHome.addEventListener('click', () => switchView('home', true));
-  if (el.navAllGames) el.navAllGames.addEventListener('click', () => switchView('home', true));
+  if (el.navAllGames) el.navAllGames.addEventListener('click', () => switchView('all-games', true));
   if (el.btnBackHome) el.btnBackHome.addEventListener('click', () => switchView('home', true));
+  if (el.btnHomeViewAllGames) el.btnHomeViewAllGames.addEventListener('click', () => switchView('all-games', true));
 
   if (el.btnSwitchMines) el.btnSwitchMines.addEventListener('click', () => switchView('mines', true));
   if (el.btnSwitchCrash) el.btnSwitchCrash.addEventListener('click', () => switchView('crash', true));
@@ -2580,6 +2661,152 @@
   if (el.btnHeroPlayNow) el.btnHeroPlayNow.addEventListener('click', () => switchView('mines', true));
   if (el.cardPlayMines) el.cardPlayMines.addEventListener('click', () => switchView('mines', true));
   if (el.cardPlayCrash) el.cardPlayCrash.addEventListener('click', () => switchView('crash', true));
+  if (el.btnCatalogPlayMines) el.btnCatalogPlayMines.addEventListener('click', () => switchView('mines', true));
+  if (el.btnCatalogPlayCrash) el.btnCatalogPlayCrash.addEventListener('click', () => switchView('crash', true));
+  if (el.btnPlayMinesHome) el.btnPlayMinesHome.addEventListener('click', (e) => { e.stopPropagation(); switchView('mines', true); });
+  if (el.btnPlayCrashHome) el.btnPlayCrashHome.addEventListener('click', (e) => { e.stopPropagation(); switchView('crash', true); });
+
+  // Game Info Modal Data & Mechanics
+  const GAME_INFO_DETAILS = {
+    blackjack: {
+      title: 'Blackjack 21',
+      subtitle: 'Classic Vegas Table Game',
+      desc: 'The classic casino card showdown. Beat the dealer, double down on advantageous hands, split pairs, and hit natural 21 for 3:2 token payouts! Bets and balances are instantly synced with your Discord wallet.',
+      rtp: '99.5%',
+      maxWin: '3:2 Natural Payout',
+      cmd: '/blackjack bet:100',
+      img: '/play/assets/game-blackjack.png?v=5.1',
+    },
+    keno: {
+      title: 'Neon Keno',
+      subtitle: '40-Ball Holographic Draw',
+      desc: 'Pick between 1 and 10 lucky numbers on a 40-ball board. Volatility multipliers pay out according to your hits, with jackpot multipliers reaching up to 1,000×! Playable directly in Discord channels.',
+      rtp: '97.0%',
+      maxWin: '1,000× Jackpot',
+      cmd: '/keno bet:100 picks:5',
+      img: '/play/assets/game-keno.png?v=5.1',
+    },
+    slots: {
+      title: 'Vegas Grand Slots',
+      subtitle: '3-Reel Cybernetic Machine',
+      desc: 'Spin 3 reels for Triple Neon 777s, diamonds, lunar crescents, and rockets. Hit 3 matching symbols on the center payline to trigger progressive community jackpots and bonus token payouts!',
+      rtp: '96.5%',
+      maxWin: '500× Multiplier',
+      cmd: '/slots bet:100',
+      img: '/play/assets/game-slots.png?v=5.1',
+    },
+    coinflip: {
+      title: 'Coinflip',
+      subtitle: 'High-Speed 50/50 Toss',
+      desc: 'High-speed double-or-nothing coin toss with cryptographic fair physics. Play solo against the house or challenge server players to heads-or-tails duels for 1.96× token returns!',
+      rtp: '98.0%',
+      maxWin: '1.96× Instant Win',
+      cmd: '/coinflip bet:100 choice:heads',
+      img: '/play/assets/game-coinflip.png?v=5.1',
+    },
+  };
+
+  function openGameInfoModal(gameKey) {
+    const info = GAME_INFO_DETAILS[gameKey];
+    if (!info) return;
+    Sound.click();
+    if (el.gameInfoTitle) el.gameInfoTitle.textContent = info.title;
+    if (el.gameInfoDesc) el.gameInfoDesc.textContent = info.desc;
+    if (el.gameInfoRtp) el.gameInfoRtp.textContent = info.rtp;
+    if (el.gameInfoMaxWin) el.gameInfoMaxWin.textContent = info.maxWin;
+    if (el.gameInfoCmd) el.gameInfoCmd.textContent = info.cmd;
+    if (el.gameInfoImg) el.gameInfoImg.src = info.img;
+    if (el.gameInfoModal) el.gameInfoModal.classList.add('active');
+  }
+
+  function closeGameInfoModal() {
+    Sound.click();
+    if (el.gameInfoModal) el.gameInfoModal.classList.remove('active');
+  }
+
+  if (el.btnCloseGameInfo) el.btnCloseGameInfo.addEventListener('click', closeGameInfoModal);
+  if (el.btnDoneGameInfo) el.btnDoneGameInfo.addEventListener('click', closeGameInfoModal);
+
+  if (el.btnCopyGameCmd) {
+    el.btnCopyGameCmd.addEventListener('click', () => {
+      Sound.click();
+      const cmdText = el.gameInfoCmd ? el.gameInfoCmd.textContent : '';
+      if (navigator.clipboard && cmdText) {
+        navigator.clipboard.writeText(cmdText);
+        el.btnCopyGameCmd.textContent = 'Copied!';
+        setTimeout(() => {
+          if (el.btnCopyGameCmd) el.btnCopyGameCmd.textContent = 'Copy Command';
+        }, 1500);
+      }
+    });
+  }
+
+  // Delegated clicks for any element with data-catalog-game
+  document.querySelectorAll('[data-catalog-game]').forEach((card) => {
+    card.addEventListener('click', (e) => {
+      // Don't open if clicked directly on an external button
+      const gameKey = card.dataset.catalogGame;
+      if (gameKey) openGameInfoModal(gameKey);
+    });
+  });
+
+  // All Games Search & Filter System
+  let activeCatalogCategory = 'all';
+
+  function filterCatalogGames(category, query = '') {
+    activeCatalogCategory = category;
+    const q = (query || '').toLowerCase().trim();
+    let visibleCount = 0;
+
+    const cards = document.querySelectorAll('#catalogGrid .mf-catalog-card');
+    cards.forEach((card) => {
+      const cardCat = card.dataset.category || '';
+      const cardTitle = (card.dataset.title || card.textContent || '').toLowerCase();
+
+      const matchesCat = (category === 'all') || (cardCat === category);
+      const matchesQuery = !q || cardTitle.includes(q);
+
+      if (matchesCat && matchesQuery) {
+        card.style.display = 'flex';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    if (el.catalogEmptySearch) {
+      el.catalogEmptySearch.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+    if (el.btnClearSearch) {
+      el.btnClearSearch.style.display = q ? 'block' : 'none';
+    }
+  }
+
+  if (el.catalogFilterPills) {
+    el.catalogFilterPills.forEach((pill) => {
+      pill.addEventListener('click', () => {
+        Sound.click();
+        el.catalogFilterPills.forEach((p) => p.classList.remove('active'));
+        pill.classList.add('active');
+        const cat = pill.dataset.filter || 'all';
+        const q = el.gamesSearchInput ? el.gamesSearchInput.value : '';
+        filterCatalogGames(cat, q);
+      });
+    });
+  }
+
+  if (el.gamesSearchInput) {
+    el.gamesSearchInput.addEventListener('input', () => {
+      filterCatalogGames(activeCatalogCategory, el.gamesSearchInput.value);
+    });
+  }
+
+  if (el.btnClearSearch) {
+    el.btnClearSearch.addEventListener('click', () => {
+      if (el.gamesSearchInput) el.gamesSearchInput.value = '';
+      filterCatalogGames(activeCatalogCategory, '');
+    });
+  }
 
   // Mines Primary CTA
   if (el.mainActionButton) {

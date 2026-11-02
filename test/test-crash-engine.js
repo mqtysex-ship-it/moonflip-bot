@@ -176,6 +176,19 @@ async function runTests() {
     assert.strictEqual(midFlightBetRes.status, 400, 'Betting while flight is in progress MUST be rejected with 400');
     console.log('  [PASS] Mid-flight bet attempt strictly rejected:', midFlightBetRes.data.error);
 
+    // -----------------------------------------------------------------------
+    // Test 8: Continuous Crash In-Flight Cashout Verification
+    // -----------------------------------------------------------------------
+    console.log('\n--- Test 8: Continuous Crash In-Flight Cashout Verification ---');
+    await new Promise((r) => setTimeout(r, 60));
+    const contCashoutRes = await request(baseUrl, '/api/play/crash/cashout', 'POST', {}, signedToken);
+    assert.strictEqual(contCashoutRes.status, 200, 'Continuous cashout should return 200');
+    assert.strictEqual(contCashoutRes.data.success, true, 'Continuous cashout success should be true');
+    assert.strictEqual(contCashoutRes.data.cashedOut, true, 'cashedOut should be true');
+    assert.ok(contCashoutRes.data.multiplier >= 1.0, 'Multiplier should be >= 1.0');
+    assert.ok(contCashoutRes.data.winAmount >= 100, 'Win amount should be >= initial wager');
+    console.log(`  [PASS] Continuous Crash successfully cashed out at ${contCashoutRes.data.multiplier}x for +${contCashoutRes.data.winAmount} tokens.`);
+
     console.log('\n=== ALL CRASH TESTS PASSED SUCCESSFULLY! ===\n');
   } catch (err) {
     console.error('Test failed:', err);
