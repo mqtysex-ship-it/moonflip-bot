@@ -98,7 +98,7 @@ node test/test-stdio.js
 
 Open `/play/?game=coinflip` or `/play/?game=plinko`, or choose either game from the lobby. Both require a Discord-linked wallet and `DATABASE_URL`. They share the existing wallet, update it through SSE after commit, and record rounds in `moonflip_private.game_rounds`; no additional migration is needed beyond the existing baseline. Recent rounds and public activity are read from PostgreSQL.
 
-Coinflip uses independent 50/50 heads/tails with a 1.92× winning return (4% theoretical house edge). Plinko supports 8–16 rows and three risk levels; its payout profiles are normalized to at most 99% theoretical RTP. Whole-token payout rounding can increase the effective edge at small stakes. Payout buckets show rounded labels; selecting a bucket shows its exact rate. The web coinflip uses these disclosed rules rather than the legacy Discord streak-adjusted RNG.
+Coinflip uses independent 50/50 heads/tails with a 1.92× winning return (4% theoretical house edge). Plinko supports 8–16 rows and three risk levels; its payout profiles are normalized to at most 96% theoretical RTP (4% fixed house edge). Whole-token payout rounding can increase the effective edge at small stakes. Payout buckets show rounded labels; selecting a bucket shows its exact rate. The web coinflip uses these disclosed rules rather than the legacy Discord streak-adjusted RNG.
 
 Each bet includes a stable UUID. The server commits its outcome, debit and payout in one transaction, and retries return the same result. Browser storage holds pending request metadata only. After a lost response or reload, use **Recover round** before placing another bet. Database failures do not fall back to JSON or demo balances.
 
@@ -108,3 +108,8 @@ Run `npm run test:isolated` for the isolated suite. For live PostgreSQL transact
 Plinko accepts up to 32 independent drops in flight. Each request has its own recovery ID and a 15-second network timeout; one stalled request does not hold up later drops. Destination highlights and round history/activity appear after the corresponding animation lands. Pending results stay hidden across reloads and other views until recovered.
 
 Rewards has a dedicated daily-claim dialog. Its 500-token reward shares the existing PostgreSQL `/daily` cooldown with Discord, and retries cannot credit it twice. Generic UI click sounds are disabled; game sound settings remain available.
+
+
+Plinko supports finite autobet series of 1–1,000 bets at 250/500/1,000 ms intervals between committed requests. Stop is enforced by the database; interrupted series require explicit Resume after reload. Run identity/history and indexed progress use private PostgreSQL documents and advance atomically with the settled round. Replayed Start requests never reopen stopped or completed runs. Mines remains manual only.
+
+Appearance offers Obsidian, Midnight and Forest. Discord-linked accounts save their choice in the existing private documents table; database failures do not report a successful save. Guests may preview a theme for the current visit. The game switcher uses a local SVG symbol set with keyboard navigation and responsive scrolling. Plinko's collapsed Rules panel describes its fixed 4% edge and whole-token payout rounding.

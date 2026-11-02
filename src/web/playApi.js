@@ -1,3 +1,4 @@
+import { setupPlayerFeaturesApi } from './playerFeaturesApi.js';
 import { setupRewardsApi } from './rewardsApi.js';
 import { setupInstantGameApi } from './instantGameApi.js';
 import crypto from 'crypto';
@@ -714,6 +715,7 @@ export async function shutdownWebCrash() {
 }
 
 export function setupPlayApi(app) {
+  setupPlayerFeaturesApi(app,{resolvePlayer,pool:databasePool});
   setupRewardsApi(app,{resolvePlayer,pool:databasePool,economyEvents});
   setupInstantGameApi(app,{resolvePlayer,pool:databasePool,economyEvents,onRound:round=>broadcastArenaEvent('instant_round',round)});
   startCrashSweeper(300000, 1200);

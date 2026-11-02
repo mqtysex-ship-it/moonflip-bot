@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {existsSync,readFileSync} from 'node:fs';
+import {Element} from './helpers/instantUiHarness.js';
+const url=new URL('../src/web/public/play/appearance.js',import.meta.url);assert(existsSync(url),'theme controller must exist');
+const nodes=new Map(),root=new Element();const get=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);};
+get('appearanceDialog').showModal=function(){this.open=true;};get('appearanceDialog').close=function(){this.open=false;};
+const choices=['obsidian','midnight','forest'].map(theme=>{const el=new Element();el.dataset={themeChoice:theme};return el;});
+const window={};vm.runInNewContext(readFileSync(url,'utf8'),{window,document:{documentElement:root,getElementById:get,querySelectorAll:selector=>selector==='[data-theme-choice]'?choices:[]}});
+let rejectSave=false,saves=0;const state={authenticated:true,userId:'123'};
+const controller=window.createAppearanceUI({state,api:async(_path,method,body)=>{if(method==='PUT'){saves++;if(rejectSave)throw new Error('Database unavailable');return body;}return {theme:'midnight'};}});
+await controller.profile();assert.equal(root.attrs['data-theme'],'midnight');
+rejectSave=true;await choices[2].handlers.click();assert.equal(root.attrs['data-theme'],'midnight','failed writes must not pretend a theme was saved');
+rejectSave=false;await choices[2].handlers.click();assert.equal(root.attrs['data-theme'],'forest');assert.equal(saves,2);
+state.authenticated=false;await choices[0].handlers.click();assert.equal(root.attrs['data-theme'],'obsidian');assert.equal(saves,2,'guest previews do not write settings');
+console.log('Theme load, committed save, failed-save rollback and guest preview passed');

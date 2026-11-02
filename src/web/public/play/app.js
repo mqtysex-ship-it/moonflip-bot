@@ -110,6 +110,7 @@
 
   let instantGamesUi = null;
   let rewardsUi = null;
+  let appearanceUi = null;
   let audioCtx = null;
   let thrusterState = null;
 
@@ -2660,6 +2661,15 @@
   // 12. VIEW SWITCHER (HOME HUB <-> ALL GAMES <-> MINES <-> CRASH)
   // =========================================================================
 
+  function centerSelectedGame() {
+    const tabs=document.querySelector('.mf-game-tabs');
+    const active=tabs?.querySelector('.mf-game-tab.active');
+    if(!tabs||!active)return;
+    const selected=active.getBoundingClientRect(),bounds=tabs.getBoundingClientRect();
+    tabs.scrollTo({left:Math.max(0,tabs.scrollLeft+selected.left-bounds.left-(tabs.clientWidth-selected.width)/2),behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  }
+  window.addEventListener('resize',()=>requestAnimationFrame(centerSelectedGame));
+
   function switchView(targetView, playSound = false) {
     if (instantGamesUi?.isBusy()) return;
     if (!['coinflip','plinko'].includes(targetView)) instantGamesUi?.hide();
@@ -2679,9 +2689,14 @@
     if (el.btnSwitchMines) el.btnSwitchMines.classList.toggle('active', targetView === 'mines');
     if (el.btnSwitchCrash) el.btnSwitchCrash.classList.toggle('active', targetView === 'crash');
 
+    document.querySelectorAll('.mf-game-tab').forEach(button=>{
+      const key=button.dataset.instantGame || (button.id==='tabPlayMines'?'mines':'crash');
+      if(key===targetView)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
+    });
     // Game topbar tabs
     if (el.tabPlayMines) el.tabPlayMines.classList.toggle('active', targetView === 'mines');
     if (el.tabPlayCrash) el.tabPlayCrash.classList.toggle('active', targetView === 'crash');
+    requestAnimationFrame(centerSelectedGame);
 
     if (targetView === 'home') {
       if (el.homeChassis) el.homeChassis.style.display = 'flex';
@@ -2764,6 +2779,7 @@
       updateDiscordSyncUI();
       instantGamesUi?.profile();
       rewardsUi?.profile();
+      appearanceUi?.profile();
 
       if (Array.isArray(data.history)) state.minesHistory = data.history;
       if (Array.isArray(data.crashHistory)) state.crashHistory = data.crashHistory;
@@ -3272,7 +3288,16 @@
 
   instantGamesUi = window.createInstantGamesUI({api,updateBalance:updateBalanceDisplay,refreshProfile,state,onPendingChange:()=>renderLiveActivityTable(state.activeStageTab)});
   document.querySelectorAll('[data-instant-game]').forEach(button=>button.addEventListener('click',()=>switchView(button.dataset.instantGame,true)));
+  document.querySelector('.mf-game-tabs')?.addEventListener('keydown',event=>{
+    if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+    const buttons=[...document.querySelectorAll('.mf-game-tab')];
+    const current=buttons.indexOf(document.activeElement);if(current<0)return;
+    event.preventDefault();
+    const index=event.key==='Home'?0:event.key==='End'?buttons.length-1:(current+(event.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;
+    buttons[index].focus();
+  });
 
+  appearanceUi = window.createAppearanceUI({api,state});
   rewardsUi = window.createRewardsUI({api,state,updateBalance:updateBalanceDisplay,refreshProfile});
   document.getElementById('btnOpenRewards')?.addEventListener('click',()=>rewardsUi.open());
 

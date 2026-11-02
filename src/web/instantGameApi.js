@@ -1,9 +1,9 @@
 import { PersistentInstantGames } from '../games/persistentInstantGames.js';
-import { plinkoMultipliers } from '../games/instantGames.js';
+import { PLINKO_RTP, plinkoMultipliers } from '../games/instantGames.js';
 export function setupInstantGameApi(app,{resolvePlayer,pool,economyEvents,onRound}) {
   const games=pool?new PersistentInstantGames(pool):null;
   app.get('/api/play/instant/config',(_req,res)=>res.json({coinflip:{winMultiplier:1.92,houseEdge:.04},
-    plinko:Object.fromEntries(Array.from({length:9},(_,i)=>[i+8,Object.fromEntries(['low','medium','high'].map(risk=>[risk,plinkoMultipliers(i+8,risk)]))])),maxWager:1000000,minWager:10}));
+    plinkoRtp:PLINKO_RTP,plinko:Object.fromEntries(Array.from({length:9},(_,i)=>[i+8,Object.fromEntries(['low','medium','high'].map(risk=>[risk,plinkoMultipliers(i+8,risk)]))])),maxWager:1000000,minWager:10}));
   for(const game of ['coinflip','plinko']) app.post(`/api/play/${game}/play`,async(req,res)=>{
     try {
       const player=await resolvePlayer(req);
@@ -20,7 +20,7 @@ export function setupInstantGameApi(app,{resolvePlayer,pool,economyEvents,onRoun
       }
       res.json(result);
     } catch(error) {
-      const invalid=/Wager must|Choose |valid round ID|different parameters/.test(error.message);
+      const invalid=/Wager must|Choose |valid round ID|different parameters|Invalid run|Invalid autobet|Autobet run|Autobet settings/.test(error.message);
       const insufficient=/insufficient balance/i.test(error.message);
       if(invalid || insufficient) return res.status(400).json({error:insufficient?'Insufficient balance.':error.message});
       console.error('[Instant game settlement]',error.code || error.message);

@@ -1,5 +1,6 @@
 import { randomInt } from 'node:crypto';
 
+export const PLINKO_RTP = .96;
 export const MAX_INSTANT_WAGER = 1_000_000;
 const profiles = {
   low: {
@@ -25,7 +26,7 @@ export function plinkoMultipliers(rows, risk) {
   let combinations=1, expected=0;
   for(let k=0;k<=rows;k++) { if(k) combinations=combinations*(rows-k+1)/k; expected+=combinations/(2**rows)*base[k]; }
   // Quantize down: rounding must never turn the configured edge into a player advantage.
-  return base.map(value=>Math.floor(value*.99/expected*1e6)/1e6);
+  return base.map(value=>Math.floor(value*PLINKO_RTP/expected*1e6)/1e6);
 }
 export function validateInstantBet(game, body) {
   const {wager}=body || {};

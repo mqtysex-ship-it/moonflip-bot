@@ -1,3 +1,4 @@
+import { lockAutoBet, advanceAutoBet, requireUuid } from './plinkoAuto.js';
 import { isDeepStrictEqual } from 'node:util';
 import { resolveInstantGame, validateInstantBet } from './instantGames.js';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -5,6 +6,12 @@ export class PersistentInstantGames {
   constructor(pool) { this.pool=pool; }
   async play(userId,game,request) {
     const {wager,options}=validateInstantBet(game,request);
+    if(request.autoRunId!==undefined || request.autoIndex!==undefined){
+      if(game!=='plinko')throw new Error('Invalid autobet game');
+      options.autoRunId=requireUuid(request.autoRunId);
+      if(!Number.isInteger(request.autoIndex)||request.autoIndex<0)throw new Error('Invalid autobet index');
+      options.autoIndex=request.autoIndex;
+    }
     if(!uuid.test(request.roundId || '')) throw new Error('A valid round ID is required');
     if(typeof userId!=='string' || !userId) throw new Error('Discord sign-in required');
     const roundId=request.roundId.toLowerCase();
@@ -21,10 +28,14 @@ export class PersistentInstantGames {
         if(r.status!=='settled') throw new Error('Round is not settled');
         result=r.game_state.result;
       } else {
+        const autoRun=game==='plinko'?await lockAutoBet(client,userId,request,wager,options):null;
         result=resolveInstantGame(game,wager,options);
         const state={request:options,result};
         await client.query('SELECT * FROM moonflip_private.start_game_round($1::uuid,$2,$3,$4::bigint,$5::jsonb)',[roundId,userId,game,wager,JSON.stringify(state)]);
         await client.query('SELECT * FROM moonflip_private.settle_game_round($1::uuid,$2,$3::bigint)',[roundId,userId,result.payout]);
+        await advanceAutoBet(client,userId,autoRun,result.payout-wager);
+        if(autoRun) result.autoRun={runId:autoRun.runId,nextIndex:autoRun.nextIndex,status:autoRun.status,netProfit:autoRun.netProfit};
+        if(autoRun) await client.query('UPDATE moonflip_private.game_rounds SET game_state=$2::jsonb WHERE round_id=$1::uuid',[roundId,JSON.stringify({request:options,result})]);
         applied=true;
       }
       const wallet=await client.query('SELECT balance FROM moonflip_private.wallets WHERE discord_user_id=$1',[userId]);

@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync,existsSync} from 'node:fs';
+const url=new URL('../src/web/public/play/plinko-autobet.js',import.meta.url);
+assert(existsSync(url),'finite autobet scheduler must exist');
+const timers=new Map();let seq=0,run=null,drops=0,fail=false;
+const window={};vm.runInNewContext(readFileSync(url,'utf8'),{window,crypto:{randomUUID:()=>`run-${++seq}`},setTimeout:cb=>{timers.set(++seq,cb);return seq;},clearTimeout:id=>timers.delete(id)});
+const options={wager:10,rows:8,risk:'high',totalBets:3,intervalMs:250};
+const dependencies={api:async(path,_method,body)=>{
+ if(path.endsWith('/start'))run={runId:body.runId,settings:options,nextIndex:0,status:'running'};
+ if(path.endsWith('/stop'))run.status='stopped';return {run:run?structuredClone(run):null};
+},onDrop:async()=>{if(fail)throw new Error('unavailable');drops++;run.nextIndex++;if(run.nextIndex===3)run.status='completed';return {autoRun:structuredClone(run)};},onChange(){},onError(){}};
+const auto=window.createPlinkoAutobet(dependencies);
+const flush=()=>new Promise(r=>setImmediate(r));
+const step=async()=>{const callbacks=[...timers.values()];timers.clear();callbacks.forEach(cb=>cb());await flush();};
+await auto.start(options);await flush();assert.equal(drops,1);await step();assert.equal(drops,2);await step();assert.equal(drops,3);assert.equal(auto.state().running,false);await step();assert.equal(drops,3);
+await auto.start(options);await flush();const beforeStop=drops;await auto.stop();await step();assert.equal(drops,beforeStop,'Stop cancels future drops');
+run={runId:'persisted',settings:options,nextIndex:1,status:'running'};
+const restored=window.createPlinkoAutobet(dependencies);await restored.load();assert.equal(restored.state().running,false);assert.equal(drops,beforeStop,'reload must never restart wagering');
+fail=true;await restored.start(options);await flush();assert.equal(restored.state().running,false);await step();assert.equal(drops,beforeStop,'errors pause the run');
+console.log('Finite autobet, Stop, reload consent and error pause passed');

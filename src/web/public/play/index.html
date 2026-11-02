@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/style.css?v=9.0">
+  <link rel="stylesheet" href="/play/style.css?v=10.0">
 </head>
 <body class="moonflip-theme">
 
@@ -81,6 +81,7 @@
 
       <div class="mf-topbar-divider"></div>
 
+      <button type="button" class="mf-icon-btn appearance-trigger" data-open-appearance aria-label="Change theme" title="Change theme"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1-3.7 1.7 1.7 0 0 1 1-3.1h2A4 4 0 0 0 21 10c0-4-4-7-9-7Z"/><circle cx="7" cy="10" r="1"/><circle cx="10" cy="6.5" r="1"/><circle cx="15" cy="7" r="1"/></svg></button>
       <!-- Sound Toggle -->
       <button type="button" class="mf-icon-btn" id="soundBtn" title="Toggle Sound Effects">
         <svg id="soundSvgOn" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
@@ -560,10 +561,7 @@
             <span>←</span>
             <span>Lobby</span>
           </button>
-          <div class="mf-game-tabs"><button type="button" class="mf-game-tab" data-instant-game="coinflip">Coinflip</button><button type="button" class="mf-game-tab" data-instant-game="plinko">Plinko</button>
-            <button type="button" class="mf-game-tab active" id="tabPlayMines">💣 Mines</button>
-            <button type="button" class="mf-game-tab" id="tabPlayCrash">📈 Crash <span class="mf-live-dot"></span></button>
-          </div>
+          <nav class="mf-game-tabs" aria-label="Switch game"><button type="button" class="mf-game-tab" data-instant-game="coinflip"><span class="game-tab-icon icon-coinflip"><svg aria-hidden="true" viewBox="0 0 32 32"><use href="/play/assets/game-icons.svg#coinflip"/></svg></span><span class="game-tab-copy"><strong>Coinflip</strong><small>Make your call</small></span><span class="game-tab-selected" aria-hidden="true">•</span></button><button type="button" class="mf-game-tab" data-instant-game="plinko"><span class="game-tab-icon icon-plinko"><svg aria-hidden="true" viewBox="0 0 32 32"><use href="/play/assets/game-icons.svg#plinko"/></svg></span><span class="game-tab-copy"><strong>Plinko</strong><small>Drop & multiply</small></span><span class="game-tab-selected" aria-hidden="true">•</span></button><button type="button" class="mf-game-tab" id="tabPlayMines"><span class="game-tab-icon icon-mines"><svg aria-hidden="true" viewBox="0 0 32 32"><use href="/play/assets/game-icons.svg#mines"/></svg></span><span class="game-tab-copy"><strong>Mines</strong><small>Pick & reveal</small></span><span class="game-tab-selected" aria-hidden="true">•</span></button><button type="button" class="mf-game-tab" id="tabPlayCrash"><span class="game-tab-icon icon-crash"><svg aria-hidden="true" viewBox="0 0 32 32"><use href="/play/assets/game-icons.svg#crash"/></svg></span><span class="game-tab-copy"><strong>Crash</strong><small>Live game</small></span><span class="game-tab-selected" aria-hidden="true">•</span></button></nav>
         </div>
 
         <!-- Live Recent Multipliers Ribbon -->
@@ -578,10 +576,7 @@
       <div class="game-chassis" id="minesChassis" style="display: none;">
         
         <aside class="control-deck">
-          <div class="mode-tabs">
-            <button type="button" class="mode-tab active">Manual</button>
-            <button type="button" class="mode-tab disabled" title="Manual Precision Mode">Auto</button>
-          </div>
+          <div class="manual-game-label">Mines</div>
 
           <div class="deck-form">
             <div class="deck-field">
@@ -890,12 +885,16 @@
       <section class="instant-chassis" id="instantChassis" hidden aria-labelledby="instantTitle">
         <form class="instant-controls" id="instantForm">
           <h1 id="instantTitle">Coinflip</h1>
+          <div class="mode-tabs plinko-mode-tabs" id="plinkoModeTabs" hidden aria-label="Plinko betting mode"><button type="button" class="mode-tab active" data-plinko-mode="manual" aria-pressed="true">Manual</button><button type="button" class="mode-tab" data-plinko-mode="auto" aria-pressed="false">Auto bet</button></div>
           <div class="instant-field"><label for="instantWager">Bet amount <span>Tokens</span></label>
             <div class="instant-amount"><img src="/play/assets/token.png" alt="" width="20" height="20"><input id="instantWager" type="number" min="10" max="1000000" step="1" value="100" required><button type="button" data-instant-adjust="half" aria-label="Halve bet">½</button><button type="button" data-instant-adjust="double" aria-label="Double bet">2×</button></div>
           </div>
           <fieldset class="instant-choice" id="coinflipOptions"><legend>Choose your side</legend><div class="instant-sides"><label><input type="radio" name="coinSide" value="heads" checked><span>◉ &nbsp; Heads</span></label><label><input type="radio" name="coinSide" value="tails"><span>☾ &nbsp; Tails</span></label></div></fieldset>
           <div id="plinkoOptions" hidden><div class="instant-field"><label for="plinkoRisk">Risk</label><select id="plinkoRisk"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div><div class="instant-field"><label for="plinkoRows">Rows</label><select id="plinkoRows"><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option></select></div></div>
+          <div id="plinkoAutoFields" hidden><div class="instant-field"><label for="plinkoAutoBets">Number of bets</label><input class="instant-number" id="plinkoAutoBets" type="number" value="20" min="1" max="1000" step="1"></div><div class="instant-field"><label for="plinkoAutoInterval">Drop speed</label><select id="plinkoAutoInterval"><option value="250">Fast</option><option value="500" selected>Standard</option><option value="1000">Relaxed</option></select></div></div>
+          <div id="plinkoAutoProgress" class="plinko-auto-progress" hidden><div class="plinko-progress-line"><span id="plinkoAutoCount">0 / 20 bets</span><button type="button" id="plinkoCancelRun" hidden>End series</button></div><progress id="plinkoAutoMeter" value="0" max="20" aria-label="Autobet progress"></progress></div>
           <button class="instant-play" id="instantPlay" type="submit">Flip coin</button>
+          <details class="game-rules" id="plinkoRules" hidden><summary>Rules</summary><p>Each peg is an independent 50/50 step. The fixed house edge is 4% (96% theoretical RTP) before whole-token rounding. Returns include your stake. Select a bucket for its exact payout.</p></details>
           <p id="instantMessage" class="instant-message" role="status" aria-live="polite">Link your Discord wallet to play.</p>
         </form>
         <div class="instant-arena">
@@ -1000,6 +999,8 @@
     </section>
   </div>
 
+  <dialog id="appearanceDialog" class="appearance-dialog"><header><h2>Appearance</h2><button type="button" id="closeAppearance" aria-label="Close appearance">&times;</button></header><p>Make Moonflip feel like yours.</p><div class="theme-choices"><button type="button" class="theme-choice" data-theme-choice="obsidian" aria-pressed="false"><span class="theme-preview preview-obsidian" aria-hidden="true"><i></i><b></b><em></em></span><span>Obsidian</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg></button><button type="button" class="theme-choice" data-theme-choice="midnight" aria-pressed="false"><span class="theme-preview preview-midnight" aria-hidden="true"><i></i><b></b><em></em></span><span>Midnight</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg></button><button type="button" class="theme-choice" data-theme-choice="forest" aria-pressed="false"><span class="theme-preview preview-forest" aria-hidden="true"><i></i><b></b><em></em></span><span>Forest</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg></button></div><p id="appearanceStatus" role="status" aria-live="polite"></p></dialog>
+
   <!-- FULL LEADERBOARD MODAL -->
   <div class="fairness-modal" id="leaderboardModal">
     <div class="fairness-card leaderboard-modal-card" role="dialog" aria-modal="true" aria-labelledby="leaderboardTitle">
@@ -1083,8 +1084,10 @@
     </div>
   </div>
 
-  <script src="/play/instant-games.js?v=2.0"></script>
+  <script src="/play/plinko-autobet.js?v=1.0"></script>
+  <script src="/play/appearance.js?v=1.0"></script>
+  <script src="/play/instant-games.js?v=3.0"></script>
   <script src="/play/rewards.js?v=1.0"></script>
-  <script src="/play/app.js?v=9.0"></script>
+  <script src="/play/app.js?v=10.0"></script>
 </body>
 </html>

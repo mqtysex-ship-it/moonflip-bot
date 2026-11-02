@@ -11,7 +11,7 @@ for (const rows of [8,9,10,11,12,13,14,15,16]) for (const risk of ['low','medium
   assert.deepEqual(m,[...m].reverse());
   let combinations=1, rtp=0;
   for(let k=0;k<=rows;k++){ if(k) combinations=combinations*(rows-k+1)/k; rtp += combinations/(2**rows)*m[k]; }
-  assert(rtp<=0.99 && rtp>0.98999, `${rows}/${risk}: RTP ${rtp}`);
+  assert(rtp<=0.96 && rtp>0.95999, `${rows}/${risk}: RTP ${rtp}`);
   const result=resolveInstantGame('plinko',100,{rows,risk},()=>1);
   assert.equal(result.bucket,rows); assert.equal(result.path.length,rows);
   assert.equal(result.payout,Math.floor(100*m[rows]));

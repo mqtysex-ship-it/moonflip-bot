@@ -6,6 +6,8 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
   const maxDrops = 32;
   let game = 'coinflip', config = null, coinAnimation = null;
   let historyVersion = 0;
+  let plinkoMode = 'manual';
+  const auto = window.createPlinkoAutobet({api,onDrop:placeAutoDrop,onChange:renderAuto,onError:error=>message(error.message,true)});
   const ns = 'http://www.w3.org/2000/svg';
   const format = n => Number(n).toLocaleString();
   const mult = n => Number(n).toFixed(6).replace(/0+$/, '').replace(/\.$/, '') + '×';
@@ -45,11 +47,48 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
   function sync() {
     restorePending();
     const recovery = unresolved().length;
+    const automation = auto.state();
+    const autoMode = game === 'plinko' && plinkoMode === 'auto';
     const blocked = game === 'coinflip' ? jobs.size > 0 : jobs.size >= maxDrops;
-    play.textContent = recovery ? 'Recover round' : game === 'coinflip' ? (jobs.size ? 'Flipping…' : 'Flip coin') : 'Drop ball';
-    play.disabled = blocked || !state.authenticated || !config;
-    form.querySelectorAll('input,select,button[data-instant-adjust]').forEach(el => el.disabled = jobs.size > 0 || saved().length > 0);
+    play.textContent = recovery ? 'Recover round' : autoMode ? (automation.running ? 'Stop autobet' : automation.run?.status === 'running' ? 'Resume autobet' : 'Start autobet') : game === 'coinflip' ? (jobs.size ? 'Flipping�' : 'Flip coin') : 'Drop ball';
+    play.disabled = !state.authenticated || !config || automation.busy || (!automation.running && (blocked || autoMode && jobs.size > 0));
+    const locked = jobs.size > 0 || saved().length > 0 || game === 'plinko' && (automation.running || automation.busy || automation.run?.status === 'running');
+    form.querySelectorAll('input,select,button[data-instant-adjust]').forEach(el => el.disabled = locked);
+    document.querySelectorAll('[data-plinko-mode]').forEach(button => {
+      button.classList.toggle('active', button.dataset.plinkoMode === plinkoMode);
+      button.setAttribute('aria-pressed', String(button.dataset.plinkoMode === plinkoMode));
+      button.disabled = jobs.size > 0 || automation.busy || automation.running;
+    });
     $('instantRefresh').disabled = false;
+  }
+  function renderAuto() {
+    const {run,running} = auto.state();
+    $('plinkoAutoFields').hidden = game !== 'plinko' || plinkoMode !== 'auto';
+    $('plinkoAutoProgress').hidden = game !== 'plinko' || plinkoMode !== 'auto' || !run;
+    $('plinkoCancelRun').hidden = game !== 'plinko' || running || run?.status !== 'running';
+    $('plinkoCancelRun').disabled = auto.state().busy;
+    if (run) {
+      $('plinkoAutoCount').textContent = `${run.nextIndex} / ${run.settings.totalBets} bets`;
+      $('plinkoAutoMeter').max = run.settings.totalBets;
+      $('plinkoAutoMeter').value = run.nextIndex;
+      if (game === 'plinko' && run.status === 'running' && !jobs.size) {
+        $('instantWager').value = run.settings.wager;
+        $('plinkoRows').value = run.settings.rows;
+        $('plinkoRisk').value = run.settings.risk;
+        $('plinkoAutoBets').value = run.settings.totalBets;
+        $('plinkoAutoInterval').value = run.settings.intervalMs;
+        drawBoard();
+      }
+    }
+    sync();
+  }
+  async function placeAutoDrop(settings) {
+    if (document.hidden || !state.authenticated || game !== 'plinko' || unresolved().length || jobs.size >= maxDrops) throw new Error('Autobet paused. Recover any pending rounds before resuming.');
+    const request = {roundId:crypto.randomUUID(),wager:settings.wager,rows:settings.rows,risk:settings.risk,autoRunId:settings.autoRunId,autoIndex:settings.autoIndex};
+    storeRequests([...saved(),request]);
+    const resultPromise = enqueue(request);
+    sync();onPendingChange();
+    return resultPromise;
   }
   function isHiddenRound(roundId) {
     if (!roundId) return false;
@@ -186,6 +225,7 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
         message('Use Recover round to finish this drop.', true);
         finish(job, true);
       });
+      return result;
     } catch (error) {
       if (error.status === 400) { removeRequest(job); message(error.message, true); }
       else if (error.status === 401) message('Reconnect your Discord wallet, then recover your rounds.', true);
@@ -196,11 +236,19 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
   function enqueue(request) {
     const job = {request, key: storageKey(), game};
     jobs.set(request.roundId, job);
-    settle(job).catch(() => { message('Use Recover round to continue.', true); finish(job, true); });
+    return settle(job).catch(() => { message('Use Recover round to continue.', true); finish(job, true); });
   }
   function submit(event) {
     event.preventDefault();
+    if (game === 'plinko' && plinkoMode === 'auto' && auto.state().running) { auto.stop();return; }
     if (!state.authenticated || !config || jobs.size >= maxDrops || game === 'coinflip' && jobs.size) return;
+    if (game === 'plinko' && plinkoMode === 'auto' && !unresolved().length) {
+      if (jobs.size || auto.state().busy) return;
+      const totalBets=Number($('plinkoAutoBets').value), intervalMs=Number($('plinkoAutoInterval').value);
+      if (!Number.isInteger(totalBets) || totalBets < 1 || totalBets > 1000) { message('Choose between 1 and 1,000 bets.',true);return; }
+      auto.start({wager:Number($('instantWager').value),rows:Number($('plinkoRows').value),risk:$('plinkoRisk').value,totalBets,intervalMs});
+      return;
+    }
     const recovery = unresolved();
     if (recovery.length) {
       recovery.slice(0, maxDrops - jobs.size).forEach(enqueue);
@@ -217,6 +265,15 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
   }
   form.addEventListener('submit', submit);
   $('instantRefresh').addEventListener('click', history);
+  $('plinkoCancelRun').addEventListener('click',()=>auto.stop());
+  document.querySelectorAll('[data-plinko-mode]').forEach(button=>button.addEventListener('click',async()=>{
+    if(jobs.size || auto.state().running || auto.state().busy)return;
+    if(button.dataset.plinkoMode==='manual' && auto.state().run?.status==='running') {
+      await auto.stop();if(auto.state().run?.status==='running')return;
+    }
+    plinkoMode=button.dataset.plinkoMode;renderAuto();
+  }));
+  document.addEventListener('visibilitychange',()=>{if(document.hidden && auto.state().running)auto.stop();});
   for (const id of ['plinkoRows', 'plinkoRisk']) $(id).addEventListener('change', drawBoard);
   form.querySelectorAll('[data-instant-adjust]').forEach(button => button.addEventListener('click', () => {
     const current = Number($('instantWager').value) || 10;
@@ -224,11 +281,12 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
   }));
   return {
     async show(next) {
-      if (jobs.size) return false;
+      if (jobs.size || auto.state().running || auto.state().busy) return false;
       game = next; root.hidden = false;
       $('instantTitle').textContent = $('instantArenaLabel').textContent = game === 'coinflip' ? 'Coinflip' : 'Plinko';
       $('coinflipOptions').hidden = $('coinStage').hidden = game !== 'coinflip';
-      $('plinkoOptions').hidden = $('plinkoStage').hidden = game !== 'plinko';
+      $('plinkoOptions').hidden = $('plinkoStage').hidden = $('plinkoModeTabs').hidden = $('plinkoRules').hidden = game !== 'plinko';
+      renderAuto();
       $('instantResult').replaceChildren();
       message(state.authenticated ? '' : 'Link your Discord wallet to play.');
       sync();
@@ -237,15 +295,17 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
         restorePending(); drawBoard(); sync();
         if (saved().length) message('Use Recover round to finish your interrupted drops.');
       } catch { message('Game unavailable. Reopen it to retry.', true); }
+      if(game==='plinko' && state.authenticated)auto.load().then(run=>{if(run?.status==='running'){plinkoMode='auto';renderAuto();message('Autobet paused. Choose Resume or switch to Manual to stop.');}}).catch(()=>message('Autobet status unavailable.',true));
       history(); return true;
     },
-    hide() { if (jobs.size) return false; root.hidden = true; return true; },
-    isBusy: () => jobs.size > 0,
+    hide() { if (jobs.size || auto.state().running || auto.state().busy) return false; root.hidden = true; return true; },
+    isBusy: () => jobs.size > 0 || auto.state().running || auto.state().busy,
     isHiddenRound,
     sync,
     profile() {
       sync();
       if (!root.hidden) {
+        if(game==='plinko' && state.authenticated && !auto.state().running && !auto.state().busy)auto.load().then(run=>{if(run?.status==='running'&&!auto.state().running){plinkoMode='auto';renderAuto();}}).catch(()=>{});
         if (!jobs.size && saved().length) { drawBoard(); message('Use Recover round to finish your interrupted drops.'); }
         history();
       }

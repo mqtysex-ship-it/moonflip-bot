@@ -47,11 +47,13 @@ if(process.env.MOONFLIP_DB_INTEGRATION !== '1') {
     const {EventEmitter}=await import('node:events');
     const {setupInstantGameApi}=await import('../src/web/instantGameApi.js');
     const {setupRewardsApi}=await import('../src/web/rewardsApi.js');
+    const {setupPlayerFeaturesApi}=await import('../src/web/playerFeaturesApi.js');
     const events=new EventEmitter(),updates=[],activityEvents=[];
     events.on('balanceChanged',event=>updates.push(event));
     const app=express();app.use(express.json());
     setupInstantGameApi(app,{pool,economyEvents:events,onRound:r=>activityEvents.push(r),resolvePlayer:async()=>({authenticated:true,session:{userId:user,username:'Fixture'}})});
     setupRewardsApi(app,{pool,economyEvents:events,resolvePlayer:async()=>({authenticated:true,session:{userId:user}})});
+    setupPlayerFeaturesApi(app,{pool,resolvePlayer:async()=>({authenticated:true,session:{userId:user}})});
     const server=app.listen(0);await new Promise(r=>server.once('listening',r));
     try {
       const apiUrl=`http://127.0.0.1:${server.address().port}`;
@@ -79,11 +81,38 @@ if(process.env.MOONFLIP_DB_INTEGRATION !== '1') {
       const discordClaim=await new PostgresEconomy(pool).claimDaily(randomUUID(),user);
       assert.equal(discordClaim.success,false,'Discord shares the web reward cooldown');
       assert.equal(Number((await pool.query('SELECT balance FROM moonflip_private.wallets WHERE discord_user_id=$1',[user])).rows[0].balance),before+500);
+      const requestJson=async(path,body,method='POST')=>{const response=await fetch(apiUrl+path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return {status:response.status,data:await response.json()};};
+      const runId=randomUUID();
+      const settings={runId,wager:10,rows:8,risk:'high',totalBets:2,intervalMs:250};
+      const started=await requestJson('/api/play/plinko/auto/start',settings);assert.equal(started.status,200);
+      assert.equal(started.data.run.nextIndex,0);
+      const autoBet={roundId:randomUUID(),wager:10,rows:8,risk:'high',autoRunId:runId,autoIndex:0};
+      const autoFirst=await requestJson('/api/play/plinko/play',autoBet);assert.equal(autoFirst.status,200);assert.equal(autoFirst.data.autoRun.nextIndex,1);
+      const autoReplay=await requestJson('/api/play/plinko/play',autoBet);assert.equal(autoReplay.data.balance,autoFirst.data.balance);
+      const duplicateIndex=await requestJson('/api/play/plinko/play',{...autoBet,roundId:randomUUID()});assert.equal(duplicateIndex.status,400);
+      const {PersistentPlinkoAuto}=await import('../src/games/plinkoAuto.js');
+      const recoveredRun=await new PersistentPlinkoAuto(pool).status(user);assert.equal(recoveredRun.nextIndex,1);
+      const stopped=await requestJson('/api/play/plinko/auto/stop',{runId});assert.equal(stopped.data.run.status,'stopped');
+      assert.equal((await requestJson('/api/play/plinko/play',{...autoBet,roundId:randomUUID(),autoIndex:1})).status,400);
+      const nextRun=randomUUID();await requestJson('/api/play/plinko/auto/start',{...settings,runId:nextRun,totalBets:1});
+      const finalDrop=await requestJson('/api/play/plinko/play',{...autoBet,roundId:randomUUID(),autoRunId:nextRun});
+      assert.equal(finalDrop.data.autoRun.status,'completed');
+      assert.equal((await new PersistentPlinkoAuto(pool).status(user)).nextIndex,1);
+      const oldStart=await requestJson('/api/play/plinko/auto/start',settings);
+      assert.equal(oldStart.data.run.status,'stopped','replaying an older Start must never reopen a stopped run');
+      assert.equal((await new PersistentPlinkoAuto(pool).status(user)).runId,nextRun);
+      assert.equal((await requestJson('/api/play/plinko/play',{...autoBet,roundId:randomUUID()})).status,400);
+      assert.equal((await requestJson('/api/play/preferences',{theme:'midnight'},'PUT')).status,200);
+      const preference=await(await fetch(apiUrl+'/api/play/preferences')).json();assert.equal(preference.theme,'midnight');
+      assert.equal((await requestJson('/api/play/preferences',{theme:'not-a-theme'},'PUT')).status,400);
+
     } finally {server.closeAllConnections();await new Promise(r=>server.close(r));}
     console.log('PostgreSQL atomic settlement, concurrent retries, restart recovery, rollback daily rewards and fail-closed checks passed');
   } finally {
     if(inserted) await pool.query('DELETE FROM moonflip_private.game_rounds WHERE discord_user_id=ANY($1::text[])',[[user,other]]);
     if(inserted) await pool.query('DELETE FROM moonflip_private.wallet_daily_claims WHERE discord_user_id=ANY($1::text[])',[[user,other]]);
+    if(inserted) await pool.query('DELETE FROM moonflip_private.documents WHERE key=ANY($1::text[])',[[`plinko-auto/${user}`,`preferences/${user}`]]);
+    if(inserted) await pool.query('DELETE FROM moonflip_private.documents WHERE key LIKE $1',[`plinko-auto-run/${user}/%`]);
     if(inserted) await pool.query('DELETE FROM moonflip_private.wallets WHERE discord_user_id=ANY($1::text[])',[[user,other]]);
     await closeDatabase();
   }
