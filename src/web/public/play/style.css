@@ -65,6 +65,13 @@ html, body {
 .text-purple { color: var(--purple) !important; }
 .text-danger { color: var(--danger) !important; }
 
+/* Strict Display None Override */
+[style*="display: none"],
+[style*="display:none"],
+[hidden] {
+  display: none !important;
+}
+
 /* ==========================================================================
    1. TOP NAVIGATION BAR (mf-topbar)
    ========================================================================== */
@@ -681,13 +688,17 @@ html, body {
 
 /* Games Catalog Chassis View */
 .mf-games-catalog-view {
-  display: flex !important;
-  flex-direction: column !important;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
   width: 100%;
   max-width: 1360px;
   margin: 0 auto;
   animation: fadeIn 0.2s ease;
+}
+
+.mf-games-catalog-view[style*="display: none"] {
+  display: none !important;
 }
 
 .mf-catalog-header {
@@ -1947,9 +1958,12 @@ html, body {
   font-family: var(--font-mono);
   font-size: 12.5px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
+  text-align: center;
+  max-width: 88%;
+  line-height: 1.3;
 }
 
 .crash-countdown-wrap {
@@ -2451,47 +2465,417 @@ html, body {
 }
 
 /* ==========================================================================
-   9. RESPONSIVE ADAPTATION
+   9. RESPONSIVE ADAPTATION (MOBILE & TABLET ARENA)
    ========================================================================== */
+
+/* Universal Mobile Safety: prevent any accidental min-content horizontal blowout */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
 
 @media (max-width: 1080px) {
   .mf-shell {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
+
   .mf-sidebar {
     flex-direction: row;
+    align-items: center;
     overflow-x: auto;
-    padding: 12px 18px;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 10px 16px;
     border-right: none;
     border-bottom: 1px solid var(--border-subtle);
+    gap: 8px;
+    background: #090e14;
   }
+  .mf-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
   .mf-sidebar-group {
     flex-direction: row;
+    gap: 6px;
+    flex-shrink: 0;
   }
+
   .mf-sidebar-divider {
     width: 1px;
-    height: 24px;
+    height: 22px;
+    background: var(--border-subtle);
+    margin: 0 4px;
+    flex-shrink: 0;
   }
+
   .mf-side-link {
     white-space: nowrap;
     width: auto;
+    padding: 8px 14px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    flex-shrink: 0;
   }
-  .game-chassis, .mf-bottom-split {
-    grid-template-columns: 1fr;
-  }
+
   .mf-hero-artwork {
     display: none;
   }
+
+  .mf-bottom-split {
+    grid-template-columns: 1fr;
+  }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 860px) {
+  .game-chassis[style*="display: none"],
+  .game-chassis[style*="display:none"] {
+    display: none !important;
+  }
+
+  .game-chassis:not([style*="display: none"]):not([style*="display:none"]) {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .arena-matrix-stage {
+    order: 1 !important; /* Put game board / canvas on top */
+    padding: 16px 14px !important;
+    border-bottom: 1px solid var(--border-subtle);
+    border-right: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .control-deck {
+    order: 2 !important; /* Controls underneath */
+    padding: 16px 14px 20px !important;
+    border-right: none !important;
+    border-top: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .matrix-grid-frame {
+    min-height: 330px;
+    padding: 10px 0;
+  }
+
+  .crash-radar-frame {
+    min-height: 250px !important;
+    aspect-ratio: 16 / 10 !important;
+    height: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Topbar Mobile Fit */
+  .mf-topbar {
+    height: 56px;
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .mf-brand-wordmark {
+    font-size: 17px;
+  }
+
+  .mf-logo-img {
+    width: 26px;
+    height: 26px;
+  }
+
   .mf-topnav-links {
     display: none;
   }
-  .mf-games-grid {
-    grid-template-columns: 1fr;
+
+  .mf-topbar-right {
+    gap: 7px;
   }
+
+  .sync-status-pill {
+    padding: 4px 8px;
+    font-size: 11px;
+    gap: 5px;
+  }
+
+  .mf-balance-pill {
+    padding: 5px 9px;
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  .mf-balance-pill .mf-token-lg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .mf-balance-pill .mf-chevron {
+    display: none;
+  }
+
+  .mf-topbar-divider {
+    display: none;
+  }
+
+  .mf-icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+  }
+
+  .mf-user-pill {
+    padding: 4px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+  }
+
+  .mf-user-name,
+  .mf-user-pill .mf-chevron {
+    display: none;
+  }
+
+  .mf-avatar-wrap {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Guest warning banner */
+  .guest-warning-banner {
+    padding: 8px 12px;
+    font-size: 11.5px;
+    line-height: 1.35;
+  }
+
+  /* Main viewport padding */
   .mf-main {
-    padding: 18px 16px 36px;
+    padding: 12px 10px 36px;
+    gap: 16px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Home Hero Card */
+  .mf-hero-card {
+    padding: 22px 16px;
+    border-radius: 14px;
+    min-height: auto;
+  }
+
+  .mf-hero-title {
+    font-size: 23px;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+
+  .mf-hero-sub {
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 16px;
+  }
+
+  .mf-hero-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .mf-hero-actions .mf-btn-mint,
+  .mf-hero-actions .mf-btn-outline {
+    flex: 1;
+    justify-content: center;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    height: 42px;
+  }
+
+  /* Catalog & Games Grid */
+  .mf-catalog-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  .mf-catalog-header {
+    padding: 16px 14px;
+    border-radius: 14px;
+    gap: 14px;
+  }
+
+  .mf-catalog-title {
+    font-size: 22px;
+  }
+
+  .mf-catalog-subtitle {
+    font-size: 12.5px;
+  }
+
+  .mf-catalog-search-wrap {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mf-catalog-search-wrap input {
+    height: 42px;
+    font-size: 13.5px;
+  }
+
+  .mf-catalog-filter-bar {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 2px;
+  }
+
+  .mf-catalog-filter-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mf-catalog-filter-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 7px;
+    width: max-content;
+  }
+
+  .catalog-filter-pill {
+    padding: 7px 12px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  /* Active Game Topbar Ribbon */
+  .mf-game-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+
+  .mf-game-topbar-left {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .multiplier-ribbon {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ribbon-stream {
+    width: 100%;
+  }
+
+  /* Mines 5x5 Grid Fit */
+  .mines-grid {
+    width: 100% !important;
+    max-width: min(340px, calc(100vw - 44px)) !important;
+    aspect-ratio: 1 / 1 !important;
+    gap: 7px !important;
+    margin: 0 auto !important;
+  }
+
+  .tile {
+    border-radius: 8px !important;
+  }
+
+  /* Mines & Crash Quick Chips Grid on Mobile */
+  .quick-chips,
+  .mines-pills.crash-auto-pills {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 5px !important;
+  }
+
+  .mines-pills:not(.crash-auto-pills) {
+    display: grid !important;
+    grid-template-columns: repeat(6, 1fr) !important;
+    gap: 5px !important;
+  }
+
+  .chip-btn,
+  .mine-pill {
+    padding: 8px 0 !important;
+    font-size: 11.5px !important;
+  }
+
+  .btn-stake-cta {
+    height: 50px !important;
+    font-size: 16px !important;
+    border-radius: 11px !important;
+  }
+
+  /* Crash Altitude & Multiplier Readout */
+  .crash-current-mult {
+    font-size: clamp(36px, 12vw, 54px) !important;
+  }
+
+  .crash-status-sub {
+    font-size: 12px !important;
+  }
+
+  .crash-live-status {
+    font-size: 11px !important;
+    max-width: 80% !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  /* Modals */
+  .fairness-card,
+  .modal-card,
+  .leaderboard-modal-card {
+    width: calc(100vw - 20px) !important;
+    max-width: 100% !important;
+    max-height: 88vh !important;
+    padding: 16px 14px !important;
+    margin: 10px auto;
+    overflow-y: auto !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .sync-label {
+    display: none;
+  }
+
+  .sync-status-pill {
+    padding: 5px;
+    border-radius: 50%;
+  }
+
+  .mf-hero-title {
+    font-size: 21px;
+  }
+
+  .mf-hero-actions {
+    flex-direction: column;
+  }
+
+  .mf-hero-actions .mf-btn-mint,
+  .mf-hero-actions .mf-btn-outline {
+    width: 100%;
+  }
+
+  .btn-math {
+    padding: 5px 6px;
+    font-size: 10.5px;
   }
 }
