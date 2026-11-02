@@ -277,17 +277,20 @@ export class PostgresEconomy {
       client.release();
     }
   }
-  async recoverInterruptedRounds(game, refund = true) {
+  async recoverInterruptedRounds(game, refund = true, olderThanSeconds = 120) {
     identity(game, 'game');
+    amount(olderThanSeconds, 'olderThanSeconds', 0);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 42))', [`recover_rounds_${game}`]);
       const activeRounds = await client.query(
         `SELECT round_id, discord_user_id, wager, game_state, version
          FROM moonflip_private.game_rounds
          WHERE game_type = $1 AND status = 'active'
+           AND created_at < now() - ($2 || ' seconds')::interval
          FOR UPDATE`,
-        [game]
+        [game, olderThanSeconds]
       );
       let count = 0;
       for (const r of activeRounds.rows) {

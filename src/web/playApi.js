@@ -665,7 +665,7 @@ async function databaseMinesAction(action, req, session) {
 
 export function setupPlayApi(app) {
   if (databaseEconomy) {
-    databaseEconomy.recoverInterruptedRounds('crash', true).catch(() => {});
+    databaseEconomy.recoverInterruptedRounds('crash', true, 120).catch(() => {});
   }
   // 0. GET /api/play/stream - Real-Time SSE Stream for Continuous Crash & Live Discord Wallet Sync
   app.get('/api/play/stream', async (req, res) => {

@@ -516,9 +516,6 @@ class ContinuousCrashEngine {
       const payload = buildCrashLobbyPanel();
       this.message = await this.channel.send(payload);
       this.isRunning = true;
-      if (databaseEconomy) {
-        await databaseEconomy.recoverInterruptedRounds('crash', true).catch(() => {});
-      }
       console.log('[Crash Engine] Deployed Moonflip Orbital Crash panel in #' + this.channel.name);
     } catch (err) {
       console.error('[Crash Engine Start Error]', err.message);

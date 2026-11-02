@@ -6,6 +6,7 @@ const client = {
   async query(sql, params) {
     queries.push({ sql, params });
     if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return { rows: [] };
+    if (sql.includes('pg_advisory_xact_lock')) return { rows: [] };
     if (sql.includes('FROM moonflip_private.game_rounds') && sql.includes("status = 'active'")) {
       return {
         rows: [
@@ -45,12 +46,14 @@ const economy = new PostgresEconomy({
 });
 
 // Test 1: Recovery of interrupted flights upon server reboot
-const recoveredCount = await economy.recoverInterruptedRounds('crash', true);
+const recoveredCount = await economy.recoverInterruptedRounds('crash', true, 120);
 assert.equal(recoveredCount, 2);
 assert.equal(queries[0].sql, 'BEGIN');
 assert.equal(queries.at(-1).sql, 'COMMIT');
+assert(queries.some((q) => q.sql.includes('pg_advisory_xact_lock')));
 assert(queries.some((q) => q.sql.includes('balance = balance + $2')));
 assert(queries.some((q) => q.sql.includes("status = 'settled'")));
+assert(queries.some((q) => q.sql.includes("created_at < now() - ($2 || ' seconds')::interval") && q.params[1] === 120));
 
 // Test 2: Active crash flight lookup
 const lookupQueries = [];
