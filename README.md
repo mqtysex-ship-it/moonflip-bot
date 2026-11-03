@@ -27,19 +27,20 @@ A Model Context Protocol (MCP) server for Discord administration, channel manage
 The dashboard requires `DASHBOARD_PASSWORD` and uses the username `admin`.
 Set a strong unique password in the deployment environment before starting the
 server. The public `/play` arena does not require dashboard credentials.
-Set `WEB_SESSION_SECRET` to a stable, private random value on every deployment;
-changing it invalidates existing web-play links. If it is not set, the Discord
-bot token is used as the signing key for compatibility.
+Set `WEB_SESSION_SECRET` to a stable, private random value of at least 32 characters
+on every deployment. Changing it invalidates existing web-play links. Issuing a
+new `/play` link also revokes that player's previous link. Existing links created
+before the session registry was introduced must be replaced using `/play`.
 
 For Codex MCP integration, run `node src/mcp.js` rather than `src/index.js`.
 The MCP entry point does not start a second dashboard or gameplay bot.
 
-For a single production instance, set `MOONFLIP_DATA_DIR` to an absolute path
-on a persistent disk. Back up and migrate the current `data` directory before
-enabling it; an empty directory starts with empty/default state. This setting
-does not make concurrent processes or multiple hosts safe: the JSON economy
-store still requires a single writer. A transactional shared database is needed
-for multiple instances. Never use the same production directory for tests.
+Set `DATABASE_URL` to the Supabase PostgreSQL connection string and apply the
+project migrations before startup. Production refuses to start without it; a
+database failure does not switch to JSON. Legacy files are for migration and
+isolated tests only. `/health` returns 503 when the database is unavailable.
+The Crash arena keeps live timing in one process; run a single application
+instance until cross-instance ownership and recovery are implemented.
 
 ### 1. Bot Invite
 

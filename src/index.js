@@ -9,9 +9,6 @@ import { shutdownWebCrash } from './web/playApi.js';
 process.on('unhandledRejection', (reason) => {
   console.error('[Unhandled Rejection at Promise]', reason?.message || reason);
 });
-process.on('uncaughtException', (err) => {
-  console.error('[Uncaught Exception]', err.message);
-});
 
 async function main() {
   const server = createDiscordMcpServer();

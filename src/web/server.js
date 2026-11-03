@@ -51,9 +51,6 @@ function addLog(level, msg) {
 process.on('unhandledRejection', (reason) => {
   console.error('[Web Server Unhandled Rejection]', reason?.message || reason);
 });
-process.on('uncaughtException', (err) => {
-  console.error('[Web Server Uncaught Exception]', err?.message || err);
-});
 
 // Intercept console.log and console.error safely to capture logs for the dashboard
 const origLog = console.log;
@@ -70,20 +67,28 @@ console.error = (...args) => {
 const DEFAULT_GUILD_ID = '1566215806956601466';
 
 export function createWebServer({ economyStore = databaseEconomy } = {}) {
+  if (process.env.MOONFLIP_ISOLATED_TEST !== '1' && (process.env.WEB_SESSION_SECRET || '').length < 32) {
+    throw new Error('WEB_SESSION_SECRET must contain at least 32 characters');
+  }
   const app = express();
   const readStats = () => economyStore ? economyStore.getEconomyStats() : getEconomyStats();
   const readPlayers = () => economyStore ? economyStore.getEconomyPlayers() : getEconomyPlayers();
 
   app.use(express.json());
   app.get('/health', async (req, res) => {
-    try { if (databasePool) await databasePool.query('select 1'); res.json({ ok: true, storage: databasePool ? 'supabase' : 'local' }); }
+    try { if (!databasePool) throw new Error('Database unavailable'); await databasePool.query('select 1'); res.json({ ok: true, storage: 'supabase' }); }
     catch { res.status(503).json({ ok: false }); }
   });
+  const authAttempts = new Map();
   // The player arena is public; every other dashboard page and API requires
   // credentials. Fail closed until an administrator configures a password.
   app.use((req, res, next) => {
     if (req.path === '/play' || req.path.startsWith('/play/') ||
         req.path === '/api/play' || req.path.startsWith('/api/play/')) return next();
+    const now = Date.now();
+    for (const [ip, entry] of authAttempts) if (entry.until <= now) authAttempts.delete(ip);
+    const attempt = authAttempts.get(req.ip);
+    if (attempt && attempt.count >= 10) return res.status(429).send('Too many authentication attempts. Try again later.');
     const password = process.env.DASHBOARD_PASSWORD;
     if (!password) return res.status(503).send('Dashboard is unavailable until DASHBOARD_PASSWORD is configured.');
     const encoded = req.headers.authorization?.match(/^Basic\s+(.+)$/i)?.[1];
@@ -93,9 +98,12 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
     const actualHash = crypto.createHash('sha256').update(supplied).digest();
     const expectedHash = crypto.createHash('sha256').update(expected).digest();
     if (!crypto.timingSafeEqual(actualHash, expectedHash)) {
+      if (authAttempts.size >= 10000 && !attempt) return res.status(429).send('Too many authentication attempts. Try again later.');
+      authAttempts.set(req.ip, { count: (attempt?.count || 0) + 1, until: attempt?.until || now + 15 * 60 * 1000 });
       res.setHeader('WWW-Authenticate', 'Basic realm="Moonflip Dashboard", charset="UTF-8"');
       return res.status(401).send('Dashboard authentication required.');
     }
+    authAttempts.delete(req.ip);
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !req.is('application/json')) {
       return res.status(415).send('Dashboard changes require application/json.');
     }

@@ -3,6 +3,7 @@ import { setupRewardsApi } from './rewardsApi.js';
 import { setupInstantGameApi } from './instantGameApi.js';
 import crypto from 'crypto';
 import { signSession, verifySession } from './sessionSecurity.js';
+import { createSessionRegistry } from './sessionRegistry.js';
 import { EmbedBuilder } from 'discord.js';
 import { generateMinesBombs, calculateMinesMultiplier, generateCrashMultiplier } from '../games/rng.js';
 import { getBalance, deductTokens, addTokens, getUser, setUserMeta, economyEvents, databaseEconomy } from '../games/economy.js';
@@ -12,6 +13,8 @@ import { getDiscordClient } from '../discord.js';
 import { databasePool } from '../database.js';
 import { PersistentMines } from '../games/persistentMines.js';
 import { readDocument, writeDocument } from '../documentStore.js';
+
+const sessionRegistry = createSessionRegistry({ read: readDocument, write: writeDocument });
 
 export const webPlaySessions = new Map();
 export const activeWebMines = new Map();
@@ -81,7 +84,9 @@ economyEvents.on('balanceChanged', (change) => {
 // this development-only case intentionally stop working after a restart.
 const ephemeralSigningSecret = crypto.randomBytes(32).toString('hex');
 function getSigningSecret() {
-  return process.env.WEB_SESSION_SECRET || process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN || ephemeralSigningSecret;
+  const secret = process.env.WEB_SESSION_SECRET;
+  if ((!secret || secret.length < 32) && process.env.MOONFLIP_ISOLATED_TEST !== '1') throw new Error('WEB_SESSION_SECRET must contain at least 32 characters');
+  return secret || ephemeralSigningSecret;
 }
 
 function signTokenPayload(payloadObj) {
@@ -111,6 +116,7 @@ export function createWebPlaySession(userOrId, maybeUsername, maybeAvatarUrl) {
     n: String(user.username || 'Player'),
     a: String(avatarUrl),
     t: Date.now(),
+    nonce: crypto.randomBytes(24).toString('base64url'),
   });
 
   const session = {
@@ -121,6 +127,10 @@ export function createWebPlaySession(userOrId, maybeUsername, maybeAvatarUrl) {
     expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days
     demoBalance: 1000,
   };
+  if (databasePool) return Promise.resolve(metadataSave).then(async () => {
+    await sessionRegistry.activate(session.userId, token);
+    return token;
+  });
   webPlaySessions.set(token, session);
   return metadataSave && typeof metadataSave.then === 'function' ? metadataSave.then(() => token) : token;
 }
@@ -135,7 +145,7 @@ async function resolvePlayer(req) {
   const token = req.headers['x-play-token'] || req.query?.token || req.body?.token;
 
   // 1. Check in-memory session map first (supports custom test tokens & cached tokens)
-  if (token && webPlaySessions.has(token)) {
+  if (!databasePool && token && webPlaySessions.has(token)) {
     const sess = webPlaySessions.get(token);
     if ((!sess.expiresAt || sess.expiresAt > Date.now()) && (!token.startsWith('mf1.') || verifyTokenPayload(token))) {
       return { authenticated: true, session: sess, token };
@@ -144,7 +154,7 @@ async function resolvePlayer(req) {
 
   // 2. Verify stateless HMAC-signed token (survives server restarts & Render deploys!)
   const verified = verifyTokenPayload(token);
-  if (verified && verified.u) {
+  if (verified && verified.u && (!databasePool || await sessionRegistry.isActive(String(verified.u), token))) {
     const dbUser = await getUser(verified.u);
     const session = {
       userId: String(verified.u),
@@ -402,14 +412,17 @@ class GlobalCrashArenaEngine {
 
   async executeBetCashout(bet, achievedMult) {
     if (bet.cashedOut) return null;
+    if (bet.settlementPromise) return bet.settlementPromise;
+    bet.pendingCashoutMult ??= achievedMult;
+    bet.settlementPromise = this.settleBetCashout(bet, bet.pendingCashoutMult);
+    try { return await bet.settlementPromise; }
+    finally { bet.settlementPromise = null; }
+  }
+
+  async settleBetCashout(bet, achievedMult) {
     const cleanMult = Math.max(1.01, Math.round(achievedMult * 100) / 100);
     const winAmount = Math.floor(bet.wager * cleanMult);
     const profit = winAmount - bet.wager;
-
-    bet.cashedOut = true;
-    bet.cashoutMult = cleanMult;
-    bet.winAmount = winAmount;
-    bet.profit = profit;
 
     let newBalance = 0;
     if (!bet.isAmbient) {
@@ -426,6 +439,10 @@ class GlobalCrashArenaEngine {
         newBalance = bet.session.demoBalance;
       }
 
+      bet.cashedOut = true;
+      bet.cashoutMult = cleanMult;
+      bet.winAmount = winAmount;
+      bet.profit = profit;
       // Sync with individual activeWebCrash map if tracked
       const flight = activeWebCrash.get(bet.key);
       if (flight) {
@@ -460,11 +477,24 @@ class GlobalCrashArenaEngine {
       });
     }
 
+    if (bet.isAmbient) { bet.cashedOut = true; bet.cashoutMult = cleanMult; bet.winAmount = winAmount; bet.profit = profit; }
     return { winAmount, profit, multiplier: cleanMult, balance: newBalance };
   }
 
   async enterCrashedPhase() {
     if (this.phase !== 'IN_FLIGHT') return;
+    if (this.crashSettlementPromise) return this.crashSettlementPromise;
+    this.crashSettlementPromise = this.finishCrashedPhase();
+    try { return await this.crashSettlementPromise; }
+    catch (error) {
+      if (this.timer) clearTimeout(this.timer);
+      this.timer = setTimeout(() => this.enterCrashedPhase().catch(reportCrashError), 1000);
+      this.timer.unref?.();
+      throw error;
+    } finally { this.crashSettlementPromise = null; }
+  }
+
+  async finishCrashedPhase() {
     if (this.tickTimer) {
       clearInterval(this.tickTimer);
       this.tickTimer = null;
@@ -473,10 +503,10 @@ class GlobalCrashArenaEngine {
     // The target can be reached between the last timer tick and the crash.
     // Settle those bets before publishing the completed round.
     for (const bet of this.bets.values()) {
-      if (!bet.cashedOut && bet.autoCashout && bet.autoCashout <= this.crashPoint) {
-        await this.executeBetCashout(bet, bet.autoCashout);
+      if (!bet.cashedOut && (bet.pendingCashoutMult || (bet.autoCashout && bet.autoCashout <= this.crashPoint))) {
+        await this.executeBetCashout(bet, bet.pendingCashoutMult || bet.autoCashout);
       } else if (!bet.cashedOut && !bet.isAmbient && bet.authenticated && bet.userId && bet.roundId && databaseEconomy) {
-        await databaseEconomy.settleRound(bet.roundId, bet.userId, 0).catch(reportCrashError);
+        await databaseEconomy.settleRound(bet.roundId, bet.userId, 0);
       }
     }
 
@@ -500,7 +530,7 @@ class GlobalCrashArenaEngine {
     if (authenticated && databaseEconomy && session?.userId) {
       const existing = await databaseEconomy.loadActiveCrash(session.userId);
       if (existing && !this.bets.has(gameKey)) {
-        await databaseEconomy.settleRound(existing.roundId, session.userId, existing.wager).catch(() => {});
+        await databaseEconomy.settleRound(existing.roundId, session.userId, existing.wager);
       }
     }
 
@@ -688,7 +718,7 @@ let crashSweeperTimer = null;
 export function startCrashSweeper(intervalMs = 300000, olderThanSeconds = 1200) {
   if (!databaseEconomy) return;
   const sweep = () => {
-    databaseEconomy.recoverInterruptedRounds('crash', true, olderThanSeconds).catch(() => {});
+    databaseEconomy.recoverInterruptedRounds('crash', true, olderThanSeconds).catch(reportCrashError);
   };
   sweep();
   if (crashSweeperTimer) clearInterval(crashSweeperTimer);
@@ -1286,7 +1316,7 @@ export function setupPlayApi(app) {
       if (authenticated && databaseEconomy && session?.userId) {
         const dbExisting = await databaseEconomy.loadActiveCrash(session.userId);
         if (dbExisting) {
-          await databaseEconomy.settleRound(dbExisting.roundId, session.userId, dbExisting.wager).catch(() => {});
+          await databaseEconomy.settleRound(dbExisting.roundId, session.userId, dbExisting.wager);
         }
       }
 
@@ -1392,11 +1422,11 @@ export function setupPlayApi(app) {
       });
 
       if (!flight.cashedOut && !flight.crashed) {
+        if (authenticated && databaseEconomy && flight.roundId) {
+          await databaseEconomy.settleRound(flight.roundId, session.userId, 0);
+        }
         flight.crashed = true;
         activeWebCrash.delete(gameKey);
-        if (authenticated && databaseEconomy && flight.roundId) {
-          await databaseEconomy.settleRound(flight.roundId, session.userId, 0).catch(() => {});
-        }
         recentCrashHistory.unshift(flight.crashPoint);
         if (recentCrashHistory.length > 20) recentCrashHistory.pop();
       }
@@ -1515,6 +1545,7 @@ export function setupPlayApi(app) {
       const elapsedMs = Date.now() - flight.startTime;
 
       if (elapsedMs > flight.durationMs + 150) {
+        if (authenticated && databaseEconomy && flight.roundId) await databaseEconomy.settleRound(flight.roundId, session.userId, 0);
         flight.crashed = true;
         activeWebCrash.delete(gameKey);
         recentCrashHistory.unshift(flight.crashPoint);

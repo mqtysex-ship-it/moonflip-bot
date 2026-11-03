@@ -539,6 +539,10 @@ class ContinuousCrashEngine {
     try {
       let autoNotice = null;
 
+      if (databaseEconomy && activeCrashFlights.has(userId)) {
+        return await interaction.reply({ content: 'A flight is already active. Finish it before starting another.', flags: MessageFlags.Ephemeral });
+      }
+
       // Auto-recover if player had a previous unfinished flight (never let a player get stuck!)
       if (databaseEconomy) {
         const existing = await databaseEconomy.loadActiveCrash(userId);
@@ -692,18 +696,21 @@ class ContinuousCrashEngine {
       state.crashPoint >= state.autoCashout
     ) {
       state.stopped = true;
-      state.cashedOut = true;
       state.cashedViaAuto = true;
       state.cashoutMult = state.autoCashout;
       state.currentMultiplier = state.autoCashout;
       state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
 
-      activeCrashFlights.delete(state.userId);
-      if (databaseEconomy && state.roundId) {
-        await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
-      } else {
-        (await addTokens(state.userId, state.winAmount, true));
+      try {
+        if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
+        else await addTokens(state.userId, state.winAmount, true);
+      } catch (error) {
+        state.stopped = false;
+        state.stepTimer = setTimeout(() => this.runFlightStep(state).catch(console.error), 1000);
+        throw error;
       }
+      state.cashedOut = true;
+      activeCrashFlights.delete(state.userId);
 
       const prefs = getOrCreateUserPrefs(state.userId);
       prefs.streak = (prefs.streak || 0) + 1;
@@ -722,13 +729,17 @@ class ContinuousCrashEngine {
     // 2. Check if Rocket Crashed!
     if (nextMult >= state.crashPoint) {
       state.stopped = true;
-      state.crashed = true;
       state.currentMultiplier = state.crashPoint;
 
-      activeCrashFlights.delete(state.userId);
-      if (databaseEconomy && state.roundId) {
-        await databaseEconomy.settleRound(state.roundId, state.userId, 0);
+      try {
+        if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, 0);
+      } catch (error) {
+        state.stopped = false;
+        state.stepTimer = setTimeout(() => this.runFlightStep(state).catch(console.error), 1000);
+        throw error;
       }
+      state.crashed = true;
+      activeCrashFlights.delete(state.userId);
 
       const prefs = getOrCreateUserPrefs(state.userId);
       prefs.streak = 0;
@@ -774,10 +785,11 @@ class ContinuousCrashEngine {
     const state = activeCrashFlights.get(userId);
 
     if (!state || state.stopped || state.cashedOut || state.crashed) {
+      if (state && state.stopped && !state.cashedOut && !state.crashed) throw new Error('Flight settlement is in progress');
       if (databaseEconomy) {
         const existing = await databaseEconomy.loadActiveCrash(userId);
         if (existing) {
-          await databaseEconomy.settleRound(existing.roundId, userId, existing.wager).catch(() => {});
+          await databaseEconomy.settleRound(existing.roundId, userId, existing.wager);
           const embed = new EmbedBuilder()
             .setColor(0xf1c40f)
             .setTitle('🔄 Flight Recovered & Refunded')
@@ -813,21 +825,23 @@ class ContinuousCrashEngine {
 
     // Otherwise: Instant Manual Cash Out at currentMultiplier!
     state.stopped = true;
-    state.cashedOut = true;
     state.cashedViaAuto = false;
     if (state.stepTimer) {
       clearTimeout(state.stepTimer);
       state.stepTimer = null;
     }
-    activeCrashFlights.delete(userId);
-
-    state.cashoutMult = state.currentMultiplier;
+    state.cashoutMult = state.pendingCashoutMult ?? state.currentMultiplier;
+    state.pendingCashoutMult = state.cashoutMult;
     state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
-    if (databaseEconomy && state.roundId) {
-      await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
-    } else {
-      (await addTokens(userId, state.winAmount, true));
+    try {
+      if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
+      else await addTokens(userId, state.winAmount, true);
+    } catch (error) {
+      state.stopped = false;
+      throw error;
     }
+    state.cashedOut = true;
+    activeCrashFlights.delete(userId);
 
     const prefs = getOrCreateUserPrefs(userId);
     prefs.streak = (prefs.streak || 0) + 1;
