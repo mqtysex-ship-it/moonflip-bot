@@ -122,12 +122,27 @@ export function getSlashCommandDefinitions() {
     // 12. /play (Web Arena)
     new SlashCommandBuilder()
       .setName('play')
-      .setDescription('🎮 Launch the Moonflip Web Arena (5x5 Mines & Orbital Crash) in your browser'),
+      .setDescription('🎮 Launch the Moonflip Web Arena in your browser'),
 
     // 13. /crash (Orbital Crash)
     new SlashCommandBuilder()
       .setName('crash')
       .setDescription('🚀 Launch the real-time 60 FPS Orbital Crash Web Arena in your browser'),
+
+    // 14. /plinko (Plinko Pyramid)
+    new SlashCommandBuilder()
+      .setName('plinko')
+      .setDescription('🎯 Launch the Moonflip Plinko Pyramid Web Arena in your browser'),
+
+    // 15. /coinflip (Coinflip)
+    new SlashCommandBuilder()
+      .setName('coinflip')
+      .setDescription('🪙 Launch Moonflip Coinflip in the Web Arena'),
+
+    // 16. /mines (5x5 Mines)
+    new SlashCommandBuilder()
+      .setName('mines')
+      .setDescription('💣 Launch Moonflip Mines 5x5 in the Web Arena'),
   ];
 }
 
@@ -157,19 +172,12 @@ export async function handleChatInputCommand(interaction) {
 
     const embed = new EmbedBuilder()
       .setColor(0xf1c40f)
-      .setTitle(`💳  ${targetUser.username}'s Token Wallet`)
-      .setThumbnail(targetUser.displayAvatarURL())
+      .setTitle(`💰 ${targetUser.username}'s Wallet`)
       .setDescription(
-        `> **Account Overview & Virtual Balance**\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `🪙 **Current Balance**: \`${stats.balance.toLocaleString()} 🪙\`\n` +
-        `🎲 **Games Played**: \`${stats.gamesPlayed.toLocaleString()}\`\n` +
-        `📉 **Total Wagered**: \`${stats.totalBet.toLocaleString()} 🪙\`\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `*Play token games in <#1566223405789741108> or claim daily rewards.*`
-      )
-      .setFooter({ text: 'Virtual Tokens • Provably Fair Economy' })
-      .setTimestamp();
+        `> **Balance:** \`${stats.balance.toLocaleString()} tokens\`\n\n` +
+        `• **Games Played:** \`${stats.gamesPlayed.toLocaleString()}\`\n` +
+        `• **Total Wagered:** \`${stats.totalBet.toLocaleString()} tokens\``
+      );
 
     return interaction.reply({ embeds: [embed] });
   }
@@ -179,24 +187,21 @@ export async function handleChatInputCommand(interaction) {
     const res = (await claimDaily(interaction.user.id));
     if (res.success) {
       const embed = new EmbedBuilder()
-        .setColor(0x2ecc71)
-        .setTitle('🎁  DAILY TOKENS CLAIMED!')
+        .setColor(0x57f287)
+        .setTitle('🎁 Daily Tokens Claimed')
         .setDescription(
-          `> You received your daily allowance of **+${res.amount.toLocaleString()} 🪙**!\n\n` +
-          `💳 **New Balance**: \`${res.newBalance.toLocaleString()} 🪙\`\n` +
-          `⏰ **Next Claim**: Available in 24 hours.`
-        )
-        .setTimestamp();
+          `> Added **+${res.amount.toLocaleString()} tokens** to your wallet.\n\n` +
+          `• **New Balance:** \`${res.newBalance.toLocaleString()} tokens\``
+        );
       return interaction.reply({ embeds: [embed] });
     } else {
       const embed = new EmbedBuilder()
-        .setColor(0xe74c3c)
-        .setTitle('⏳  DAILY REWARD COOLDOWN')
+        .setColor(0xed4245)
+        .setTitle('⏳ Daily Cooldown')
         .setDescription(
-          `> You have already claimed your daily reward today!\n\n` +
-          `⏰ **Cooldown Remaining**: **${res.remainingHours} hours and ${res.remainingMinutes} minutes**.`
-        )
-        .setTimestamp();
+          `> You've already claimed your daily reward today.\n\n` +
+          `• **Available in:** \`${res.remainingHours}h ${res.remainingMinutes}m\``
+        );
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
   }
@@ -212,28 +217,20 @@ export async function handleChatInputCommand(interaction) {
     }
 
     const top = (await getLeaderboard(10));
-    const badges = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
     let list = '';
     for (let i = 0; i < top.length; i++) {
       const entry = top[i];
-      const badge = badges[i] || `[${i + 1}]`;
-      list += `${badge} <@${entry.userId}> — **\`${entry.balance.toLocaleString()} 🪙\`** *(Played: ${entry.gamesPlayed})*\n`;
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `\`${i + 1}.\``;
+      list += `${medal} <@${entry.userId}> — \`${entry.balance.toLocaleString()} tokens\`\n`;
     }
 
-    if (!list) list = '*No players have registered yet.*';
+    if (!list) list = 'No players registered yet.';
 
     const embed = new EmbedBuilder()
       .setColor(0xf1c40f)
-      .setTitle('🏆  SERVER WEALTH LEADERBOARD')
-      .setDescription(
-        `> **Top 10 Richest Token Holders on the Server**\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `${list}` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-      )
-      .setFooter({ text: 'Updated Real-Time • Virtual Token Rankings' })
-      .setTimestamp();
+      .setTitle('🏆 Moonflip Wealth Leaderboard')
+      .setDescription(list);
 
     return interaction.reply({ embeds: [embed] });
   }
@@ -244,29 +241,26 @@ export async function handleChatInputCommand(interaction) {
     const amount = interaction.options.getInteger('amount');
 
     if (targetUser.id === interaction.user.id) {
-      return interaction.reply({ content: '❌ You cannot send tokens to yourself!', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'You cannot send tokens to yourself.', flags: MessageFlags.Ephemeral });
     }
 
     if (targetUser.bot) {
-      return interaction.reply({ content: '❌ You cannot send tokens to a bot account!', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'You cannot send tokens to a bot account.', flags: MessageFlags.Ephemeral });
     }
 
     const res = (await transferTokens(interaction.user.id, targetUser.id, amount));
     if (!res.success) {
-      return interaction.reply({ content: `❌ Transfer failed: ${res.error}`, flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: `Transfer failed: ${res.error}`, flags: MessageFlags.Ephemeral });
     }
 
     const embed = new EmbedBuilder()
-      .setColor(0x2ecc71)
-      .setTitle('💸  TOKEN TRANSFER SUCCESSFUL')
+      .setColor(0x57f287)
+      .setTitle('💸 Transfer Successful')
       .setDescription(
-        `> <@${interaction.user.id}> successfully sent **${amount.toLocaleString()} 🪙** to <@${targetUser.id}>!\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `💳 **Sender Balance**: \`${res.senderBalance.toLocaleString()} 🪙\`\n` +
-        `📥 **Recipient Balance**: \`${res.receiverBalance.toLocaleString()} 🪙\`\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-      )
-      .setTimestamp();
+        `> <@${interaction.user.id}> sent **${amount.toLocaleString()} tokens** to <@${targetUser.id}>.\n\n` +
+        `• **Your Balance:** \`${res.senderBalance.toLocaleString()} tokens\`\n` +
+        `• **Recipient Balance:** \`${res.receiverBalance.toLocaleString()} tokens\``
+      );
 
     return interaction.reply({ embeds: [embed] });
   }
@@ -275,23 +269,14 @@ export async function handleChatInputCommand(interaction) {
   if (commandName === 'deposit-test') {
     const amount = interaction.options.getInteger('amount');
     const newBal = (await addTokens(interaction.user.id, amount));
-    const receiptId = Math.random().toString(36).substring(2, 9).toUpperCase();
 
     const embed = new EmbedBuilder()
-      .setColor(0x2ecc71)
-      .setTitle('💳  TEST DEPOSIT CREDITED')
+      .setColor(0x57f287)
+      .setTitle('💳 Test Deposit Credited')
       .setDescription(
-        `> **Simulated Credit Deposit Successful!**\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `🪙 **Tokens Added**: \`+${amount.toLocaleString()} 🪙\`\n` +
-        `💳 **Total Balance**: \`${newBal.toLocaleString()} 🪙\`\n` +
-        `🧾 **Receipt ID**: \`#DEP-${receiptId}\`\n` +
-        `⚡ **Status**: \`Completed (Simulated / Test)\`\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `*This was a simulation deposit for testing token economy flows.*`
-      )
-      .setFooter({ text: 'Test Deposit Engine • Instant Settlement' })
-      .setTimestamp();
+        `> Added **+${amount.toLocaleString()} tokens** to your wallet.\n\n` +
+        `• **New Balance:** \`${newBal.toLocaleString()} tokens\``
+      );
 
     return interaction.reply({ embeds: [embed] });
   }
@@ -311,25 +296,13 @@ export async function handleChatInputCommand(interaction) {
       }
     }
 
-    const totalBlocks = 12;
-    const filledBlocks = Math.round((lvlData.progressPercent / 100) * totalBlocks);
-    const bar = '█'.repeat(filledBlocks) + '░'.repeat(totalBlocks - filledBlocks);
-
     const embed = new EmbedBuilder()
       .setColor(tierColor)
-      .setTitle(`🏆  ${targetUser.username}'s Player Rank`)
-      .setThumbnail(targetUser.displayAvatarURL())
+      .setTitle(`${targetUser.username} — Level ${lvlData.level}`)
       .setDescription(
-        `> **Prestige Tier**: **\`${currentTier}\`**\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `⭐ **Current Level**: \`Level ${lvlData.level}\`\n` +
-        `📈 **Experience**: \`${lvlData.xp.toLocaleString()} / ${lvlData.requiredXp.toLocaleString()} XP\` (\`${lvlData.progressPercent}%\`)\n` +
-        `📊 **Progress Bar**: \`[${bar}]\`\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `*Chat in community channels or play token games to earn XP and level rewards!*`
-      )
-      .setFooter({ text: 'Level Rewards • Automatic Tier Promotion' })
-      .setTimestamp();
+        `• Tier: **${currentTier}**\n` +
+        `• XP: **${lvlData.xp.toLocaleString()} / ${lvlData.requiredXp.toLocaleString()}** (${lvlData.progressPercent}%)`
+      );
 
     return interaction.reply({ embeds: [embed] });
   }
@@ -342,26 +315,18 @@ export async function handleChatInputCommand(interaction) {
       .sort((a, b) => b.level - a.level || b.xp - a.xp)
       .slice(0, 10);
 
-    const badges = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
     let list = '';
     for (let i = 0; i < sortedByLvl.length; i++) {
       const entry = sortedByLvl[i];
-      const badge = badges[i] || `[${i + 1}]`;
-      list += `${badge} <@${entry.userId}> — **Level \`${entry.level}\`** *(${entry.xp.toLocaleString()} XP)*\n`;
+      list += `${i + 1}. <@${entry.userId}> — **Level ${entry.level}** (${entry.xp.toLocaleString()} XP)\n`;
     }
 
-    if (!list) list = '*No players ranked yet.*';
+    if (!list) list = 'No players ranked yet.';
 
     const embed = new EmbedBuilder()
       .setColor(0x8a2be2)
-      .setTitle('🌟  SERVER LEVEL LEADERBOARD')
-      .setDescription(
-        `> **Top 10 Highest Level Players on the Server**\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `${list}` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-      )
-      .setTimestamp();
+      .setTitle('Level Leaderboard')
+      .setDescription(list);
 
     return interaction.reply({ embeds: [embed] });
   }
@@ -381,16 +346,14 @@ export async function handleChatInputCommand(interaction) {
     const newBal = (await addTokens(targetUser.id, amount));
 
     const embed = new EmbedBuilder()
-      .setColor(0x2ecc71)
-      .setTitle('👑  ADMIN TOKEN CREDIT')
+      .setColor(0x57f287)
+      .setTitle('🛡️ Tokens Granted')
       .setDescription(
-        `> **Admin Granted Tokens Successfully**\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `👤 **Member**: <@${targetUser.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
-        `🪙 **Added**: \`+${amount.toLocaleString()} 🪙\`\n` +
-        `📊 **Balance Shift**: \`${prevBal.toLocaleString()} 🪙\` ➔ \`${newBal.toLocaleString()} 🪙\`\n` +
-        `🛡️ **Authorized By**: <@${interaction.user.id}>\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+        `> Admin credited tokens to <@${targetUser.id}>.\n\n` +
+        `• **Member:** <@${targetUser.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
+        `• **Amount:** \`+${amount.toLocaleString()} 🪙\`\n` +
+        `• **New Balance:** \`${newBal.toLocaleString()} 🪙\`\n` +
+        `• **Authorized By:** <@${interaction.user.id}>`
       )
       .setTimestamp();
 
@@ -412,16 +375,14 @@ export async function handleChatInputCommand(interaction) {
     const newBal = (await setBalance(targetUser.id, Math.max(0, prevBal - amount)));
 
     const embed = new EmbedBuilder()
-      .setColor(0xe74c3c)
-      .setTitle('👑  ADMIN TOKEN DEDUCTION')
+      .setColor(0xed4245)
+      .setTitle('🛡️ Tokens Deducted')
       .setDescription(
-        `> **Tokens Deducted by Administration**\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `👤 **Member**: <@${targetUser.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
-        `🪙 **Deducted**: \`-${amount.toLocaleString()} 🪙\`\n` +
-        `📊 **Balance Shift**: \`${prevBal.toLocaleString()} 🪙\` ➔ \`${newBal.toLocaleString()} 🪙\`\n` +
-        `🛡️ **Authorized By**: <@${interaction.user.id}>\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+        `> Admin deducted tokens from <@${targetUser.id}>.\n\n` +
+        `• **Member:** <@${targetUser.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
+        `• **Deducted:** \`-${amount.toLocaleString()} 🪙\`\n` +
+        `• **New Balance:** \`${newBal.toLocaleString()} 🪙\`\n` +
+        `• **Authorized By:** <@${interaction.user.id}>`
       )
       .setTimestamp();
 
@@ -444,15 +405,13 @@ export async function handleChatInputCommand(interaction) {
 
     const embed = new EmbedBuilder()
       .setColor(0x9b59b6)
-      .setTitle('👑  ADMIN BALANCE OVERRIDE')
+      .setTitle('🛡️ Balance Overwrite')
       .setDescription(
-        `> **Token Balance Overwritten**\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `👤 **Member**: <@${targetUser.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
-        `📊 **Previous Balance**: \`${prevBal.toLocaleString()} 🪙\`\n` +
-        `💳 **New Set Balance**: \`${newBal.toLocaleString()} 🪙\`\n` +
-        `🛡️ **Authorized By**: <@${interaction.user.id}>\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+        `> Admin updated token balance for <@${targetUser.id}>.\n\n` +
+        `• **Member:** <@${targetUser.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
+        `• **Previous:** \`${prevBal.toLocaleString()} 🪙\`\n` +
+        `• **New Balance:** \`${newBal.toLocaleString()} 🪙\`\n` +
+        `• **Authorized By:** <@${interaction.user.id}>`
       )
       .setTimestamp();
 
@@ -481,45 +440,72 @@ export async function handleChatInputCommand(interaction) {
     }
   }
 
-  // 12. /play & /crash (Web Arena)
-  if (commandName === 'play' || commandName === 'crash') {
+  // 12. /play, /crash, /plinko, /coinflip & /mines (Web Arena)
+  if (
+    commandName === 'play' ||
+    commandName === 'crash' ||
+    commandName === 'plinko' ||
+    commandName === 'coinflip' ||
+    commandName === 'mines'
+  ) {
     const isCrash = commandName === 'crash';
+    const isPlinko = commandName === 'plinko';
+    const isCoinflip = commandName === 'coinflip';
+    const isMines = commandName === 'mines';
     const token = (await createWebPlaySession(interaction.user));
     const baseUrl = getPublicBaseUrl(interaction);
     const homeUrl = `${baseUrl}/play?token=${token}`;
     const crashUrl = `${baseUrl}/play?game=crash&token=${token}`;
     const minesUrl = `${baseUrl}/play?game=mines&token=${token}`;
+    const plinkoUrl = `${baseUrl}/play?game=plinko&token=${token}`;
+    const coinflipUrl = `${baseUrl}/play?game=coinflip&token=${token}`;
+    const balance = await getBalance(interaction.user.id);
+
+    const gameTitle = isPlinko
+      ? 'Plinko'
+      : isCrash
+      ? 'Crash'
+      : isCoinflip
+      ? 'Coinflip'
+      : isMines
+      ? 'Mines'
+      : 'Web Arena';
 
     const embed = new EmbedBuilder()
-      .setColor(0x2ef2b8)
-      .setTitle(isCrash ? '🚀  MOONFLIP CRASH — WEB ARENA' : '🌙  MOONFLIP — DISCORD-POWERED MINIGAMES')
+      .setColor(isPlinko ? 0x2ecc71 : isCrash ? 0xff9900 : isCoinflip ? 0xf1c40f : 0x00f0ff)
+      .setTitle(`🎮 ${gameTitle} Session Ready`)
       .setDescription(
-        `> **Real-Time Interactive Web Platform with Instant Discord Sync** ⚡\n\n` +
-        `Your private gaming session is ready! Click any button below to launch **Moonflip** in your browser with your Discord identity and wallet synced.\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `👤 **Player**: <@${interaction.user.id}>\n` +
-        `🪙 **Current Wallet**: \`${(await getBalance(interaction.user.id)).toLocaleString()} 🪙\`\n` +
-        `🎮 **Featured Games**: 💣 **Mines** & 📈 **Crash**\n` +
-        `🔒 **Session**: Permanent cryptographically signed Discord wallet link\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `👉 **Click a button below to open Moonflip in your browser!**`
-      )
-      .setFooter({ text: 'Provably Fair • Instant Settlement • Moonflip Web Arena' })
-      .setTimestamp();
+        `> Your secure session is ready.\n\n` +
+        `• **Balance:** \`${balance.toLocaleString()} tokens\`\n\n` +
+        `-# Click a button below to launch in your browser.`
+      );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setLabel('🌙 Open Moonflip Home')
+        .setLabel('Open Arena')
+        .setEmoji('🌐')
         .setStyle(ButtonStyle.Link)
         .setURL(homeUrl),
       new ButtonBuilder()
-        .setLabel('💣 Play Mines')
+        .setLabel('Plinko')
+        .setEmoji('🎯')
+        .setStyle(ButtonStyle.Link)
+        .setURL(plinkoUrl),
+      new ButtonBuilder()
+        .setLabel('Mines')
+        .setEmoji('💣')
         .setStyle(ButtonStyle.Link)
         .setURL(minesUrl),
       new ButtonBuilder()
-        .setLabel('📈 Play Crash')
+        .setLabel('Crash')
+        .setEmoji('🚀')
         .setStyle(ButtonStyle.Link)
-        .setURL(crashUrl)
+        .setURL(crashUrl),
+      new ButtonBuilder()
+        .setLabel('Coinflip')
+        .setEmoji('🪙')
+        .setStyle(ButtonStyle.Link)
+        .setURL(coinflipUrl)
     );
 
     return interaction.reply({

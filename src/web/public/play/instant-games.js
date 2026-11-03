@@ -50,7 +50,7 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
     const automation = auto.state();
     const autoMode = game === 'plinko' && plinkoMode === 'auto';
     const blocked = game === 'coinflip' ? jobs.size > 0 : jobs.size >= maxDrops;
-    play.textContent = recovery ? 'Recover round' : autoMode ? (automation.running ? 'Stop autobet' : automation.run?.status === 'running' ? 'Resume autobet' : 'Start autobet') : game === 'coinflip' ? (jobs.size ? 'Flipping…' : 'Flip coin') : 'Drop ball';
+    play.textContent = recovery ? 'Recover round' : autoMode ? (automation.running ? 'Stop autobet' : automation.run?.status === 'running' ? 'Resume autobet' : 'Start autobet') : game === 'coinflip' ? (jobs.size ? 'Flippingâ€¦' : 'Flip coin') : 'Drop ball';
     play.disabled = !state.authenticated || !config || automation.busy || (!automation.running && (blocked || autoMode && jobs.size > 0));
     const locked = jobs.size > 0 || saved().length > 0 || game === 'plinko' && (automation.running || automation.busy || automation.run?.status === 'running');
     form.querySelectorAll('input,select,button[data-instant-adjust]').forEach(el => el.disabled = locked);
@@ -285,7 +285,7 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
       game = next; root.hidden = false;
       $('instantTitle').textContent = $('instantArenaLabel').textContent = game === 'coinflip' ? 'Coinflip' : 'Plinko';
       $('coinflipOptions').hidden = $('coinStage').hidden = game !== 'coinflip';
-      $('plinkoOptions').hidden = $('plinkoStage').hidden = $('plinkoModeTabs').hidden = $('plinkoRules').hidden = game !== 'plinko';
+      $('plinkoOptions').hidden = $('plinkoStage').hidden = $('plinkoModeTabs').hidden = game !== 'plinko';
       renderAuto();
       $('instantResult').replaceChildren();
       message(state.authenticated ? '' : 'Link your Discord wallet to play.');

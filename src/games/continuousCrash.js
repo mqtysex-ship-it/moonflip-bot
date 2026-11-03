@@ -15,6 +15,7 @@ import { getBalance, deductTokens, addTokens, databaseEconomy } from './economy.
 import { getCrashPreviewGif } from './animator.js';
 import { databasePool } from '../database.js';
 import { readDocument, updateDocument } from '../documentStore.js';
+import { createCrashPreferences } from './crashPreferences.js';
 
 // Active per-user Crash flights: userId -> FlightState
 export const activeCrashFlights = new Map();
@@ -25,19 +26,10 @@ const processingCrashUsers = new Set();
 // Persistent per-user preferences (betAmount, autoCashout, winStreak)
 const userCrashPrefs = new Map();
 
-if (databasePool) {
-  readDocument('user_preferences', {})
-    .then((doc) => {
-      if (doc && typeof doc === 'object') {
-        for (const [userId, prefs] of Object.entries(doc)) {
-          if (prefs?.crash) userCrashPrefs.set(userId, prefs.crash);
-        }
-      }
-    })
-    .catch(() => {});
-}
+const crashPreferences = createCrashPreferences({ read: readDocument, update: updateDocument });
 
-function getOrCreateUserPrefs(userId) {
+async function getOrCreateUserPrefs(userId) {
+  if (databasePool) return crashPreferences.load(userId);
   if (!userCrashPrefs.has(userId)) {
     userCrashPrefs.set(userId, {
       betAmount: 100,
@@ -48,14 +40,9 @@ function getOrCreateUserPrefs(userId) {
   return userCrashPrefs.get(userId);
 }
 
-function saveUserCrashPrefs(userId, prefs) {
+async function saveUserCrashPrefs(userId, prefs) {
+  if (databasePool) return crashPreferences.save(userId, prefs);
   userCrashPrefs.set(userId, prefs);
-  if (databasePool) {
-    updateDocument('user_preferences', {}, (doc) => {
-      doc[userId] = doc[userId] || {};
-      doc[userId].crash = prefs;
-    }).catch(() => {});
-  }
 }
 
 // Global recent crash multipliers for live casino history
@@ -92,7 +79,7 @@ function getAltitudeZone(mult) {
  * Shows the Custom Wager & Auto-Cashout Target Modal for Crash.
  */
 export async function showCrashModal(interaction) {
-  const prefs = getOrCreateUserPrefs(interaction.user.id);
+  const prefs = await getOrCreateUserPrefs(interaction.user.id);
 
   const modal = new ModalBuilder()
     .setCustomId('crash_custom_modal')
@@ -274,7 +261,7 @@ async function buildCrashCockpitEmbed(state, user, autoNotice = null) {
   const zone = getAltitudeZone(mult);
   const radarAscii = buildCrashRadarAscii(state);
   const historyText = formatCrashHistory();
-  const prefs = getOrCreateUserPrefs(user.id);
+  const prefs = await getOrCreateUserPrefs(user.id);
 
   const prefixNotice = autoNotice ? `> ${autoNotice}\n` : '';
 
@@ -450,36 +437,29 @@ export function buildCrashLobbyPanel() {
 
   const embed = new EmbedBuilder()
     .setColor(0xff9900)
-    .setTitle('🚀  MOONFLIP ORBITAL CRASH — WEB ARENA')
+    .setTitle('📈 Crash')
     .setDescription(
-      `> **Our flagship high-speed game is played live in the interactive Web Arena!** 🚀🌌\n` +
-      `> Experience hardware-accelerated 60 FPS exponential rocket trajectory, dynamic Web Audio thruster acceleration, auto-cashout targets, and instant Discord wallet settlement.\n\n` +
-      `### 🚀 How to Play (4 Simple Steps):\n` +
-      `1️⃣ **Click the green button** ➔ \`🚀 Launch Web Arena (Orbital Crash)\` below (or type \`/crash\` or \`/play\`).\n` +
-      `2️⃣ **No registration or passwords** ➔ Opens in your browser (PC & Mobile) with **instant 1-click Discord login** and synced balance.\n` +
-      `3️⃣ **Choose wager & target** ➔ Set your bet amount and an optional Auto-Cashout target multiplier.\n` +
-      `4️⃣ **Cash Out anytime** ➔ Hit **CASH OUT** before hull detonation to lock in your profit directly to your Discord wallet (\`/balance\`).\n\n` +
-      `📜 **Recent Orbital Flights**: ${formatCrashHistory()}\n\n` +
-      `*Provably Fair • 60 FPS Canvas Engine • 1-Click Discord Auto-Sync • PC & Mobile Supported*`
-    )
-    .setFooter({ text: 'Moonflip Casino • Web Arena Exclusive • 18+ Only' });
+      `> Watch the multiplier climb into orbit and cash out before the rocket crashes.\n\n` +
+      `**Recent Rounds**\n` +
+      `> ${formatCrashHistory()}\n\n` +
+      `-# 🌐 24/7 Continuous Arena • Auto-Cashout Supported • Provably Fair`
+    );
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('launch_web_crash')
-      .setLabel('🚀 Launch Web Arena (Orbital Crash)')
+      .setLabel('Play Crash')
+      .setEmoji('🚀')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('eco_balance')
-      .setLabel('💰 Check Balance')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('rules_btn_provably_fair')
-      .setLabel('🎲 Provably Fair')
+      .setLabel('Balance')
+      .setEmoji('💰')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('lb_crash_modal')
-      .setLabel('🏆 Hall of Fame')
+      .setLabel('Leaderboard')
+      .setEmoji('🏆')
       .setStyle(ButtonStyle.Secondary)
   );
 
@@ -547,8 +527,7 @@ class ContinuousCrashEngine {
       if (databaseEconomy) {
         const existing = await databaseEconomy.loadActiveCrash(userId);
         if (existing) {
-          await databaseEconomy.settleRound(existing.roundId, userId, existing.wager);
-          autoNotice = `🔄 **Launchpad Reset**: Refunded your previous unfinished **${existing.wager.toLocaleString()} 🪙** launch and ignited a fresh rocket!`;
+          throw new Error('A Crash round is still active or awaiting recovery. Please try again later.');
         }
       } else if (activeCrashFlights.has(userId)) {
         const oldFlight = activeCrashFlights.get(userId);
@@ -571,7 +550,7 @@ class ContinuousCrashEngine {
         }
       }
 
-      const prefs = getOrCreateUserPrefs(userId);
+      const prefs = await getOrCreateUserPrefs(userId);
       const cleanAmount = Math.max(10, Math.floor(amount) || prefs.betAmount || 100);
 
       let targetAuto = prefs.autoCashout;
@@ -607,7 +586,7 @@ class ContinuousCrashEngine {
 
       prefs.betAmount = cleanAmount;
       prefs.autoCashout = targetAuto;
-      saveUserCrashPrefs(userId, prefs);
+      await saveUserCrashPrefs(userId, prefs);
 
       const state = {
         roundId,
@@ -701,6 +680,16 @@ class ContinuousCrashEngine {
       state.currentMultiplier = state.autoCashout;
       state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
 
+      if (databaseEconomy && state.roundId) {
+        await databaseEconomy.updateRoundState(state.roundId, {
+          crashPoint: state.crashPoint,
+          autoCashout: state.autoCashout,
+          outcome: 'cashed_out',
+          cashoutMult: state.autoCashout,
+          winAmount: state.winAmount,
+        });
+      }
+
       try {
         if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
         else await addTokens(state.userId, state.winAmount, true);
@@ -712,9 +701,9 @@ class ContinuousCrashEngine {
       state.cashedOut = true;
       activeCrashFlights.delete(state.userId);
 
-      const prefs = getOrCreateUserPrefs(state.userId);
+      const prefs = await getOrCreateUserPrefs(state.userId);
       prefs.streak = (prefs.streak || 0) + 1;
-      saveUserCrashPrefs(state.userId, prefs);
+      await saveUserCrashPrefs(state.userId, prefs);
       recordCrashHistory(state.crashPoint);
 
       const finalEmbed = (await buildCrashCockpitEmbed(state, state.user));
@@ -731,6 +720,15 @@ class ContinuousCrashEngine {
       state.stopped = true;
       state.currentMultiplier = state.crashPoint;
 
+      if (databaseEconomy && state.roundId) {
+        await databaseEconomy.updateRoundState(state.roundId, {
+          crashPoint: state.crashPoint,
+          autoCashout: state.autoCashout,
+          outcome: 'crashed',
+          winAmount: 0,
+        });
+      }
+
       try {
         if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, 0);
       } catch (error) {
@@ -741,9 +739,9 @@ class ContinuousCrashEngine {
       state.crashed = true;
       activeCrashFlights.delete(state.userId);
 
-      const prefs = getOrCreateUserPrefs(state.userId);
+      const prefs = await getOrCreateUserPrefs(state.userId);
       prefs.streak = 0;
-      saveUserCrashPrefs(state.userId, prefs);
+      await saveUserCrashPrefs(state.userId, prefs);
       recordCrashHistory(state.crashPoint);
 
       const crashEmbed = (await buildCrashCockpitEmbed(state, state.user));
@@ -789,34 +787,21 @@ class ContinuousCrashEngine {
       if (databaseEconomy) {
         const existing = await databaseEconomy.loadActiveCrash(userId);
         if (existing) {
-          await databaseEconomy.settleRound(existing.roundId, userId, existing.wager);
-          const embed = new EmbedBuilder()
-            .setColor(0xf1c40f)
-            .setTitle('🔄 Flight Recovered & Refunded')
-            .setDescription(
-              `> Your flight was interrupted by a system restart.\n` +
-              `> Your wager of **\`${existing.wager.toLocaleString()} 🪙\`** has been 100% refunded to your wallet!`
-            );
-          if (interaction.replied || interaction.deferred) {
-            return await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral }).catch(() => {});
-          }
-          return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral }).catch(() => {});
+          throw new Error('A Crash round is still active or awaiting recovery. Please try again later.');
         }
       }
       // If user clicked on an expired/finished card, smoothly launch a new round with their last bet!
-      const prefs = getOrCreateUserPrefs(userId);
+      const prefs = await getOrCreateUserPrefs(userId);
       return this.handleBet(interaction, prefs.betAmount, prefs.autoCashout);
     }
 
     // If the user clicked a Mid-Flight Auto-Cashout Target Button (e.g. 🎯 Auto 2.0x)
     if (targetMultiplier !== null && state.currentMultiplier < targetMultiplier) {
-      if (state.autoCashout && Math.abs(state.autoCashout - targetMultiplier) < 0.01) {
-        state.autoCashout = null;
-      } else {
-        state.autoCashout = targetMultiplier;
-      }
-      const prefs = getOrCreateUserPrefs(userId);
-      prefs.autoCashout = state.autoCashout;
+      const nextAutoCashout = state.autoCashout && Math.abs(state.autoCashout - targetMultiplier) < 0.01 ? null : targetMultiplier;
+      const prefs = await getOrCreateUserPrefs(userId);
+      prefs.autoCashout = nextAutoCashout;
+      await saveUserCrashPrefs(userId, prefs);
+      state.autoCashout = nextAutoCashout;
 
       const updatedEmbed = (await buildCrashCockpitEmbed(state, interaction.user));
       const updatedRows = buildFlightActionRow(state);
@@ -833,6 +818,17 @@ class ContinuousCrashEngine {
     state.cashoutMult = state.pendingCashoutMult ?? state.currentMultiplier;
     state.pendingCashoutMult = state.cashoutMult;
     state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
+
+    if (databaseEconomy && state.roundId) {
+      await databaseEconomy.updateRoundState(state.roundId, {
+        crashPoint: state.crashPoint,
+        autoCashout: state.autoCashout,
+        outcome: 'cashed_out',
+        cashoutMult: state.cashoutMult,
+        winAmount: state.winAmount,
+      });
+    }
+
     try {
       if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
       else await addTokens(userId, state.winAmount, true);
@@ -843,9 +839,9 @@ class ContinuousCrashEngine {
     state.cashedOut = true;
     activeCrashFlights.delete(userId);
 
-    const prefs = getOrCreateUserPrefs(userId);
+    const prefs = await getOrCreateUserPrefs(userId);
     prefs.streak = (prefs.streak || 0) + 1;
-    saveUserCrashPrefs(userId, prefs);
+    await saveUserCrashPrefs(userId, prefs);
     recordCrashHistory(state.crashPoint);
 
     const finalEmbed = (await buildCrashCockpitEmbed(state, interaction.user));
@@ -881,7 +877,8 @@ export async function shutdownContinuousCrash() {
     }
     state.stopped = true;
     if (databaseEconomy && state.roundId && !state.cashedOut && !state.crashed) {
-      await databaseEconomy.settleRound(state.roundId, userId, state.betAmount).catch(() => {});
+      const payout = state.winAmount !== undefined ? state.winAmount : state.betAmount;
+      await databaseEconomy.settleRound(state.roundId, userId, payout).catch(() => {});
     }
   }
   activeCrashFlights.clear();

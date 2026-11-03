@@ -191,20 +191,17 @@ export async function getDiscordClient() {
         // Leaderboard Button
         if (id === 'eco_leaderboard_btn') {
           const top = (await getLeaderboard(10));
-          const badges = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
           let list = '';
           for (let i = 0; i < top.length; i++) {
             const entry = top[i];
-            const badge = badges[i] || `[${i + 1}]`;
-            list += `${badge} <@${entry.userId}> — **\`${entry.balance.toLocaleString()} 🪙\`** *(Played: ${entry.gamesPlayed})*\n`;
+            list += `${i + 1}. <@${entry.userId}> — **${entry.balance.toLocaleString()}** tokens (${entry.gamesPlayed} games)\n`;
           }
-          if (!list) list = '*No players yet.*';
+          if (!list) list = 'No players yet.';
 
           const embed = new EmbedBuilder()
             .setColor(0xf1c40f)
-            .setTitle('🏆  SERVER WEALTH LEADERBOARD')
-            .setDescription(`> **Top 10 Richest Token Holders**\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${list}━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
-            .setTimestamp();
+            .setTitle('Leaderboard')
+            .setDescription(list);
           return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
@@ -212,62 +209,75 @@ export async function getDiscordClient() {
         if (id === 'eco_test_deposit_1000') {
           const amount = 1000;
           const newBal = (await addTokens(interaction.user.id, amount, false));
-          const receiptId = Math.random().toString(36).substring(2, 9).toUpperCase();
 
           const embed = new EmbedBuilder()
             .setColor(0x2ecc71)
-            .setTitle('💳  SIMULATED DEPOSIT CREDITED')
-            .setDescription(
-              `> **+${amount.toLocaleString()} 🪙 Test Credits Deposited!**\n\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `💳 **New Balance**: \`${newBal.toLocaleString()} 🪙\`\n` +
-              `🧾 **Receipt ID**: \`#DEP-${receiptId}\`\n` +
-              `⚡ **Status**: \`Completed (Instant Simulation)\`\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `*Test deposit credited to your wallet.*`
-            )
-            .setTimestamp();
+            .setTitle('Test Deposit Credited')
+            .setDescription(`Added **+${amount.toLocaleString()}** tokens. New balance: **${newBal.toLocaleString()}** tokens.`);
           return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        // Web Arena 1-Click Launch Buttons (5x5 Mines & Orbital Crash)
+        // Web Arena 1-Click Launch Buttons (WebApp, Mines, Crash, Plinko & Coinflip)
         if (
           id === 'launch_web_arena' ||
+          id === 'launch_web_app' ||
           id === 'launch_web_crash' ||
+          id === 'launch_web_plinko' ||
+          id === 'launch_web_coinflip' ||
+          id === 'launch_web_mines' ||
           id.startsWith('crash_bet_') ||
           id.startsWith('crash_quickauto_') ||
           id === 'crash_modal_btn'
         ) {
           const token = (await createWebPlaySession(interaction.user));
           const baseUrl = getPublicBaseUrl(interaction);
+          const isPlinko = id === 'launch_web_plinko';
           const isCrash = id === 'launch_web_crash' || id.startsWith('crash_bet_') || id.startsWith('crash_quickauto_') || id === 'crash_modal_btn';
+          const isCoinflip = id === 'launch_web_coinflip';
+          const isMines = id === 'launch_web_mines';
+
+          const plinkoUrl = `${baseUrl}/play?game=plinko&token=${token}`;
           const crashUrl = `${baseUrl}/play?game=crash&token=${token}`;
           const minesUrl = `${baseUrl}/play?game=mines&token=${token}`;
+          const coinflipUrl = `${baseUrl}/play?game=coinflip&token=${token}`;
+          const homeUrl = `${baseUrl}/play?token=${token}`;
+
+          const gameName = isPlinko
+            ? 'Plinko'
+            : isCrash
+            ? 'Crash'
+            : isCoinflip
+            ? 'Coinflip'
+            : isMines
+            ? 'Mines'
+            : 'Moonflip WebApp';
+          const targetUrl = isPlinko
+            ? plinkoUrl
+            : isCrash
+            ? crashUrl
+            : isCoinflip
+            ? coinflipUrl
+            : isMines
+            ? minesUrl
+            : homeUrl;
+          const balance = await getBalance(interaction.user.id);
 
           const embed = new EmbedBuilder()
-            .setColor(isCrash ? 0xff9900 : 0x00f0ff)
-            .setTitle(isCrash ? '🚀  MOONFLIP ORBITAL CRASH — WEB ARENA' : '💣  MOONFLIP 5x5 MINES — WEB ARENA')
+            .setColor(isPlinko ? 0x2ecc71 : isCrash ? 0xff9900 : isCoinflip ? 0xf1c40f : isMines ? 0x00f0ff : 0x5865f2)
+            .setTitle(`🎮 ${gameName} Session Ready`)
             .setDescription(
-              `> **Real-Time Interactive Web Client with Instant Discord Sync** ⚡\n\n` +
-              `Your private gaming window is ready! Click the button below to open the **${isCrash ? 'Orbital Crash' : '5x5 Mines'}** game window directly in your browser with your wallet synced.\n\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `👤 **Player**: <@${interaction.user.id}>\n` +
-              `🪙 **Current Wallet**: \`${(await getBalance(interaction.user.id)).toLocaleString()} 🪙\`\n` +
-              `🎮 **Game Mode**: **\`${isCrash ? '🚀 Orbital Crash (60 FPS Canvas)' : '💣 5x5 Mines (3D Matrix)'}\`**\n` +
-              `⚡ **Features**: 60 FPS Physics • Studio Web Audio Synthesizer • Live Leaderboard\n` +
-              `🔒 **Session**: Permanent cryptographically signed Discord wallet link\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-              `👉 **Click the button below to launch the window in your browser!**`
-            )
-            .setThumbnail(isCrash ? 'https://cdn-icons-png.flaticon.com/512/3205/3205047.png' : 'https://cdn-icons-png.flaticon.com/512/1055/1055687.png')
-            .setFooter({ text: 'Provably Fair • Instant Settlement • Moonflip Web Arena' })
-            .setTimestamp();
+              `> Your secure session is ready.\n\n` +
+              `• **Destination:** \`${gameName}\`\n` +
+              `• **Balance:** \`${balance.toLocaleString()} tokens\`\n\n` +
+              `-# Click the button below to launch in your browser.`
+            );
 
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-              .setLabel(isCrash ? '🚀 Open Orbital Crash Window' : '💣 Open 5x5 Mines Window')
+              .setLabel(`Open ${gameName}`)
+              .setEmoji('🚀')
               .setStyle(ButtonStyle.Link)
-              .setURL(isCrash ? crashUrl : minesUrl)
+              .setURL(targetUrl)
           );
 
           return await interaction.reply({
@@ -311,29 +321,10 @@ export async function getDiscordClient() {
 
           // Check if the user is already verified
           if (member.roles.cache.has(verifiedRole.id)) {
-            const loungeCh = interaction.guild.channels.cache.find(
-              (c) => c.name.toLowerCase().includes('lounge') && !c.name.toLowerCase().includes('staff') && !c.name.toLowerCase().includes('vip')
-            );
-            const gamesCh = interaction.guild.channels.cache.find(
-              (c) => c.name.toLowerCase().includes('mines') || c.name.toLowerCase().includes('crash')
-            );
-
             const alreadyEmbed = new EmbedBuilder()
-              .setColor(0x3498db)
-              .setTitle('ℹ️  ALREADY VERIFIED')
-              .setDescription(
-                `> Hey <@${interaction.user.id}>, you are **already verified** in **${interaction.guild.name}**!\n\n` +
-                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `✦ You already have full access to all channels, token games, and voice rooms.\n` +
-                `💬 **Community Lounge**: ${loungeCh ? `<#${loungeCh.id}>` : '#lounge'}\n` +
-                `🎰 **Token Games**: ${gamesCh ? `<#${gamesCh.id}>` : '#token-games'}\n` +
-                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-              )
-              .setFooter({
-                text: 'Moonflip Security Gateway • Already Unlocked',
-                iconURL: interaction.guild.iconURL() || undefined,
-              })
-              .setTimestamp();
+              .setColor(0x5865f2)
+              .setTitle('ℹ️ Already Verified')
+              .setDescription(`> Your account is already verified in **${interaction.guild.name}**.`);
 
             return await interaction.editReply({ embeds: [alreadyEmbed] });
           }
@@ -372,26 +363,15 @@ export async function getDiscordClient() {
           );
 
           const successEmbed = new EmbedBuilder()
-            .setColor(0x2ecc71)
-            .setTitle('🎉  ACCOUNT SUCCESSFULLY VERIFIED!')
-            .setThumbnail(interaction.user.displayAvatarURL())
+            .setColor(0x57f287)
+            .setTitle('✅ Account Verified')
             .setDescription(
-              `> Welcome to **${interaction.guild.name}**, <@${interaction.user.id}>! 🌙✨\n` +
-              `> You have been granted the <@&${verifiedRole.id}> role. All community channels, lounges, and games are now unlocked!\n\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `### 🚀 QUICK START GUIDE:\n` +
-              `💬 **Say Hello**: Join the conversation in ${loungeCh ? `<#${loungeCh.id}>` : '#lounge'}\n` +
-              `🎰 **Token Casino**: Check out ${gamesCh ? `<#${gamesCh.id}>` : '#token-games'} (Mines, Crash, Keno, Slots, Blackjack, Coinflip)\n` +
-              `🪙 **Starter Wallet**: \`${balance.toLocaleString()} 🪙\` ready to play\n` +
-              `🎁 **Daily Bonus**: Claim free tokens every 24h with \`/daily\`\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `*Enjoy your stay and game responsibly!*`
-            )
-            .setFooter({
-              text: 'Moonflip Security Gateway • Instant Access Granted',
-              iconURL: interaction.guild.iconURL() || undefined,
-            })
-            .setTimestamp();
+              `> Welcome to **${interaction.guild.name}**! Your account is verified.\n\n` +
+              `• **Balance:** \`${balance.toLocaleString()} tokens\`\n` +
+              `• **Chat:** ${loungeCh ? `<#${loungeCh.id}>` : '#lounge'}\n` +
+              `• **Games:** ${gamesCh ? `<#${gamesCh.id}>` : '#token-games'}\n\n` +
+              `-# Good luck and enjoy your stay!`
+            );
 
           return await interaction.editReply({ embeds: [successEmbed] });
         }
@@ -400,7 +380,7 @@ export async function getDiscordClient() {
         if (id === 'eco_balance') {
           const bal = (await getBalance(interaction.user.id));
           return await interaction.reply({
-            content: `💳 **Wallet Balance**: \`${bal.toLocaleString()} 🪙\`\n> Need more? Use the **🎁 Daily (+500)** button to claim free tokens every 24 hours!`,
+            content: `> 💰 **Wallet Balance:** \`${bal.toLocaleString()} tokens\``,
             flags: MessageFlags.Ephemeral,
           });
         }
@@ -416,24 +396,13 @@ export async function getDiscordClient() {
               break;
             }
           }
-          const totalBlocks = 12;
-          const filledBlocks = Math.round((lvlData.progressPercent / 100) * totalBlocks);
-          const bar = '█'.repeat(filledBlocks) + '░'.repeat(totalBlocks - filledBlocks);
-
           const embed = new EmbedBuilder()
             .setColor(tierColor)
-            .setTitle(`🏆  ${interaction.user.username}'s Player Rank`)
-            .setThumbnail(interaction.user.displayAvatarURL())
+            .setTitle(`🎖️ ${interaction.user.username} — Level ${lvlData.level}`)
             .setDescription(
-              `> **Prestige Tier**: **\`${currentTier}\`**\n\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `⭐ **Current Level**: \`Level ${lvlData.level}\`\n` +
-              `📈 **Experience**: \`${lvlData.xp.toLocaleString()} / ${lvlData.requiredXp.toLocaleString()} XP\` (\`${lvlData.progressPercent}%\`)\n` +
-              `📊 **Progress Bar**: \`[${bar}]\`\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-              `*Earn XP by chatting in community channels or playing token games!*`
-            )
-            .setTimestamp();
+              `> **Tier:** \`${currentTier}\`\n\n` +
+              `• **XP Progress:** \`${lvlData.xp.toLocaleString()} / ${lvlData.requiredXp.toLocaleString()}\` (${lvlData.progressPercent}%)`
+            );
           return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
@@ -441,12 +410,12 @@ export async function getDiscordClient() {
           const res = (await claimDaily(interaction.user.id));
           if (res.success) {
             return await interaction.reply({
-              content: `🎁 **Daily Reward Claimed!** You received **+${res.amount} 🪙**!\n💳 **New Balance**: \`${res.newBalance.toLocaleString()} 🪙\``,
+              content: `> 🎁 Claimed **+${res.amount.toLocaleString()} tokens**! New balance: \`${res.newBalance.toLocaleString()} tokens\`.`,
               flags: MessageFlags.Ephemeral,
             });
           } else {
             return await interaction.reply({
-              content: `⏳ **Daily Cooldown**: You already claimed your daily tokens! Please wait **${res.remainingHours}h ${res.remainingMinutes}m** before claiming again.`,
+              content: `> ⏳ Daily reward on cooldown. Available again in **${res.remainingHours}h ${res.remainingMinutes}m**.`,
               flags: MessageFlags.Ephemeral,
             });
           }

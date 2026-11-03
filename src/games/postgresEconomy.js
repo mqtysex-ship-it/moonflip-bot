@@ -17,7 +17,7 @@ export class PostgresEconomy {
     if (!pool || typeof pool.query !== 'function') throw new Error('Database pool required');
     this.pool = pool;
   }
-  async playInstantRound(roundId, userId, game, wager, payout, state) {
+  async playInstantRound(roundId, userId, game, wager, payout, state, documentUpdate = null) {
     identity(roundId, 'round'); identity(userId, 'user'); identity(game, 'game');
     amount(wager, 'wager', 1); amount(payout, 'payout');
     const client = await this.pool.connect();
@@ -25,8 +25,23 @@ export class PostgresEconomy {
       await client.query('BEGIN');
       await client.query('select * from moonflip_private.start_game_round($1::uuid,$2,$3,$4::bigint,$5::jsonb)', [roundId, userId, game, wager, JSON.stringify(state)]);
       const result = await client.query('select * from moonflip_private.settle_game_round($1::uuid,$2,$3::bigint)', [roundId, userId, payout]);
+      let docResult = null;
+      if (documentUpdate && typeof documentUpdate === 'object' && documentUpdate.key && typeof documentUpdate.updater === 'function') {
+        const { key, fallback = {}, updater } = documentUpdate;
+        await client.query(
+          'INSERT INTO moonflip_private.documents (key, value) VALUES ($1, $2::jsonb) ON CONFLICT (key) DO NOTHING',
+          [key, JSON.stringify(fallback)]
+        );
+        const loaded = await client.query('SELECT value FROM moonflip_private.documents WHERE key = $1 FOR UPDATE', [key]);
+        const value = loaded.rows[0].value;
+        docResult = await updater(value);
+        await client.query(
+          'UPDATE moonflip_private.documents SET value = $2::jsonb, updated_at = now() WHERE key = $1',
+          [key, JSON.stringify(value)]
+        );
+      }
       await client.query('COMMIT');
-      return { balance: number(result.rows[0].balance_after, 'balance'), applied: result.rows[0].applied };
+      return { balance: number(result.rows[0].balance_after, 'balance'), applied: result.rows[0].applied, documentResult: docResult };
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {});
       throw error;
@@ -277,7 +292,17 @@ export class PostgresEconomy {
       client.release();
     }
   }
-  async recoverInterruptedRounds(game, refund = true, olderThanSeconds = 1200) {
+  async updateRoundState(roundId, state) {
+    identity(roundId, 'round');
+    if (!state || typeof state !== 'object') throw new Error('Invalid state');
+    await this.pool.query(
+      `UPDATE moonflip_private.game_rounds
+       SET game_state = $2::jsonb
+       WHERE round_id = $1::uuid AND status = 'active'`,
+      [roundId, JSON.stringify(state)]
+    );
+  }
+  async recoverInterruptedRounds(game, refund = true, olderThanSeconds = 1200, activeRoundIds = []) {
     identity(game, 'game');
     amount(olderThanSeconds, 'olderThanSeconds', 0);
     const client = await this.pool.connect();
@@ -289,14 +314,23 @@ export class PostgresEconomy {
          FROM moonflip_private.game_rounds
          WHERE game_type = $1 AND status = 'active'
            AND created_at < now() - ($2 || ' seconds')::interval
+           AND round_id <> ALL($3::uuid[])
          FOR UPDATE`,
-        [game, olderThanSeconds]
+        [game, olderThanSeconds, activeRoundIds]
       );
       let count = 0;
       for (const r of activeRounds.rows) {
-        const payout = refund ? BigInt(r.wager) : BigInt(0);
+        let payout;
+        const gs = r.game_state || {};
+        if (gs.outcome === 'cashed_out' && gs.winAmount != null) {
+          payout = BigInt(gs.winAmount);
+        } else if (gs.outcome === 'crashed') {
+          payout = 0n;
+        } else {
+          payout = refund ? BigInt(r.wager) : 0n;
+        }
         let currentBalance;
-        if (payout > 0) {
+        if (payout > 0n) {
           const w = await client.query(
             `UPDATE moonflip_private.wallets
              SET balance = balance + $2, total_won = total_won + $2, updated_at = now()

@@ -270,26 +270,23 @@ export async function setupTicketPanel(guild) {
 
   const departments = await loadDepartments();
 
-  let desc = `> Welcome to the official **Moonflip Support Portal**!\n` +
-    `> Need assistance with your token wallet, have questions regarding gameplay, encountered a glitch, or wish to claim a promotional reward? Select a department below to open a private ticket.\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `### 📂 SELECT YOUR TICKET DEPARTMENT:\n\n`;
+  let desc = `> Need help or have an inquiry? Choose a department below to create a private ticket with our team.\n\n`;
 
   for (const d of departments) {
-    desc += `${d.emoji} **${d.title}**\n✦ ${d.instructions}\n\n`;
+    const icon = d.emoji ? `${d.emoji} ` : '';
+    desc += `• **${icon}${d.title}**\n> -# ${d.instructions}\n\n`;
   }
-  desc += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `⏱️ *Tickets are private between you and the Staff Team. Response times are usually within minutes.*`;
+
+  desc += `-# Tickets are private between you and the moderation team.`;
 
   const embed = new EmbedBuilder()
-    .setColor(0xf1c40f) // Gold theme
-    .setTitle('🎫  MOONFLIP SUPPORT & PRIZE REDEMPTION GATEWAY')
-    .setDescription(desc)
+    .setColor(0x5865f2)
+    .setTitle('🎫 Support & Inquiries')
+    .setDescription(desc.trim())
     .setFooter({
-      text: 'Moonflip Support Desk • 24/7 Monitored • Provably Fair Operations',
+      text: 'Moonflip Support',
       iconURL: guild.iconURL() || undefined,
-    })
-    .setTimestamp();
+    });
 
   // Dynamically pack buttons into ActionRows (max 5 per row)
   const rows = [];

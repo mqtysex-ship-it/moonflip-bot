@@ -60,6 +60,13 @@ await economy.recoverInterruptedRounds('crash');
 const lastQuery = queries.findLast((q) => q.sql.includes("created_at < now() - ($2 || ' seconds')::interval"));
 assert.equal(lastQuery.params[1], 1200);
 
+// A recovery sweep must never refund a round that is still owned by this process.
+const activeId = '00000000-0000-4000-8000-000000000021';
+await economy.recoverInterruptedRounds('crash', true, 1200, [activeId]);
+const exclusionQuery = queries.findLast((q) => q.sql.includes("created_at < now() - ($2 || ' seconds')::interval"));
+assert.deepEqual(exclusionQuery.params[2], [activeId]);
+assert.match(exclusionQuery.sql, /round_id.*ALL\(\$3::uuid\[\]\)/s);
+
 // Test 2: Active crash flight lookup
 const lookupQueries = [];
 const lookupEconomy = new PostgresEconomy({

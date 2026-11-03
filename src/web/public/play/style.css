@@ -3081,9 +3081,6 @@ body,.mf-main { background:var(--bg-body); }
 .instant-number { width:100%; min-height:44px; border:1px solid var(--line); border-radius:6px; background:var(--bg-input); color:var(--text-white); padding:10px 12px; font:500 14px var(--font-sans); }
 .plinko-auto-progress { margin:0 0 18px; display:flex; flex-direction:column; gap:9px; color:var(--text-secondary); font-size:12px; }
 .plinko-auto-progress progress { accent-color:var(--mint); width:100%; height:5px; border:0; border-radius:4px; overflow:hidden; background:var(--bg-input); }
-.game-rules { margin:15px 0 0; font-size:11px; color:var(--text-secondary); }
-.game-rules summary { cursor:pointer; width:fit-content; padding:4px 0; }
-.game-rules p { line-height:1.7; margin-top:8px; }
 .instant-controls .mode-tab:disabled { cursor:default; opacity:.55; }
 .appearance-dialog { color:var(--text-white); background:var(--bg-card); border:1px solid var(--line); border-radius:12px; padding:24px; width:min(460px,calc(100vw - 28px)); margin:auto; box-shadow:0 24px 64px #0008; }
 .appearance-dialog::backdrop { background:#000a; }

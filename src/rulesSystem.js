@@ -16,139 +16,72 @@ import { getRulesBannerGif } from './games/animator.js';
 export const RULES_SECTIONS = {
   web_arena: {
     color: 0x00f0ff,
-    title: '🎮  SECTION 0 — HOW THE WEB ARENA & GAMES WORK',
+    title: '🌐 Moonflip Web Application (All Games)',
     description:
-      `> **Games like 5x5 Mines and Orbital Crash are played in our high-speed Web Arena!** 💎💣🚀\n` +
-      `> No chat lag or button limits — smooth real-time 3D experience modelled after Stake.com and Rainbet.\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `### ⚡ How It Works (4 Simple Steps):\n` +
-      `1️⃣ **Launch**: Click **🚀 Launch Web Arena** in game channels or type \`/play\` anywhere.\n` +
-      `2️⃣ **Zero Passwords**: The Arena opens in your browser (PC & Mobile) and you are **automatically logged in** with your Discord profile and token balance.\n` +
-      `3️⃣ **Interactive Gameplay**: Real-time animations, sound effects, and multipliers. Click **CASH OUT** anytime to secure your profit.\n` +
-      `4️⃣ **Instant Payouts**: Won tokens are credited to your Discord profile in real-time, verified via \`/balance\`.\n\n` +
-      `### 🔍 Exploration Mode (Post-Cashout Peek):\n` +
-      `✦ After Cashing Out, the board remains active — explore hidden tiles risk-free to see where mines were hidden!\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    footer: 'Moonflip Gaming • Web Arena & Game Rules',
+      `> All Moonflip games (**Mines, Crash, Plinko, Coinflip**, and our full catalog) are hosted on our official WebApp!\n\n` +
+      `• **How to Open:** Click **🎮 Play WebApp** in any channel or type \`/play\`.\n` +
+      `• **1-Click Discord Sync:** No sign-up or passwords. Your Discord identity and wallet balance automatically link.\n` +
+      `• **All Games Included:** Enjoy rich interactive animations, sound effects, auto-betting, and instant server settlements directly back to your Discord balance.`,
+    footer: 'Moonflip • WebApp Guide',
   },
 
   age_kyc: {
     color: 0xe74c3c,
-    title: '🔞  SECTION 1 — AGE ELIGIBILITY (18+), KYC TIERS & ACCOUNT HOLDS',
+    title: '1. Age Eligibility (18+) & Verification',
     description:
-      `> **Strict Legal Age Compliance & Identity Verification Protocol**\n` +
-      `> Modelled after industry-standard crypto gaming compliance (Rainbet / Clash.gg).\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `### 🚨 1.1 Underage Participation & Immediate Balance Freeze\n` +
-      `✦ You must be **at least 18 years of age** (or the legal age of majority in your jurisdiction) to participate in Moonflip games, leaderboards, or prize redemptions.\n` +
-      `✦ **Zero-Tolerance Underage Clause**: If Moonflip Compliance discovers or has reasonable suspicion that an account holder is **under 18**:\n` +
-      `  1️⃣ The account is **immediately frozen and suspended**.\n` +
-      `  2️⃣ **All virtual tokens, promotional winnings, and pending crypto/gift card redemptions are indefinitely held and forfeited**.\n` +
-      `  3️⃣ Attempting to use a parent's, relative's, or third party's government ID to bypass age checks constitutes **identity fraud** and results in a permanent hardware/account blacklist.\n\n` +
-      `### 🪪 1.2 Mandatory KYC Verification Tiers\n` +
-      `✦ **Tier 1 (Basic)**: Discord Verification & Account Standing Check.\n` +
-      `✦ **Tier 2 (Identity — Government ID)**: Valid Passport, Driver's License, or National ID Card + live timestamped selfie verification.\n` +
-      `✦ **Tier 3 (Enhanced AML / High-Roller)**: Proof of Address & Source of Funds for high-value redemptions.\n` +
-      `✦ **Refusal or Failure**: If KYC documents are forged, expired, edited, or not submitted within **14 days** of a compliance request, the account remains locked and all balances are permanently voided.\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    footer: 'Moonflip Compliance • Section 1: 18+ Eligibility & KYC Verification',
+      `• You must be **18 years of age or older** to participate in games, leaderboards, or prize redemptions.\n` +
+      `• Accounts found to belong to minors will be closed and any associated balances voided.\n` +
+      `• Identity verification (KYC) may be requested prior to processing prize redemptions.`,
+    footer: 'Moonflip • Section 1',
   },
 
   aml_turnover: {
     color: 0xf1c40f,
-    title: '⚖️  SECTION 2 — AML COMPLIANCE, PLAYTHROUGH & OPPOSITE BETTING',
+    title: '2. Playthrough & Fair Wagering',
     description:
-      `> **Anti-Money Laundering (AML) & Wagering Turnover Policy**\n` +
-      `> Moonflip is an entertainment platform, not a currency mixer or escrow service.\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `### 🔄 2.1 Mandatory 1x–3x Playthrough (Wager Turnover)\n` +
-      `✦ **Acquired / Deposited Tokens**: All acquired tokens must undergo a minimum **100% (1x) legitimate wager turnover** before any withdrawal or redemption request can be submitted.\n` +
-      `✦ **Promotional / Giveaway / Rain / Daily Tokens**: Free bonus tokens require a **3x to 5x active wagering turnover** prior to redemption eligibility.\n\n` +
-      `### 🚫 2.2 Prohibited Low-Risk & Opposite-Betting Strategies\n` +
-      `✦ Wagers placed deliberately to cycle volume with near-zero risk **do not count** toward turnover requirements and will trigger a compliance hold:\n` +
-      `  ✦ **Opposite / Hedge Betting**: Coordinating Heads + Tails in Coinflip or hedging bets across multiple accounts.\n` +
-      `  ✦ **Zero-Risk Cycling**: Spamming instant ` + '`1.01x`' + ` Crash cashouts or 1-mine 1-tile instant cashouts solely to farm wager requirements.\n` +
-      `  ✦ **Tip / Pay Laundering**: Using ` + '`/pay`' + ` to funnel un-wagered tokens between accounts to disguise origin.\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    footer: 'Moonflip Compliance • Section 2: AML & Wagering Turnover',
+      `• Standard playthrough requirements apply to promotional and bonus tokens before redemption.\n` +
+      `• Opposite betting (e.g., hedging both sides across accounts) or automated wash-betting does not count toward playthrough.`,
+    footer: 'Moonflip • Section 2',
   },
 
   multi_account: {
     color: 0xe67e22,
-    title: '🚫  SECTION 3 — MULTI-ACCOUNTING, SYBIL FARMING & EXPLOITS',
+    title: '3. One Account Policy & Fair Play',
     description:
-      `> **Strictly One (1) Account Per Person, Household & IP Address**\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `### 👥 3.1 Multi-Account & Alt-Farming Detection\n` +
-      `✦ Operating more than one Discord account on Moonflip is strictly forbidden.\n` +
-      `✦ Creating alternate accounts ("alts") to claim multiple ` + '`/daily`' + ` rewards, enter giveaways twice, farm XP/level-up bonuses, or abuse referral/promotional drops will trigger automated Sybil detection.\n` +
-      `✦ **Penalty**: **All linked accounts (both main and alts) will be permanently banned and 100% of combined token balances confiscated.**\n\n` +
-      `### 🤖 3.2 Automation, Macros & Bug Exploitation\n` +
-      `✦ Using self-bots, scripts, auto-clickers, macros, or API manipulation to interact with game buttons is strictly prohibited.\n` +
-      `✦ **Bug & Glitch Policy**: If you discover a payout calculation error, race condition, or duplication bug, you must report it immediately in a Bug Ticket. Intentionally exploiting a bug results in **full balance rollback, confiscation of funds, and a permanent ban**.\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    footer: 'Moonflip Compliance • Section 3: Anti-Sybil & Fair Play Integrity',
+      `• Limit **one Discord account per person**.\n` +
+      `• Using alternate accounts to claim multiple \`/daily\` rewards, giveaways, or bonuses will result in account suspension.\n` +
+      `• Macros, self-bots, or bug exploitation are prohibited. Please report any bugs via a support ticket.`,
+    footer: 'Moonflip • Section 3',
   },
 
   redemptions: {
     color: 0x2ecc71,
-    title: '🎁  SECTION 4 — CRYPTO & GIFT CARD REDEMPTIONS, AUDITS & FEES',
+    title: '4. Redemptions & Support Tickets',
     description:
-      `> **Payout Processing, Blockchain Finality & Security Audits**\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `### 💳 4.1 Supported Payout Methods & Processing Windows\n` +
-      `✦ Eligible balances can be redeemed via official Support Tickets for **Cryptocurrency (USDT, LTC, BTC, SOL)** or **Digital Gift Cards**.\n` +
-      `✦ Standard redemptions are processed within **1 to 24 hours**. High-roller redemptions or accounts flagged for routine AML/KYC review may require up to **24–72 hours**.\n\n` +
-      `### ⛓️ 4.2 Blockchain Finality & Network Gas Fees\n` +
-      `✦ Standard blockchain network fees (gas) are deducted from the payout amount.\n` +
-      `✦ **Irreversible Transactions**: Players are 100% responsible for providing the exact wallet address and correct network (e.g., ERC-20 vs. TRC-20 vs. Litecoin). **Once broadcast on-chain, crypto payouts cannot be reversed, recalled, or refunded by Moonflip.**\n\n` +
-      `### 🔍 4.3 Pre-Payout Game Log Audit\n` +
-      `✦ Every redemption undergoes an automated and manual game-history audit to verify playthrough completion and rule compliance before dispatch.\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    footer: 'Moonflip Compliance • Section 4: Redemptions & Payout Terms',
+      `• Eligible redemptions (crypto or gift cards) are handled through private tickets in the support channel.\n` +
+      `• Always double-check your wallet address and network before confirming a payout.`,
+    footer: 'Moonflip • Section 4',
   },
 
   chat_scam: {
     color: 0x9b59b6,
-    title: '💬  SECTION 5 — CHAT ETIQUETTE, RMT BAN & ANTI-SCAM DEFENSE',
+    title: '5. Community Conduct & Security',
     description:
-      `> **Community Standards, Begging Policy & Zero-Tolerance RMT**\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `### 🗣️ 5.1 Chat Conduct & No Begging Policy\n` +
-      `✦ **No Begging / Passive Begging**: Asking other players or staff for tokens, tips, loans, or free redemptions in public chat or DMs will result in a mute.\n` +
-      `✦ **Zero Toxicity & Harassment**: Hate speech, slurs, doxxing, NSFW content, or harassing staff over game losses/RNG outcomes is strictly prohibited.\n` +
-      `✦ **No Advertising**: Sharing external gambling referral links, Discord invites, or unsolicited promotions is an instant ban.\n\n` +
-      `### 💸 5.2 Strict Ban on Real-Money Trading (RMT)\n` +
-      `✦ Selling, buying, or brokering Moonflip tokens or accounts with other players for real money, crypto, or off-platform items is strictly forbidden. Both buyer and seller balances will be **permanently seized**.\n\n` +
-      `### 🛡️ 5.3 Official Staff Impersonation Warning\n` +
-      `✦ **Moonflip Staff will NEVER DM you first** offering VIP bonuses, asking for your wallet seed phrase/private keys, or requesting deposits to external addresses. All official support happens exclusively inside server tickets.\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    footer: 'Moonflip Compliance • Section 5: Community & Anti-Scam Policy',
+      `• Be respectful in chat. Harassment, spam, begging for tokens, and external referral links are not allowed.\n` +
+      `• Off-platform buying or selling of tokens (RMT) is prohibited.\n` +
+      `• **Security Note**: Staff will never DM you first or ask for your passwords or private keys.`,
+    footer: 'Moonflip • Section 5',
   },
 
   matrix: {
     color: 0x3498db,
-    title: '⚖️  SECTION 6 — COMPLIANCE & ENFORCEMENT PENALTY MATRIX',
+    title: '6. Moderation Overview',
     description:
-      `> **Summary of Violations, Account Holds & Enforcement Actions**\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `\`\`\`asciidoc\n` +
-      `╔══════════════════════════════╦═══════════════════════════════════╗\n` +
-      `║ VIOLATION / TRIGGER          ║ ENFORCEMENT & FUNDS ACTION        ║\n` +
-      `╠══════════════════════════════╬═══════════════════════════════════╣\n` +
-      `║ Underage (<18) Discovered    ║ Account Lock + 100% Funds Held    ║\n` +
-      `║ Fake / Refused KYC ID        ║ Permanent Ban + Balance Voided    ║\n` +
-      `║ Multi-Accounting / Alts      ║ All Accounts Banned + Wiped       ║\n` +
-      `║ AML / Zero-Risk Wash Betting ║ Redemption Hold + Playthrough Req ║\n` +
-      `║ Bug / Macro Exploitation     ║ Balance Rollback + Permanent Ban  ║\n` +
-      `║ Real-Money Trading (RMT)     ║ Buyer & Seller Wallets Seized     ║\n` +
-      `║ Begging / Chat Spam          ║ Warning ➔ 1h–24h Timeout Mute     ║\n` +
-      `║ Scamming / Impersonation     ║ Instant Permanent Hardware Ban    ║\n` +
-      `╚══════════════════════════════╩═══════════════════════════════════╝\n` +
-      `\`\`\`\n` +
-      `✦ **Right to Hold & Audit**: Moonflip Administration reserves the final right to place a temporary compliance hold on any account exhibiting irregular activity pending review.\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    footer: 'Moonflip Compliance • Section 6: Enforcement & Penalty Matrix',
+      `• **Chat Spam / Begging**: Warning or temporary mute\n` +
+      `• **Alternate Accounts**: Account suspension and balance reset\n` +
+      `• **Exploits / Automation**: Permanent ban\n` +
+      `• **Scamming / Impersonation**: Permanent ban`,
+    footer: 'Moonflip • Section 6',
   },
 };
 
@@ -156,7 +89,6 @@ export const RULES_SECTIONS = {
  * Builds the primary aesthetic Rules & Terms of Service overview embeds + interactive dropdown & buttons.
  */
 export function buildRulesChannelPayload(guild) {
-  const verifyCh = guild.channels.cache.find((c) => c.name.toLowerCase().includes('verify'));
   const ticketCh = guild.channels.cache.find(
     (c) => c.name.toLowerCase().includes('create-ticket') || c.name.toLowerCase().includes('tickets')
   );
@@ -165,94 +97,61 @@ export function buildRulesChannelPayload(guild) {
     name: 'moonflip_rules_banner.gif',
   });
 
-  // Main sleek overview embed (Rainbet / Clash.gg aesthetic)
   const mainEmbed = new EmbedBuilder()
-    .setColor(0xf1c40f)
-    .setTitle('📜  MOONFLIP — SERVER RULES & HOW TO PLAY')
+    .setColor(0x5865f2)
+    .setTitle('📜 Server Rules & WebApp')
     .setDescription(
-      `> Welcome to **${guild.name}**! 🌙🪙\n` +
-      `> All games operate on a transparent, cryptographically verifiable **Provably Fair** architecture. To keep our community safe, enjoyable, and rewarding, review our essential guidelines below.\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
-    )
-    .addFields(
-      {
-        name: '🎮 1. Gaming Experience — Exclusive Web Arena (/play)',
-        value:
-          '> Games like **5x5 Mines** and **Orbital Crash** are played in our high-speed **Web Arena**.\n' +
-          '> ✦ **Instant Auto-Login:** Click **🚀 Launch Web Arena** (or `/play`). No passwords needed — automatically linked to your Discord wallet.\n' +
-          '> ✦ **Live Real-Time Sync:** All wagers, multipliers, and wins update your `/balance` instantly.',
-      },
-      {
-        name: '🔞 2. Legal Age Requirement (18+ Only)',
-        value:
-          '> Gameplay, leaderboards, and prize redemptions are strictly limited to **individuals 18 years of age or older**.\n' +
-          '> Minors discovered on the platform face immediate account termination and token forfeiture.',
-      },
-      {
-        name: '⚖️ 3. Fair Play & Anti-Multi-Accounting',
-        value:
-          '> Strictly **1 account per person and household**. Farming `/daily` or giveaways via alt accounts is prohibited.\n' +
-          '> Third-party bots, autoclickers, and exploits result in permanent blacklisting. Game outcomes are verified by HMAC-SHA256 RNG.',
-      },
-      {
-        name: '🎁 4. Prize Redemptions & RMT Restrictions',
-        value:
-          `> Real-world reward redemptions (Crypto, Gift Cards) are processed via official <#${ticketCh?.id || 'tickets'}>.\n` +
-          '> Real Money Trading (RMT) or selling tokens outside official channels is strictly prohibited.',
-      },
-      {
-        name: '💬 5. Community Safety & Integrity',
-        value:
-          '> Zero tolerance for token begging, toxicity, unsolicited advertising, or scam links.\n' +
-          '> 🛡️ **Security Alert:** Staff will **NEVER direct message you first** asking for passwords, seed phrases, or private keys.',
-      }
+      `> Welcome to **${guild.name}**! Please follow these guidelines to keep the community fair and enjoyable for everyone.\n\n` +
+      `\`🌐\` **Official Web Application (All Games)**\n` +
+      `> All games are hosted on our official WebApp! Launch it anytime via \`/play\` or the green button below — your Discord wallet, stats, and rank sync automatically.\n\n` +
+      `\`1.\` **Age Requirement (18+)**\n` +
+      `> Participation in games and prize redemptions is strictly restricted to members aged 18 and older.\n\n` +
+      `\`2.\` **One Account Policy**\n` +
+      `> Alternate accounts to farm \`/daily\` rewards or giveaways are prohibited. Automated scripts and exploits will result in bans.\n\n` +
+      `\`3.\` **Community Conduct**\n` +
+      `> Keep chat friendly. Token begging, spam, advertising, and off-platform trading (RMT) are not permitted.\n\n` +
+      `\`4.\` **Support & Security**\n` +
+      `> All support and redemption requests are handled in <#${ticketCh?.id || 'tickets'}>. Staff will **never** DM you first.\n\n` +
+      `-# Select a topic below to read detailed policies.`
     )
     .setFooter({
-      text: 'Moonflip Rules • 18+ Only • Select a category below for full details',
+      text: 'Moonflip Rules',
       iconURL: guild.iconURL() || undefined,
-    })
-    .setTimestamp();
+    });
 
   // Interactive Dropdown Menu (StringSelectMenu)
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('rules_topic_select')
-    .setPlaceholder('📂 Select a rules section or gaming guide...')
+    .setPlaceholder('Select a topic to read details...')
     .addOptions(
       new StringSelectMenuOptionBuilder()
-        .setLabel('0. How to Play in Web Arena (/play)')
-        .setDescription('Interactive 3D games, instant login, and wallet sync')
-        .setValue('web_arena')
-        .setEmoji('🎮'),
+        .setLabel('🌐 WebApp (All Games)')
+        .setDescription('How to play all games in the WebApp with synced balance')
+        .setValue('web_arena'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('1. 18+ Policy, Age Verification & KYC')
-        .setDescription('Age eligibility and identity verification standards')
-        .setValue('age_kyc')
-        .setEmoji('🔞'),
+        .setLabel('1. Age Eligibility (18+)')
+        .setDescription('Age requirement and verification')
+        .setValue('age_kyc'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('2. AML, Wager Turnover & Fair Play')
-        .setDescription('Playthrough requirements and anti-wash betting rules')
-        .setValue('aml_turnover')
-        .setEmoji('⚖️'),
+        .setLabel('2. Playthrough & Fair Wagering')
+        .setDescription('Bonus turnover and fair betting rules')
+        .setValue('aml_turnover'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('3. Multi-Account Prohibition & Fair Play')
-        .setDescription('1-account policy, alt detection, and penalties')
-        .setValue('multi_account')
-        .setEmoji('🚫'),
+        .setLabel('3. One Account Policy')
+        .setDescription('Rules on alt accounts and automation')
+        .setValue('multi_account'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('4. Prize Redemptions & Ticket Claims')
-        .setDescription('Crypto, gift cards, and blockchain payout protocols')
-        .setValue('redemptions')
-        .setEmoji('🎁'),
+        .setLabel('4. Redemptions & Tickets')
+        .setDescription('How support and redemptions are processed')
+        .setValue('redemptions'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('5. Chat Conduct, Anti-Begging & Anti-RMT')
-        .setDescription('Community standards and scam prevention')
-        .setValue('chat_scam')
-        .setEmoji('💬'),
+        .setLabel('5. Community Conduct & Security')
+        .setDescription('Chat guidelines and scam prevention')
+        .setValue('chat_scam'),
       new StringSelectMenuOptionBuilder()
-        .setLabel('6. Disciplinary Matrix & Sanctions')
-        .setDescription('Violations overview and tiered penalty enforcement')
+        .setLabel('6. Moderation Overview')
+        .setDescription('Summary of moderation actions')
         .setValue('matrix')
-        .setEmoji('🛡️')
     );
 
   const rowDropdown = new ActionRowBuilder().addComponents(selectMenu);
@@ -260,23 +159,27 @@ export function buildRulesChannelPayload(guild) {
   // Quick-Action Interactive Buttons below Dropdown
   const rowButtons = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('launch_web_arena')
-      .setLabel('🚀 Launch Web Arena')
+      .setCustomId('launch_web_app')
+      .setLabel('Play WebApp')
+      .setEmoji('🎮')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId('rules_btn_web_guide')
-      .setLabel('🎮 How to Play (Guide)')
-      .setStyle(ButtonStyle.Primary),
+      .setLabel('How to Play')
+      .setEmoji('📖')
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('rules_btn_provably_fair')
-      .setLabel('🎲 Provably Fair')
+      .setLabel('Fairness & RNG')
+      .setEmoji('⚖️')
       .setStyle(ButtonStyle.Secondary)
   );
 
   if (ticketCh) {
     rowButtons.addComponents(
       new ButtonBuilder()
-        .setLabel('🎫 Support')
+        .setLabel('Support')
+        .setEmoji('🎫')
         .setStyle(ButtonStyle.Link)
         .setURL(`https://discord.com/channels/${guild.id}/${ticketCh.id}`)
     );
@@ -361,20 +264,12 @@ export async function handleRulesInteraction(interaction) {
     if (interaction.customId === 'rules_btn_provably_fair') {
       const embed = new EmbedBuilder()
         .setColor(0x2ecc71)
-        .setTitle('🎲  PROVABLY FAIR RNG & HOUSE EDGE DISCLOSURE')
+        .setTitle('Fairness & RNG')
         .setDescription(
-          `> **Cryptographic Randomness & House Edge Transparency**\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `### 🔐 1. Cryptographic RNG Engine\n` +
-          `✦ All Moonflip games (**Mines, Crash, Keno, Coinflip, Blackjack, Slots**) are powered by Node.js cryptographic entropy (\`crypto.randomBytes\` / \`crypto.randomInt\`).\n` +
-          `✦ Every round is settled server-side in real time with atomic wallet protection so outcomes cannot be manipulated by client latency.\n\n` +
-          `### 🏛️ 2. House Edge & Entertainment Model\n` +
-          `✦ Like Rainbet, Clash.gg, and all casino-style platforms, every game incorporates a built-in **House Edge** to fund promotional prize pools, daily token drops, and level-up rewards.\n` +
-          `✦ **Play Responsibly**: Virtual tokens are entertainment points. Never wager more than you are comfortable losing, and remember that the House always holds a mathematical long-term edge.\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+          `All Moonflip games (Mines, Crash, Plinko, Keno, Coinflip, Blackjack, Slots) use server-side cryptographic randomness (\`crypto.randomBytes\` / \`crypto.randomInt\`).\n\n` +
+          `Each round is settled atomically on the server and includes a standard house edge. Play responsibly (18+).`
         )
-        .setFooter({ text: 'Moonflip Provably Fair Disclosure • Play Responsibly (18+)' })
-        .setTimestamp();
+        .setFooter({ text: 'Moonflip • Fairness' });
 
       return interaction.reply({
         embeds: [embed],

@@ -12,6 +12,9 @@ import { flipCoin } from './rng.js';
 import { getBalance, deductTokens, addTokens, databaseEconomy } from './economy.js';
 import { randomUUID } from 'node:crypto';
 import { buildCoinflipAttachment } from '../canvas/gameCardRenderer.js';
+import { databasePool } from '../database.js';
+import { readDocument, updateDocument } from '../documentStore.js';
+import { createCoinflipPreferences } from './coinflipPreferences.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -23,6 +26,17 @@ const lastUserFlipAt = new Map();
 
 // Track per-user win streaks and recent flip history
 const userStreaks = new Map();
+const coinflipPreferences = createCoinflipPreferences({ read: readDocument, update: updateDocument });
+
+async function loadUserStreak(userId) {
+  if (databasePool) return coinflipPreferences.load(userId);
+  return userStreaks.get(userId) || 0;
+}
+
+async function saveUserStreak(userId, streak) {
+  if (databasePool) return coinflipPreferences.save(userId, streak);
+  userStreaks.set(userId, streak);
+}
 const recentFlips = ['heads', 'tails', 'heads', 'heads', 'tails'];
 
 function formatFlipHistory() {
@@ -99,28 +113,40 @@ export async function playCoinflip(interaction, choice = 'heads', betAmount = 10
 
   try {
     // 1. Atomic upfront settlement (0ms in-memory)
-    const prevStreak = userStreaks.get(userId) || 0;
+    const prevStreak = await loadUserStreak(userId);
     const outcome = flipCoin(normalizedChoice, cleanBet, prevStreak); // 'heads' or 'tails'
     const won = normalizedChoice === outcome;
     const winMultiplier = 1.92; // 4% nominal edge + subtle air-flip gravity
     const payout = won ? Math.floor(cleanBet * winMultiplier) : 0;
     const profit = payout - cleanBet;
+    const nextStreak = won ? prevStreak + 1 : 0;
 
     let newBalance;
     if (databaseEconomy) {
-      ({ balance: newBalance } = await databaseEconomy.playInstantRound(randomUUID(), userId, 'coinflip', cleanBet, payout, { choice: normalizedChoice, outcome, multiplier: winMultiplier }));
+      ({ balance: newBalance } = await databaseEconomy.playInstantRound(
+        randomUUID(),
+        userId,
+        'coinflip',
+        cleanBet,
+        payout,
+        { choice: normalizedChoice, outcome, multiplier: winMultiplier, streak: nextStreak },
+        {
+          key: 'user_preferences',
+          fallback: {},
+          updater: (doc) => {
+            doc[userId] ||= {};
+            doc[userId].coinflip = { ...(doc[userId].coinflip || {}), streak: nextStreak };
+            return doc[userId].coinflip;
+          },
+        }
+      ));
     } else {
       await deductTokens(userId, cleanBet);
       if (won) await addTokens(userId, payout, true);
       newBalance = await getBalance(userId);
+      await saveUserStreak(userId, nextStreak);
     }
-    if (won) {
-      userStreaks.set(userId, (userStreaks.get(userId) || 0) + 1);
-    } else {
-      userStreaks.set(userId, 0);
-    }
-
-    const currentStreak = userStreaks.get(userId) || 0;
+    const currentStreak = nextStreak;
     recentFlips.unshift(outcome);
     if (recentFlips.length > 8) recentFlips.pop();
 

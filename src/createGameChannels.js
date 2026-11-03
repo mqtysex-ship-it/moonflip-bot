@@ -75,6 +75,13 @@ async function createGameChannels() {
       color: 0x2ecc71,
     },
     {
+      name: '🎯┃plinko',
+      topic: 'Virtual Plinko Pyramid. Choose 8–16 rows and Low, Medium, or High risk to hit up to 960x!',
+      title: '🎯  PLINKO (VIRTUAL)',
+      desc: '> **Virtual Plinko Game Room**\n> Drop balls down the peg pyramid and hit edge multiplier buckets in our interactive Web Arena!',
+      color: 0x2ef2b8,
+    },
+    {
       name: '🎲┃keno',
       topic: 'Virtual Keno game. Pick your lucky numbers and hit big payout multipliers!',
       title: '🎲  KENO (VIRTUAL)',

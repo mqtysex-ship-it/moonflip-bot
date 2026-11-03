@@ -12,6 +12,9 @@ import { secureRandomInt, secureRandomFloat } from './rng.js';
 import { getBalance, deductTokens, addTokens, databaseEconomy } from './economy.js';
 import { randomUUID } from 'node:crypto';
 import { buildKenoAttachment } from '../canvas/gameCardRenderer.js';
+import { databasePool } from '../database.js';
+import { readDocument, updateDocument } from '../documentStore.js';
+import { createKenoPreferences } from './kenoPreferences.js';
 
 const TOTAL_NUMBERS = 20;
 const DRAW_COUNT = 7;
@@ -110,7 +113,10 @@ function generateRandomPicks(count = 5) {
   return Array.from(set).sort((a, b) => a - b);
 }
 
-export function getOrCreateKenoSession(userId) {
+const kenoPreferences = createKenoPreferences({ read: readDocument, update: updateDocument });
+
+export async function getOrCreateKenoSession(userId) {
+  if (databasePool) return kenoPreferences.load(userId);
   if (!userKenoSessions.has(userId)) {
     userKenoSessions.set(userId, {
       userId,
@@ -123,6 +129,11 @@ export function getOrCreateKenoSession(userId) {
     });
   }
   return userKenoSessions.get(userId);
+}
+
+export async function saveKenoSession(userId, session) {
+  if (databasePool) return kenoPreferences.save(userId, session);
+  userKenoSessions.set(userId, session);
 }
 
 export function getKenoMultiplier(pickCount, hitCount, riskMode = 'medium') {
@@ -480,9 +491,10 @@ async function buildKenoBuilderEmbed(session, user, notice = null) {
 /**
  * Opens or updates the Interactive 4x5 Keno Ticket Builder.
  */
-export async function openKenoBuilder(interaction, notice = null) {
-  const session = getOrCreateKenoSession(interaction.user.id);
+export async function openKenoBuilder(interaction, notice = null, existingSession = null) {
+  const session = existingSession || (await getOrCreateKenoSession(interaction.user.id));
   session.lastDrawn = [];
+  await saveKenoSession(interaction.user.id, session);
   const embed = (await buildKenoBuilderEmbed(session, interaction.user, notice));
   const components = buildKenoComponents(session, [], false);
 
@@ -502,7 +514,7 @@ export async function openKenoBuilder(interaction, notice = null) {
  * Show Modal for picking custom wager, numbers (or pick count), and risk mode in Keno.
  */
 export async function showKenoModal(interaction) {
-  const session = getOrCreateKenoSession(interaction.user.id);
+  const session = await getOrCreateKenoSession(interaction.user.id);
   const currentPicksStr =
     session.picks.size >= 2
       ? Array.from(session.picks)
@@ -558,7 +570,7 @@ export async function showKenoModal(interaction) {
  */
 export async function handleKenoInteraction(interaction) {
   const userId = interaction.user.id;
-  const session = getOrCreateKenoSession(userId);
+  const session = await getOrCreateKenoSession(userId);
   const id = interaction.customId;
 
   if (activeKenoDraws.has(userId)) {
@@ -575,7 +587,7 @@ export async function handleKenoInteraction(interaction) {
 
   // 1. Open Builder from Lobby
   if (id === 'keno_board_open') {
-    return openKenoBuilder(interaction);
+    return openKenoBuilder(interaction, null, session);
   }
 
   // 2. Toggle a specific number (01..20) on the 4x5 Keno Button Grid
@@ -594,7 +606,7 @@ export async function handleKenoInteraction(interaction) {
           notice = `➕ Locked ball **\`#${num < 10 ? '0' + num : num}\`** onto your ticket!`;
         }
       }
-      return openKenoBuilder(interaction, notice);
+      return openKenoBuilder(interaction, notice, session);
     }
   }
 
@@ -605,7 +617,8 @@ export async function handleKenoInteraction(interaction) {
     const riskObj = KENO_PAYTABLES[session.riskMode];
     return openKenoBuilder(
       interaction,
-      `🎚️ Switched Keno volatility to **${riskObj.label}**! Paytable multipliers updated below.`
+      `🎚️ Switched Keno volatility to **${riskObj.label}**! Paytable multipliers updated below.`,
+      session
     );
   }
 
@@ -616,7 +629,7 @@ export async function handleKenoInteraction(interaction) {
     const formatted = Array.from(session.picks)
       .map((n) => `\`#${n < 10 ? '0' + n : n}\``)
       .join(' ');
-    return openKenoBuilder(interaction, `🎲 Shuffled **${count} lucky numbers**: ${formatted}`);
+    return openKenoBuilder(interaction, `🎲 Shuffled **${count} lucky numbers**: ${formatted}`, session);
   }
 
   // 5. Cycle Bet Amount
@@ -626,7 +639,8 @@ export async function handleKenoInteraction(interaction) {
     session.betAmount = nextBet;
     return openKenoBuilder(
       interaction,
-      `🪙 Wager updated to **\`${session.betAmount.toLocaleString()} 🪙\`**! (Use **⚙️ Custom** for any exact amount).`
+      `🪙 Wager updated to **\`${session.betAmount.toLocaleString()} 🪙\`**! (Use **⚙️ Custom** for any exact amount).`,
+      session
     );
   }
 
@@ -668,7 +682,7 @@ export async function playModernKeno(
       .catch(() => {});
   }
 
-  const session = getOrCreateKenoSession(userId);
+  const session = await getOrCreateKenoSession(userId);
   const resolvedRisk = normalizeRisk(riskMode || session.riskMode || 'medium');
   const riskObj = KENO_PAYTABLES[resolvedRisk] || KENO_PAYTABLES.medium;
 
@@ -734,21 +748,47 @@ export async function playModernKeno(
     const payout = Math.floor(cleanBet * multiplier);
     const profit = payout - cleanBet;
 
+    const nextStreak = payout > cleanBet ? (session.streak || 0) + 1 : payout < cleanBet ? 0 : (session.streak || 0);
+    const nextRoundsPlayed = (session.roundsPlayed || 0) + 1;
+
     let newBalance;
     if (databaseEconomy) {
-      ({ balance: newBalance } = await databaseEconomy.playInstantRound(randomUUID(), userId, 'keno', cleanBet, payout, { picks: picksArray, drawn: drawnSequence, risk: resolvedRisk, multiplier }));
+      ({ balance: newBalance } = await databaseEconomy.playInstantRound(
+        randomUUID(),
+        userId,
+        'keno',
+        cleanBet,
+        payout,
+        { picks: picksArray, drawn: drawnSequence, risk: resolvedRisk, multiplier, streak: nextStreak },
+        {
+          key: 'user_preferences',
+          fallback: {},
+          updater: (doc) => {
+            doc[userId] ||= {};
+            doc[userId].keno = {
+              betAmount: cleanBet,
+              riskMode: resolvedRisk,
+              picks: picksArray,
+              lastDrawn: drawnSequence,
+              streak: nextStreak,
+              roundsPlayed: nextRoundsPlayed,
+            };
+            return doc[userId].keno;
+          },
+        }
+      ));
     } else {
       await deductTokens(userId, cleanBet);
       if (payout > 0) await addTokens(userId, payout, true);
       newBalance = await getBalance(userId);
+      session.streak = nextStreak;
+      session.roundsPlayed = nextRoundsPlayed;
+      session.lastDrawn = drawnSequence;
+      await saveKenoSession(userId, session);
     }
 
-    if (payout > cleanBet) {
-      session.streak = (session.streak || 0) + 1;
-    } else if (payout < cleanBet) {
-      session.streak = 0;
-    }
-    session.roundsPlayed = (session.roundsPlayed || 0) + 1;
+    session.streak = nextStreak;
+    session.roundsPlayed = nextRoundsPlayed;
     session.lastDrawn = drawnSequence;
 
     const now = Date.now();

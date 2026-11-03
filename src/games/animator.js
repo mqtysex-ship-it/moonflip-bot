@@ -1354,7 +1354,6 @@ export function getMinesPreviewGif() {
   PREVIEW_CACHE.set('mines', buf);
   return buf;
 }
-
 /**
  * Generates an animated 20-Ball Keno Preview GIF for the #keno lobby panel.
  */
@@ -1468,7 +1467,6 @@ export function getKenoPreviewGif() {
   PREVIEW_CACHE.set('keno', buf);
   return buf;
 }
-
 /**
  * Generates an animated Blackjack 21 Preview GIF for the #blackjack lobby panel.
  */
@@ -1560,7 +1558,6 @@ export function getBlackjackPreviewGif() {
   PREVIEW_CACHE.set('blackjack', buf);
   return buf;
 }
-
 /**
  * Generates an animated Orbital Rocket Crash Preview GIF for the #crash lobby panel.
  * Frame 0 is the Hero High-Altitude Cashout Showcase (8.45X WIN!).
@@ -1771,7 +1768,6 @@ export function getCrashPreviewGif() {
   PREVIEW_CACHE.set('crash', buf);
   return buf;
 }
-
 /**
  * Generates an animated Moonflip Official Rules Banner GIF for #rules.
  */
@@ -1833,7 +1829,6 @@ export function getRulesBannerGif() {
   PREVIEW_CACHE.set('rules', buf);
   return buf;
 }
-
 /**
  * Generates an animated Moonflip Verification Gateway Banner GIF for #verify.
  */
@@ -1880,7 +1875,6 @@ export function getVerifyBannerGif() {
   PREVIEW_CACHE.set('verify', buf);
   return buf;
 }
-
 /**
  * Generates an animated Moonflip 24/7 Support & Ticket Gateway Banner GIF for #create-ticket.
  */
@@ -1962,7 +1956,6 @@ export function getTicketBannerGif() {
   PREVIEW_CACHE.set('ticket', buf);
   return buf;
 }
-
 /**
  * Generates an animated Moonflip Official Announcements Banner GIF for #announcements.
  */
@@ -2031,6 +2024,241 @@ export function getAnnouncementsBannerGif() {
 
   const buf = encodeGIF(width, height, frames, 0);
   PREVIEW_CACHE.set('announcements', buf);
+  return buf;
+}
+/**
+ * Generates an animated Plinko Pyramid Preview GIF for the #plinko lobby panel.
+ * Frame 0 is the Hero High-Multiplier Jackpot Bucket Showcase (130X WIN!).
+ */
+export function getPlinkoPreviewGif() {
+  if (PREVIEW_CACHE.has('plinko')) return PREVIEW_CACHE.get('plinko');
+
+  const width = 390;
+  const height = 235;
+  const frames = [];
+  const totalFrames = 24;
+
+  // Pyramid geometry inside left viewport (vx=26, vy=34, vw=216, vh=146)
+  const centerX = 134;
+  const topPegY = 52;
+  const gapX = 22;
+  const gapY = 15;
+  const rows = 7;
+
+  // 8 bottom multiplier buckets (k = 0..7) — 3-char labels fit cleanly inside 20px buckets
+  const bucketLabels = ['29X', '14X', '4X', '1X', '1X', '4X', '14X', '29X'];
+
+  // Main Hero Ball path: drops at centerX (134, 38), hits 7 pegs heading to outer right 130X bucket (k=7)
+  const heroWaypoints = [
+    { x: 134, y: 39 },
+    { x: 134, y: 52 },
+    { x: 145, y: 67 },
+    { x: 156, y: 82 },
+    { x: 167, y: 97 },
+    { x: 178, y: 112 },
+    { x: 189, y: 127 },
+    { x: 200, y: 142 },
+    { x: 211, y: 164 },
+  ];
+
+  // Secondary Multi-Ball path: lands earlier in left 4X bucket (k=2)
+  const secondWaypoints = [
+    { x: 134, y: 39 },
+    { x: 134, y: 52 },
+    { x: 123, y: 67 },
+    { x: 112, y: 82 },
+    { x: 123, y: 97 },
+    { x: 112, y: 112 },
+    { x: 101, y: 127 },
+    { x: 112, y: 142 },
+    { x: 101, y: 164 },
+  ];
+
+  const samplePath = (waypoints, progress) => {
+    const clamped = Math.max(0, Math.min(1, progress));
+    const scaled = clamped * (waypoints.length - 1);
+    const idx = Math.min(waypoints.length - 2, Math.floor(scaled));
+    const t = scaled - idx;
+    const a = waypoints[idx];
+    const b = waypoints[idx + 1];
+    const arcLift = idx > 0 ? Math.sin(t * Math.PI) * 5 : 0;
+    return {
+      x: Math.round(a.x + (b.x - a.x) * t),
+      y: Math.round(a.y + (b.y - a.y) * t - arcLift),
+      pegStep: idx,
+    };
+  };
+
+  for (let f = 0; f < totalFrames; f++) {
+    const canvas = new PixelCanvas(width, height);
+    canvas.clear(C.BG_DEEP);
+
+    const isJackpot = f >= 16;
+    const heroProg = Math.min(1, f / 16);
+    const secProg = Math.min(1, (f + 4) / 14);
+    const heroPos = samplePath(heroWaypoints, heroProg);
+    const secPos = samplePath(secondWaypoints, secProg);
+
+    // Outer Luxury Cabinet
+    canvas.fillRoundedRect(14, 8, width - 28, height - 16, 10, C.BG_NAVY);
+    canvas.strokeRoundedRect(
+      14,
+      8,
+      width - 28,
+      height - 16,
+      10,
+      2,
+      isJackpot ? (f % 2 === 0 ? C.GREEN_BRIGHT : C.GOLD_GLEAM) : C.GOLD_RICH
+    );
+    canvas.drawText('MOONFLIP PLINKO', width / 2, 18, 1, C.GOLD_GLEAM, C.BLACK);
+
+    // 1. Left Plinko Pyramid Viewport (x = 26..242, y = 34..180)
+    const vx = 26;
+    const vy = 34;
+    const vw = 216;
+    const vh = 146;
+    canvas.fillRoundedRect(vx, vy, vw, vh, 8, C.BG_DEEP);
+    canvas.strokeRoundedRect(vx, vy, vw, vh, 8, 1, isJackpot ? C.GREEN_BRIGHT : C.BORDER_NAVY);
+
+    // Subtle radial spotlight behind pyramid
+    canvas.fillEllipse(centerX, 106, 86, 52, C.BG_NAVY);
+
+    // Top Drop Chute Nozzle
+    canvas.fillRoundedRect(centerX - 14, vy + 2, 28, 7, 3, C.PANEL_NAVY);
+    canvas.strokeRoundedRect(centerX - 14, vy + 2, 28, 7, 3, 1, C.GOLD_RICH);
+
+    // Draw 7 Rows of Pyramid Pegs
+    for (let r = 0; r < rows; r++) {
+      const py = topPegY + r * gapY;
+      for (let j = 0; j < r + 3; j++) {
+        const px = Math.round(centerX + (j - (r + 2) / 2) * gapX);
+        const hitByHero = heroPos.pegStep >= r + 1 && Math.abs(px - heroWaypoints[r + 1].x) <= 2;
+        if (hitByHero) {
+          canvas.strokeEllipse(px, py, 5, 5, 1, isJackpot ? C.GREEN_BRIGHT : C.GOLD_GLEAM);
+          canvas.fillEllipse(px, py, 3, 3, C.WHITE);
+        } else {
+          canvas.fillEllipse(px, py, 2, 2, C.SILVER_LIGHT);
+          canvas.setPixel(px - 1, py - 1, C.WHITE);
+        }
+      }
+    }
+
+    // Draw 8 Multiplier Buckets at Bottom of Pyramid (y = 157..175)
+    const bucketY = 157;
+    for (let k = 0; k < 8; k++) {
+      const bxCenter = Math.round(centerX + (k - 3.5) * gapX);
+      const bx = bxCenter - 10;
+      const bw = 20;
+      const bh = 18;
+      const dist = Math.abs(k - 3.5);
+
+      let bgCol = C.GOLD_DEEP;
+      let borderCol = C.GOLD_PURE;
+      if (dist > 2.8) {
+        bgCol = C.RED_MID;
+        borderCol = C.RED_LIGHT;
+      } else if (dist > 1.8) {
+        bgCol = C.RED_DARK;
+        borderCol = C.ORANGE_BRIGHT;
+      } else if (dist > 0.8) {
+        bgCol = C.GOLD_RICH;
+        borderCol = C.GOLD_GLEAM;
+      }
+
+      const isWinningBucket = k === 7 && isJackpot;
+      const isSecondBucket = k === 2 && secProg >= 1;
+
+      if (isWinningBucket) {
+        bgCol = f % 2 === 0 ? C.GREEN_DARK : C.RED_BRIGHT;
+        borderCol = C.WHITE;
+      } else if (isSecondBucket) {
+        borderCol = C.WHITE;
+      }
+
+      canvas.fillRoundedRect(bx, bucketY, bw, bh, 3, bgCol);
+      canvas.strokeRoundedRect(bx, bucketY, bw, bh, 3, isWinningBucket ? 2 : 1, borderCol);
+      canvas.drawText(bucketLabels[k], bxCenter, bucketY + 6, 1, C.WHITE, C.BLACK);
+    }
+
+    // Draw Secondary Ball (Mint Cyan) while dropping
+    if (secProg < 1) {
+      canvas.fillEllipse(secPos.x, secPos.y, 4, 4, C.CYAN_DIAMOND);
+      canvas.fillEllipse(secPos.x - 1, secPos.y - 1, 2, 2, C.WHITE);
+    }
+
+    // Draw Hero Ball Trail & Glowing Plinko Ball
+    if (!isJackpot) {
+      for (let tr = 1; tr <= 2; tr++) {
+        const trailP = Math.max(0, heroProg - tr * 0.045);
+        const tp = samplePath(heroWaypoints, trailP);
+        canvas.fillEllipse(tp.x, tp.y, Math.max(2, 4 - tr), Math.max(2, 4 - tr), C.GOLD_PURE);
+      }
+    }
+    canvas.fillEllipse(heroPos.x, heroPos.y, 5, 5, isJackpot ? C.GREEN_BRIGHT : C.GOLD_GLEAM);
+    canvas.fillEllipse(heroPos.x - 1, heroPos.y - 1, 2, 2, C.WHITE);
+
+    if (isJackpot) {
+      canvas.drawStarSparkle(211, 146, 6, C.GOLD_GLEAM, C.WHITE);
+      canvas.drawStarSparkle(192, 152, 5, C.GREEN_LIGHT, C.WHITE);
+      canvas.drawStarSparkle(228, 150, 5, C.GOLD_GLEAM, C.WHITE);
+    }
+
+    // 2. Right Telemetry & HUD Panel (x = 248..366, y = 34..180)
+    const panX = 248;
+    const panW = 118;
+    canvas.fillRoundedRect(panX, vy, panW, vh, 8, C.PANEL_NAVY);
+    canvas.strokeRoundedRect(panX, vy, panW, vh, 8, 1, isJackpot ? C.GREEN_BRIGHT : C.GOLD_RICH);
+
+    canvas.drawText('MULTIPLIER', panX + 59, 46, 1, C.SILVER_LIGHT);
+    const liveMultTxt = isJackpot ? '29.0X' : secProg >= 1 ? '4.0X' : '1.0X';
+    canvas.drawText(
+      liveMultTxt,
+      panX + 59,
+      62,
+      2,
+      isJackpot ? C.GOLD_GLEAM : secProg >= 1 ? C.GREEN_LIGHT : C.WHITE,
+      C.BLACK
+    );
+
+    canvas.drawText('8-16 ROWS', panX + 59, 92, 1, C.SILVER_LIGHT);
+
+    // Action Status Box
+    const boxY = 114;
+    canvas.fillRoundedRect(panX + 8, boxY, panW - 16, 36, 6, isJackpot ? C.GREEN_DARK : C.BG_NAVY);
+    canvas.strokeRoundedRect(
+      panX + 8,
+      boxY,
+      panW - 16,
+      36,
+      6,
+      2,
+      isJackpot ? C.GOLD_GLEAM : C.GREEN_BRIGHT
+    );
+    canvas.drawText(isJackpot ? 'WIN +2,900' : 'IN PLAY', panX + 59, boxY + 14, 1, C.WHITE);
+
+    // 3. Bottom Telemetry & Payout Strip (y = 186..214)
+    canvas.fillRoundedRect(26, 186, width - 52, 28, 6, isJackpot ? C.GREEN_DARK : C.PANEL_NAVY);
+    canvas.strokeRoundedRect(26, 186, width - 52, 28, 6, 1, isJackpot ? C.GOLD_GLEAM : C.GOLD_RICH);
+    canvas.drawText(
+      isJackpot
+        ? '29.0X BUCKET  •  +2,900 TOKENS'
+        : 'LOW  •  MEDIUM  •  HIGH RISK',
+      width / 2,
+      196,
+      1,
+      isJackpot ? C.GOLD_GLEAM : C.WHITE,
+      C.BLACK
+    );
+
+    const delayCs = f === totalFrames - 1 ? 260 : 6;
+    frames.push({ pixels: canvas.pixels, delayCs });
+  }
+
+  // Hero Frame 0 = Final Jackpot Hit Showcase so paused [GIF] state looks incredible!
+  frames.unshift({ pixels: frames[frames.length - 1].pixels, delayCs: 120 });
+
+  const buf = encodeGIF(width, height, frames, 0);
+  PREVIEW_CACHE.set('plinko', buf);
   return buf;
 }
 

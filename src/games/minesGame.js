@@ -15,6 +15,7 @@ import { createWebPlaySession, getPublicBaseUrl } from '../web/playApi.js';
 import { getMinesLeaderboard } from './minesLeaderboard.js';
 import { databasePool } from '../database.js';
 import { readDocument, updateDocument } from '../documentStore.js';
+import { createMinesPreferences } from './minesPreferences.js';
 
 export const activeMinesGames = new Map();
 
@@ -23,27 +24,16 @@ const processingMinesUsers = new Set();
 
 // Remember last bet & bomb settings per user for 1-click replay
 const userMinesPrefs = new Map();
+const minesPreferences = createMinesPreferences({ read: readDocument, update: updateDocument });
 
-if (databasePool) {
-  readDocument('user_preferences', {})
-    .then((doc) => {
-      if (doc && typeof doc === 'object') {
-        for (const [userId, prefs] of Object.entries(doc)) {
-          if (prefs?.mines) userMinesPrefs.set(userId, prefs.mines);
-        }
-      }
-    })
-    .catch(() => {});
+async function getUserMinesPrefs(userId) {
+  if (databasePool) return minesPreferences.load(userId);
+  return userMinesPrefs.get(userId) || { bet: 100, bombs: 3 };
 }
 
-export function saveUserMinesPrefs(userId, prefs) {
+export async function saveUserMinesPrefs(userId, prefs) {
+  if (databasePool) return minesPreferences.save(userId, prefs);
   userMinesPrefs.set(userId, prefs);
-  if (databasePool) {
-    updateDocument('user_preferences', {}, (doc) => {
-      doc[userId] = doc[userId] || {};
-      doc[userId].mines = prefs;
-    }).catch(() => {});
-  }
 }
 
 const TOTAL_TILES = 25; // 5x5 Grid
@@ -54,7 +44,7 @@ const BOMB_CYCLE = [1, 3, 5, 10, 15];
  * Shows the Mines Setup Modal for custom bet & bomb count.
  */
 export async function showMinesSetupModal(interaction) {
-  const prefs = userMinesPrefs.get(interaction.user.id) || { bet: 100, bombs: 3 };
+  const prefs = await getUserMinesPrefs(interaction.user.id);
 
   const modal = new ModalBuilder()
     .setCustomId('mines_custom_modal')

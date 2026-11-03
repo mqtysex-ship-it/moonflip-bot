@@ -12,6 +12,7 @@ import { recordCrashWin, getCrashLeaderboard } from '../games/crashLeaderboard.j
 import { getDiscordClient } from '../discord.js';
 import { databasePool } from '../database.js';
 import { PersistentMines } from '../games/persistentMines.js';
+import { activeCrashFlights } from '../games/continuousCrash.js';
 import { readDocument, writeDocument } from '../documentStore.js';
 
 const sessionRegistry = createSessionRegistry({ read: readDocument, write: writeDocument });
@@ -530,7 +531,7 @@ class GlobalCrashArenaEngine {
     if (authenticated && databaseEconomy && session?.userId) {
       const existing = await databaseEconomy.loadActiveCrash(session.userId);
       if (existing && !this.bets.has(gameKey)) {
-        await databaseEconomy.settleRound(existing.roundId, session.userId, existing.wager);
+        throw new Error('A Crash round is still active or awaiting recovery. Please try again later.');
       }
     }
 
@@ -718,7 +719,12 @@ let crashSweeperTimer = null;
 export function startCrashSweeper(intervalMs = 300000, olderThanSeconds = 1200) {
   if (!databaseEconomy) return;
   const sweep = () => {
-    databaseEconomy.recoverInterruptedRounds('crash', true, olderThanSeconds).catch(reportCrashError);
+    const activeIds = [
+      ...Array.from(activeCrashFlights.values(), flight => flight.roundId),
+      ...Array.from(activeWebCrash.values(), flight => flight.roundId),
+      ...Array.from(globalCrashEngine.bets.values(), bet => bet.roundId),
+    ].filter(Boolean);
+    databaseEconomy.recoverInterruptedRounds('crash', true, olderThanSeconds, activeIds).catch(reportCrashError);
   };
   sweep();
   if (crashSweeperTimer) clearInterval(crashSweeperTimer);
@@ -1316,7 +1322,7 @@ export function setupPlayApi(app) {
       if (authenticated && databaseEconomy && session?.userId) {
         const dbExisting = await databaseEconomy.loadActiveCrash(session.userId);
         if (dbExisting) {
-          await databaseEconomy.settleRound(dbExisting.roundId, session.userId, dbExisting.wager);
+          return res.status(409).json({ error: 'A Crash round is still active or awaiting recovery. Please try again later.' });
         }
       }
 
