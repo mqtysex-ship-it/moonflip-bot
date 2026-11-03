@@ -1383,6 +1383,12 @@ html, body {
   color: #ffffff;
 }
 
+.btn-math:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .addon-divider {
   width: 1px;
   height: 16px;
@@ -1423,6 +1429,13 @@ html, body {
   color: var(--mint);
 }
 
+.chip-btn:disabled,
+.mine-pill:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .stake-select-wrapper {
   position: relative;
 }
@@ -1440,6 +1453,16 @@ html, body {
   font-weight: 600;
   appearance: none;
   cursor: pointer;
+}
+
+.stake-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.stake-select:disabled ~ .select-chevron {
+  opacity: 0.45;
 }
 
 .select-chevron {

@@ -31,6 +31,13 @@ async function runTests() {
     assert.strictEqual(cssRes.status, 200);
     const jsRes = await fetch(`${baseUrl}/play/app.js`);
     assert.strictEqual(jsRes.status, 200);
+    const jsText = await jsRes.text();
+    const cssText = await cssRes.text();
+    assert(jsText.includes('setMinesControlsLocked(true)'), 'Must lock Mines controls on active game');
+    assert(jsText.includes('setMinesControlsLocked(false)'), 'Must unlock Mines controls on idle/finish');
+    assert(jsText.includes('if (state.activeGame) return;'), 'Must guard controls during active game');
+    assert(cssText.includes('.mine-pill:disabled'), 'Must style disabled mine pills');
+    assert(cssText.includes('.stake-select:disabled'), 'Must style disabled stake select');
 
     const gameImages = [...htmlText.matchAll(/src="(\/play\/assets\/cover-[^"?]+\.svg)/g)].map(match=>match[1]);
     assert.equal(new Set(gameImages).size,7);

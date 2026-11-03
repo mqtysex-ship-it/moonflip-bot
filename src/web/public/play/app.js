@@ -2104,7 +2104,7 @@
   }
 
   async function startMinesGame() {
-    if (state.isProcessing) return;
+    if (state.isProcessing || state.activeGame) return;
     state.isProcessing = true;
     el.mainActionButton.disabled = true;
 
@@ -2272,8 +2272,7 @@
       Sound.cashout();
       spawnCoinShower();
 
-      el.wagerInput.disabled = false;
-      el.minesCountSelect.disabled = false;
+      setMinesControlsLocked(false);
       el.mainActionButton.className = 'btn-stake-cta btn-bet';
       el.actionBtnTitle.textContent = 'Bet';
       el.actionBtnSub.textContent = `${Number(state.wager).toLocaleString()}`;
@@ -2291,9 +2290,26 @@
     }
   }
 
+  function setMinesControlsLocked(locked) {
+    if (el.wagerInput) el.wagerInput.disabled = locked;
+    if (el.minesCountSelect) el.minesCountSelect.disabled = locked;
+    if (el.minePills) {
+      el.minePills.forEach((p) => {
+        p.disabled = locked;
+      });
+    }
+    if (el.quickChips) {
+      el.quickChips.forEach((chip) => {
+        chip.disabled = locked;
+      });
+    }
+    if (el.btnHalf) el.btnHalf.disabled = locked;
+    if (el.btnDouble) el.btnDouble.disabled = locked;
+    if (el.btnMax) el.btnMax.disabled = locked;
+  }
+
   function enterActiveMinesState() {
-    el.wagerInput.disabled = true;
-    el.minesCountSelect.disabled = true;
+    setMinesControlsLocked(true);
 
     if (state.revealedIndices.size === 0) {
       el.mainActionButton.disabled = true;
@@ -2314,8 +2330,7 @@
   }
 
   function resetMinesToIdleState() {
-    el.wagerInput.disabled = false;
-    el.minesCountSelect.disabled = false;
+    setMinesControlsLocked(false);
 
     el.mainActionButton.className = 'btn-stake-cta btn-bet';
     el.actionBtnTitle.textContent = 'Bet';
@@ -3012,8 +3027,7 @@
         revealFullBoardPeek(state.lastAllBombs);
       }
       state.activeGame = false;
-      el.wagerInput.disabled = false;
-      el.minesCountSelect.disabled = false;
+      setMinesControlsLocked(false);
       el.mainActionButton.disabled = false;
       el.mainActionButton.className = 'btn-stake-cta btn-bet';
       el.actionBtnTitle.textContent = 'Bet';
@@ -3077,6 +3091,7 @@
   // Mines Wager Controls
   el.quickChips.forEach((chip) => {
     chip.addEventListener('click', () => {
+      if (state.activeGame) return;
       Sound.click();
       el.wagerInput.value = chip.dataset.val;
       state.wager = Number(chip.dataset.val);
@@ -3086,6 +3101,7 @@
 
   if (el.btnHalf) {
     el.btnHalf.addEventListener('click', () => {
+      if (state.activeGame) return;
       Sound.click();
       const curr = Number(el.wagerInput.value) || 100;
       el.wagerInput.value = Math.max(10, Math.floor(curr / 2));
@@ -3096,6 +3112,7 @@
 
   if (el.btnDouble) {
     el.btnDouble.addEventListener('click', () => {
+      if (state.activeGame) return;
       Sound.click();
       const curr = Number(el.wagerInput.value) || 100;
       el.wagerInput.value = Math.min(state.balance, curr * 2);
@@ -3106,6 +3123,7 @@
 
   if (el.btnMax) {
     el.btnMax.addEventListener('click', () => {
+      if (state.activeGame) return;
       Sound.click();
       el.wagerInput.value = Math.max(10, state.balance);
       state.wager = Number(el.wagerInput.value);
@@ -3115,6 +3133,10 @@
 
   if (el.wagerInput) {
     el.wagerInput.addEventListener('input', () => {
+      if (state.activeGame) {
+        el.wagerInput.value = String(state.wager);
+        return;
+      }
       state.wager = Math.max(10, Math.floor(Number(el.wagerInput.value)) || 10);
       updateMinesTelemetry();
     });
@@ -3122,6 +3144,10 @@
 
   if (el.minesCountSelect) {
     el.minesCountSelect.addEventListener('change', () => {
+      if (state.activeGame) {
+        el.minesCountSelect.value = String(state.bombs);
+        return;
+      }
       const val = Number(el.minesCountSelect.value);
       state.bombs = val;
       syncBombPills(val);
@@ -3131,6 +3157,7 @@
 
   el.minePills.forEach((p) => {
     p.addEventListener('click', () => {
+      if (state.activeGame) return;
       Sound.click();
       const val = Number(p.dataset.bombs);
       if (el.minesCountSelect) el.minesCountSelect.value = String(val);
