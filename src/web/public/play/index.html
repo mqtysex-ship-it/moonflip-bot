@@ -931,8 +931,83 @@
             <div class="instant-amount"><img src="/play/assets/token.png" alt="" width="20" height="20"><input id="instantWager" type="number" min="10" max="1000000" step="1" value="100" required><button type="button" data-instant-adjust="half" aria-label="Halve bet">½</button><button type="button" data-instant-adjust="double" aria-label="Double bet">2×</button></div>
           </div>
           <fieldset class="instant-choice" id="coinflipOptions"><legend>Choose your side</legend><div class="instant-sides"><label><input type="radio" name="coinSide" value="heads" checked><span>◉ &nbsp; Heads</span></label><label><input type="radio" name="coinSide" value="tails"><span>☾ &nbsp; Tails</span></label></div></fieldset>
-          <div id="plinkoOptions" hidden><div class="instant-field"><label for="plinkoRisk">Risk</label><select id="plinkoRisk"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div><div class="instant-field"><label for="plinkoRows">Rows</label><select id="plinkoRows"><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option></select></div></div>
-          <div id="plinkoAutoFields" hidden><div class="instant-field"><label for="plinkoAutoBets">Number of bets</label><input class="instant-number" id="plinkoAutoBets" type="number" value="20" min="1" max="1000" step="1"></div><div class="instant-field"><label for="plinkoAutoInterval">Drop speed</label><select id="plinkoAutoInterval"><option value="250">Fast</option><option value="500" selected>Standard</option><option value="1000">Relaxed</option></select></div></div>
+          <div id="plinkoOptions" hidden>
+            <div class="instant-field">
+              <label for="plinkoRiskDropdownTrigger">Risk</label>
+              <div class="custom-select-wrapper" id="plinkoRiskWrapper">
+                <button type="button" class="custom-select-trigger" id="plinkoRiskDropdownTrigger" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="custom-select-label">Medium</span>
+                  <span class="custom-select-chevron">▾</span>
+                </button>
+                <div class="custom-select-menu" role="listbox" tabindex="-1">
+                  <div class="custom-select-option" role="option" data-value="low"><span>Low</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option selected" role="option" data-value="medium" aria-selected="true"><span>Medium</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="high"><span>High</span><span class="opt-check">✓</span></div>
+                </div>
+                <select id="plinkoRisk" class="stake-select" hidden aria-hidden="true" tabindex="-1">
+                  <option value="low">Low</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+            </div>
+            <div class="instant-field">
+              <label for="plinkoRowsDropdownTrigger">Rows</label>
+              <div class="custom-select-wrapper" id="plinkoRowsWrapper">
+                <button type="button" class="custom-select-trigger" id="plinkoRowsDropdownTrigger" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="custom-select-label">16 Rows</span>
+                  <span class="custom-select-chevron">▾</span>
+                </button>
+                <div class="custom-select-menu" role="listbox" tabindex="-1">
+                  <div class="custom-select-option" role="option" data-value="8"><span>8 Rows</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="9"><span>9 Rows</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="10"><span>10 Rows</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="11"><span>11 Rows</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="12"><span>12 Rows</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="13"><span>13 Rows</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="14"><span>14 Rows</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="15"><span>15 Rows</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option selected" role="option" data-value="16" aria-selected="true"><span>16 Rows</span><span class="opt-check">✓</span></div>
+                </div>
+                <select id="plinkoRows" class="stake-select" hidden aria-hidden="true" tabindex="-1">
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                  <option value="11">11</option>
+                  <option value="12">12</option>
+                  <option value="13">13</option>
+                  <option value="14">14</option>
+                  <option value="15">15</option>
+                  <option value="16" selected>16</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div id="plinkoAutoFields" hidden>
+            <div class="instant-field">
+              <label for="plinkoAutoBets">Number of bets</label>
+              <input class="instant-number" id="plinkoAutoBets" type="number" value="20" min="1" max="1000" step="1">
+            </div>
+            <div class="instant-field">
+              <label for="plinkoIntervalDropdownTrigger">Drop speed</label>
+              <div class="custom-select-wrapper" id="plinkoIntervalWrapper">
+                <button type="button" class="custom-select-trigger" id="plinkoIntervalDropdownTrigger" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="custom-select-label">Standard</span>
+                  <span class="custom-select-chevron">▾</span>
+                </button>
+                <div class="custom-select-menu" role="listbox" tabindex="-1">
+                  <div class="custom-select-option" role="option" data-value="250"><span>Fast (250ms)</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option selected" role="option" data-value="500" aria-selected="true"><span>Standard (500ms)</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="1000"><span>Relaxed (1000ms)</span><span class="opt-check">✓</span></div>
+                </div>
+                <select id="plinkoAutoInterval" class="stake-select" hidden aria-hidden="true" tabindex="-1">
+                  <option value="250">Fast</option>
+                  <option value="500" selected>Standard</option>
+                  <option value="1000">Relaxed</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div id="plinkoAutoProgress" class="plinko-auto-progress" hidden><div class="plinko-progress-line"><span id="plinkoAutoCount">0 / 20 bets</span><button type="button" id="plinkoCancelRun" hidden>End series</button></div><progress id="plinkoAutoMeter" value="0" max="20" aria-label="Autobet progress"></progress></div>
           <button class="instant-play" id="instantPlay" type="submit">Flip coin</button>
           <p id="instantMessage" class="instant-message" role="status" aria-live="polite">Link your Discord wallet to play.</p>

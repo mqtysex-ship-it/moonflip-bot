@@ -40,6 +40,9 @@ async function runTests() {
     assert(cssText.includes('.stake-select:disabled'), 'Must style disabled stake select');
     assert(htmlText.includes('id="minesDropdownTrigger"'), 'Must have custom mines dropdown trigger');
     assert(htmlText.includes('id="minesDropdownMenu"'), 'Must have custom mines dropdown menu');
+    assert(htmlText.includes('id="plinkoRiskDropdownTrigger"'), 'Must have custom plinko risk dropdown trigger');
+    assert(htmlText.includes('id="plinkoRowsDropdownTrigger"'), 'Must have custom plinko rows dropdown trigger');
+    assert(htmlText.includes('id="plinkoIntervalDropdownTrigger"'), 'Must have custom plinko interval dropdown trigger');
     assert(!htmlText.includes('Low Risk'), 'Must not contain risk labels in dropdown');
 
     const gameImages = [...htmlText.matchAll(/src="(\/play\/assets\/cover-[^"?]+\.svg)/g)].map(match=>match[1]);

@@ -3188,58 +3188,125 @@
     });
   });
 
-  // Custom Mines Dropdown Interactions
-  if (el.minesDropdownTrigger) {
-    el.minesDropdownTrigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (state.activeGame) return;
-      const isOpen = el.minesDropdownWrapper?.classList.toggle('open');
-      el.minesDropdownTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-      if (isOpen) {
-        Sound.click();
-        const selectedOpt = el.minesDropdownMenu?.querySelector('.custom-select-option.selected');
-        if (selectedOpt) {
-          selectedOpt.scrollIntoView({ block: 'nearest' });
+  // Universal Custom Dropdown System for All Games (Mines, Plinko, etc.)
+  function initCustomDropdowns() {
+    document.querySelectorAll('.custom-select-wrapper').forEach((wrapper) => {
+      if (wrapper.dataset.customDropdownReady) return;
+      wrapper.dataset.customDropdownReady = 'true';
+
+      const trigger = wrapper.querySelector('.custom-select-trigger');
+      const label = wrapper.querySelector('.custom-select-label');
+      const menu = wrapper.querySelector('.custom-select-menu');
+      const options = wrapper.querySelectorAll('.custom-select-option');
+      const select = wrapper.querySelector('select');
+
+      function syncUI() {
+        if (!select) return;
+        const val = select.value;
+        let matchedText = '';
+        options.forEach((opt) => {
+          const isMatch = String(opt.dataset.value) === String(val);
+          opt.classList.toggle('selected', isMatch);
+          if (isMatch) {
+            opt.setAttribute('aria-selected', 'true');
+            const span = opt.querySelector('span:first-child');
+            matchedText = span ? span.textContent : opt.textContent.replace('✓', '').trim();
+          } else {
+            opt.removeAttribute('aria-selected');
+          }
+        });
+        if (label && matchedText) {
+          label.textContent = matchedText;
         }
       }
-    });
-  }
 
-  if (el.minesDropdownOptions) {
-    el.minesDropdownOptions.forEach((opt) => {
-      opt.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (state.activeGame) return;
-        Sound.click();
-        const val = Number(opt.dataset.value);
-        if (val >= 1 && val <= 24) {
-          state.bombs = val;
-          syncBombPills(val);
-          updateMinesTelemetry();
-        }
-        el.minesDropdownWrapper?.classList.remove('open');
-        el.minesDropdownTrigger?.setAttribute('aria-expanded', 'false');
+      if (trigger) {
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (trigger.disabled) return;
+          if (wrapper.id === 'minesDropdownWrapper' && state.activeGame) return;
+
+          // Close all other open dropdowns
+          document.querySelectorAll('.custom-select-wrapper.open').forEach((w) => {
+            if (w !== wrapper) {
+              w.classList.remove('open');
+              w.querySelector('.custom-select-trigger')?.setAttribute('aria-expanded', 'false');
+            }
+          });
+
+          const isOpen = wrapper.classList.toggle('open');
+          trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          if (isOpen) {
+            if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+            const selectedOpt = menu?.querySelector('.custom-select-option.selected');
+            if (selectedOpt) {
+              selectedOpt.scrollIntoView({ block: 'nearest' });
+            }
+          }
+        });
+      }
+
+      options.forEach((opt) => {
+        opt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (trigger?.disabled) return;
+          if (wrapper.id === 'minesDropdownWrapper' && state.activeGame) return;
+
+          if (typeof Sound !== 'undefined' && Sound.click) Sound.click();
+          const val = opt.dataset.value;
+          if (select) {
+            select.value = val;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          if (wrapper.id === 'minesDropdownWrapper') {
+            const numVal = Number(val);
+            if (numVal >= 1 && numVal <= 24) {
+              state.bombs = numVal;
+              syncBombPills(numVal);
+              updateMinesTelemetry();
+            }
+          }
+          syncUI();
+          wrapper.classList.remove('open');
+          trigger?.setAttribute('aria-expanded', 'false');
+        });
       });
+
+      if (select) {
+        select.addEventListener('change', () => {
+          syncUI();
+        });
+      }
+
+      // Initial sync
+      syncUI();
     });
   }
 
+  // Global listener to close open custom dropdowns when clicking outside
   document.addEventListener('click', (e) => {
-    if (el.minesDropdownWrapper && !el.minesDropdownWrapper.contains(e.target)) {
-      el.minesDropdownWrapper.classList.remove('open');
-      el.minesDropdownTrigger?.setAttribute('aria-expanded', 'false');
+    document.querySelectorAll('.custom-select-wrapper.open').forEach((wrapper) => {
+      if (!wrapper.contains(e.target)) {
+        wrapper.classList.remove('open');
+        wrapper.querySelector('.custom-select-trigger')?.setAttribute('aria-expanded', 'false');
+      }
+    });
+  });
+
+  // Global listener for Escape key to close open custom dropdowns
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.custom-select-wrapper.open').forEach((wrapper) => {
+        wrapper.classList.remove('open');
+        const trigger = wrapper.querySelector('.custom-select-trigger');
+        trigger?.setAttribute('aria-expanded', 'false');
+        trigger?.focus();
+      });
     }
   });
 
-  if (el.minesDropdownWrapper) {
-    el.minesDropdownWrapper.addEventListener('keydown', (e) => {
-      if (state.activeGame) return;
-      if (e.key === 'Escape') {
-        el.minesDropdownWrapper.classList.remove('open');
-        el.minesDropdownTrigger?.setAttribute('aria-expanded', 'false');
-        el.minesDropdownTrigger?.focus();
-      }
-    });
-  }
+  window.initCustomDropdowns = initCustomDropdowns;
+  initCustomDropdowns();
 
 
   // Crash Wager & Auto-Cashout Controls

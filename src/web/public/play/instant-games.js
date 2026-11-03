@@ -53,7 +53,13 @@ window.createInstantGamesUI = function ({api, updateBalance, refreshProfile, sta
     play.textContent = recovery ? 'Recover round' : autoMode ? (automation.running ? 'Stop autobet' : automation.run?.status === 'running' ? 'Resume autobet' : 'Start autobet') : game === 'coinflip' ? (jobs.size ? 'Flipping…' : 'Flip coin') : 'Drop ball';
     play.disabled = !state.authenticated || !config || automation.busy || (!automation.running && (blocked || autoMode && jobs.size > 0));
     const locked = jobs.size > 0 || saved().length > 0 || game === 'plinko' && (automation.running || automation.busy || automation.run?.status === 'running');
-    form.querySelectorAll('input,select,button[data-instant-adjust]').forEach(el => el.disabled = locked);
+    form.querySelectorAll('input,select,.custom-select-trigger,button[data-instant-adjust]').forEach(el => el.disabled = locked);
+    if (locked) {
+      form.querySelectorAll('.custom-select-wrapper.open').forEach(w => {
+        w.classList.remove('open');
+        w.querySelector('.custom-select-trigger')?.setAttribute('aria-expanded', 'false');
+      });
+    }
     document.querySelectorAll('[data-plinko-mode]').forEach(button => {
       button.classList.toggle('active', button.dataset.plinkoMode === plinkoMode);
       button.setAttribute('aria-pressed', String(button.dataset.plinkoMode === plinkoMode));
