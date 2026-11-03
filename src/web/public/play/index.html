@@ -610,28 +610,69 @@
 
             <div class="deck-field">
               <div class="field-header">
-                <label for="minesCountSelect">Mines</label>
+                <label for="minesDropdownTrigger">Mines</label>
                 <span class="field-aux text-danger" id="auxMineCount">3 Mines</span>
               </div>
 
-              <div class="stake-select-wrapper">
-                <select id="minesCountSelect" class="stake-select">
-                  <option value="1">1 Mine (Low Risk)</option>
-                  <option value="2">2 Mines</option>
-                  <option value="3" selected>3 Mines (Standard)</option>
-                  <option value="4">4 Mines</option>
-                  <option value="5">5 Mines (Medium)</option>
-                  <option value="6">6 Mines</option>
-                  <option value="7">7 Mines</option>
-                  <option value="8">8 Mines</option>
-                  <option value="9">9 Mines</option>
-                  <option value="10">10 Mines (High)</option>
-                  <option value="12">12 Mines</option>
-                  <option value="15">15 Mines (Extreme)</option>
-                  <option value="20">20 Mines (Insane)</option>
-                  <option value="24">24 Mines (1 Safe Gem)</option>
+              <div class="custom-select-wrapper" id="minesDropdownWrapper">
+                <button type="button" class="custom-select-trigger" id="minesDropdownTrigger" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="custom-select-label" id="minesDropdownLabel">3 Mines</span>
+                  <span class="custom-select-chevron">▾</span>
+                </button>
+
+                <div class="custom-select-menu" id="minesDropdownMenu" role="listbox" tabindex="-1">
+                  <div class="custom-select-option" role="option" data-value="1"><span>1 Mine</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="2"><span>2 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option selected" role="option" data-value="3" aria-selected="true"><span>3 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="4"><span>4 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="5"><span>5 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="6"><span>6 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="7"><span>7 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="8"><span>8 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="9"><span>9 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="10"><span>10 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="11"><span>11 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="12"><span>12 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="13"><span>13 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="14"><span>14 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="15"><span>15 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="16"><span>16 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="17"><span>17 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="18"><span>18 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="19"><span>19 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="20"><span>20 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="21"><span>21 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="22"><span>22 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="23"><span>23 Mines</span><span class="opt-check">✓</span></div>
+                  <div class="custom-select-option" role="option" data-value="24"><span>24 Mines</span><span class="opt-check">✓</span></div>
+                </div>
+
+                <select id="minesCountSelect" class="stake-select" hidden aria-hidden="true" tabindex="-1">
+                    <option value="1">1 Mine</option>
+                    <option value="2">2 Mines</option>
+                    <option value="3" selected>3 Mines</option>
+                    <option value="4">4 Mines</option>
+                    <option value="5">5 Mines</option>
+                    <option value="6">6 Mines</option>
+                    <option value="7">7 Mines</option>
+                    <option value="8">8 Mines</option>
+                    <option value="9">9 Mines</option>
+                    <option value="10">10 Mines</option>
+                    <option value="11">11 Mines</option>
+                    <option value="12">12 Mines</option>
+                    <option value="13">13 Mines</option>
+                    <option value="14">14 Mines</option>
+                    <option value="15">15 Mines</option>
+                    <option value="16">16 Mines</option>
+                    <option value="17">17 Mines</option>
+                    <option value="18">18 Mines</option>
+                    <option value="19">19 Mines</option>
+                    <option value="20">20 Mines</option>
+                    <option value="21">21 Mines</option>
+                    <option value="22">22 Mines</option>
+                    <option value="23">23 Mines</option>
+                    <option value="24">24 Mines</option>
                 </select>
-                <span class="select-chevron">▾</span>
               </div>
 
               <div class="mines-pills">

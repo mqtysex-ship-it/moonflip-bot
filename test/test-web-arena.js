@@ -38,6 +38,9 @@ async function runTests() {
     assert(jsText.includes('if (state.activeGame) return;'), 'Must guard controls during active game');
     assert(cssText.includes('.mine-pill:disabled'), 'Must style disabled mine pills');
     assert(cssText.includes('.stake-select:disabled'), 'Must style disabled stake select');
+    assert(htmlText.includes('id="minesDropdownTrigger"'), 'Must have custom mines dropdown trigger');
+    assert(htmlText.includes('id="minesDropdownMenu"'), 'Must have custom mines dropdown menu');
+    assert(!htmlText.includes('Low Risk'), 'Must not contain risk labels in dropdown');
 
     const gameImages = [...htmlText.matchAll(/src="(\/play\/assets\/cover-[^"?]+\.svg)/g)].map(match=>match[1]);
     assert.equal(new Set(gameImages).size,7);

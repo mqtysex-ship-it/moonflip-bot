@@ -1319,6 +1319,11 @@
     btnMax: document.getElementById('btnMax'),
     quickChips: document.querySelectorAll('.chip-btn:not(.crash-chip-btn)'),
     minesCountSelect: document.getElementById('minesCountSelect'),
+    minesDropdownWrapper: document.getElementById('minesDropdownWrapper'),
+    minesDropdownTrigger: document.getElementById('minesDropdownTrigger'),
+    minesDropdownLabel: document.getElementById('minesDropdownLabel'),
+    minesDropdownMenu: document.getElementById('minesDropdownMenu'),
+    minesDropdownOptions: document.querySelectorAll('.custom-select-option'),
     auxMineCount: document.getElementById('auxMineCount'),
     minePills: document.querySelectorAll('.mine-pill:not(.crash-auto-pill)'),
     teleMines: document.getElementById('teleMines'),
@@ -2293,6 +2298,11 @@
   function setMinesControlsLocked(locked) {
     if (el.wagerInput) el.wagerInput.disabled = locked;
     if (el.minesCountSelect) el.minesCountSelect.disabled = locked;
+    if (el.minesDropdownTrigger) el.minesDropdownTrigger.disabled = locked;
+    if (locked && el.minesDropdownWrapper) {
+      el.minesDropdownWrapper.classList.remove('open');
+      el.minesDropdownTrigger?.setAttribute('aria-expanded', 'false');
+    }
     if (el.minePills) {
       el.minePills.forEach((p) => {
         p.disabled = locked;
@@ -2367,7 +2377,18 @@
   }
 
   function syncBombPills(val) {
-    if (el.auxMineCount) el.auxMineCount.textContent = `${val} ${val === 1 ? 'Mine' : 'Mines'}`;
+    const label = `${val} ${val === 1 ? 'Mine' : 'Mines'}`;
+    if (el.auxMineCount) el.auxMineCount.textContent = label;
+    if (el.minesDropdownLabel) el.minesDropdownLabel.textContent = label;
+    if (el.minesCountSelect) el.minesCountSelect.value = String(val);
+    if (el.minesDropdownOptions) {
+      el.minesDropdownOptions.forEach((opt) => {
+        const isMatch = Number(opt.dataset.value) === val;
+        opt.classList.toggle('selected', isMatch);
+        if (isMatch) opt.setAttribute('aria-selected', 'true');
+        else opt.removeAttribute('aria-selected');
+      });
+    }
     el.minePills.forEach((p) => {
       p.classList.toggle('active', Number(p.dataset.bombs) === val);
     });
@@ -3166,6 +3187,60 @@
       updateMinesTelemetry();
     });
   });
+
+  // Custom Mines Dropdown Interactions
+  if (el.minesDropdownTrigger) {
+    el.minesDropdownTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state.activeGame) return;
+      const isOpen = el.minesDropdownWrapper?.classList.toggle('open');
+      el.minesDropdownTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (isOpen) {
+        Sound.click();
+        const selectedOpt = el.minesDropdownMenu?.querySelector('.custom-select-option.selected');
+        if (selectedOpt) {
+          selectedOpt.scrollIntoView({ block: 'nearest' });
+        }
+      }
+    });
+  }
+
+  if (el.minesDropdownOptions) {
+    el.minesDropdownOptions.forEach((opt) => {
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (state.activeGame) return;
+        Sound.click();
+        const val = Number(opt.dataset.value);
+        if (val >= 1 && val <= 24) {
+          state.bombs = val;
+          syncBombPills(val);
+          updateMinesTelemetry();
+        }
+        el.minesDropdownWrapper?.classList.remove('open');
+        el.minesDropdownTrigger?.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (el.minesDropdownWrapper && !el.minesDropdownWrapper.contains(e.target)) {
+      el.minesDropdownWrapper.classList.remove('open');
+      el.minesDropdownTrigger?.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  if (el.minesDropdownWrapper) {
+    el.minesDropdownWrapper.addEventListener('keydown', (e) => {
+      if (state.activeGame) return;
+      if (e.key === 'Escape') {
+        el.minesDropdownWrapper.classList.remove('open');
+        el.minesDropdownTrigger?.setAttribute('aria-expanded', 'false');
+        el.minesDropdownTrigger?.focus();
+      }
+    });
+  }
+
 
   // Crash Wager & Auto-Cashout Controls
   el.crashChips.forEach((chip) => {
