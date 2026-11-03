@@ -54,3 +54,68 @@ assert.equal((await activeStore.loadActiveMines('123456789')).balanceAfterWager,
 assert.equal((await activeStore.loadActiveBlackjack('123456789')).balanceAfterWager, 800);
 assert.equal((await activeStore.loadActiveCrash('123456789')).balanceAfterWager, 800);
 assert.equal(activeQueries, 3);
+
+// Rakeback tests
+let docStore = { 'rakeback/123456789': { claimedWager: 0, lifetimeClaimed: 0, claims: {} } };
+let walletBalance = 1000n;
+let walletTotalBet = 2000n;
+const rakebackClient = {
+  async query(sql, params) {
+    if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return { rows: [] };
+    if (sql.includes('RETURNING discord_user_id')) {
+      return { rows: [{ discord_user_id: params[0], balance: walletBalance.toString(), total_bet: walletTotalBet.toString(), total_won: '0', games_played: '1', last_daily: null, xp: '0', level: 1, created_at: new Date('2026-01-01T00:00:00Z'), username: 'Player', avatar_url: null }] };
+    }
+    if (sql.includes('FROM moonflip_private.documents WHERE key = $1')) {
+      const val = docStore[params[0]];
+      return { rows: val ? [{ value: structuredClone(val) }] : [] };
+    }
+    if (sql.includes('INSERT INTO moonflip_private.documents')) {
+      if (!docStore[params[0]]) docStore[params[0]] = JSON.parse(params[1]);
+      return { rows: [] };
+    }
+    if (sql.includes('UPDATE moonflip_private.documents')) {
+      docStore[params[0]] = JSON.parse(params[1]);
+      return { rows: [] };
+    }
+    if (sql.includes('FROM moonflip_private.wallets WHERE discord_user_id = $1 FOR UPDATE')) {
+      return { rows: [{ balance: walletBalance.toString(), total_bet: walletTotalBet.toString() }] };
+    }
+    if (sql.includes('UPDATE moonflip_private.wallets SET balance')) {
+      walletBalance += BigInt(params[1]);
+      return { rows: [] };
+    }
+    throw new Error('unexpected rakeback query: ' + sql);
+  },
+  release() {}
+};
+const rakebackPool = {
+  async query(sql, params) { return rakebackClient.query(sql, params); },
+  async connect() { return rakebackClient; }
+};
+const rakebackEconomy = new PostgresEconomy(rakebackPool);
+const rbInfo = await rakebackEconomy.getRakeback('123456789');
+assert.equal(rbInfo.totalWagered, 2000);
+assert.equal(rbInfo.claimedWager, 0);
+assert.equal(rbInfo.available, 10); // 2000 * 0.005 = 10 tokens
+
+const claimOp = '00000000-0000-4000-8000-000000000301';
+const claimRes = await rakebackEconomy.claimRakeback(claimOp, '123456789');
+assert.equal(claimRes.success, true);
+assert.equal(claimRes.applied, true);
+assert.equal(claimRes.amount, 10);
+assert.equal(claimRes.balance, 1010);
+assert.equal(walletBalance, 1010n);
+
+// Replay with identical operationId is idempotent
+const replayRes = await rakebackEconomy.claimRakeback(claimOp, '123456789');
+assert.equal(replayRes.success, true);
+assert.equal(replayRes.applied, false);
+assert.equal(replayRes.amount, 10);
+assert.equal(replayRes.balance, 1010);
+
+// Second claim with new op has 0 available
+const claimOp2 = '00000000-0000-4000-8000-000000000302';
+const secondRes = await rakebackEconomy.claimRakeback(claimOp2, '123456789');
+assert.equal(secondRes.success, false);
+assert.equal(secondRes.amount, 0);
+console.log('Postgres economy rakeback tests passed');

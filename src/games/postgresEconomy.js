@@ -153,6 +153,130 @@ export class PostgresEconomy {
     const row = result.rows[0];
     return { balance: number(row.balance_after, 'balance'), applied: row.applied, success: row.success, availableAt: row.available_at };
   }
+  async getRakeback(userId) {
+    identity(userId, 'user');
+    const user = await this.getUser(userId);
+    const totalWagered = user.totalBet || 0;
+    const docRes = await this.pool.query(
+      'SELECT value FROM moonflip_private.documents WHERE key = $1',
+      [`rakeback/${userId}`]
+    );
+    const doc = docRes.rows[0]?.value || {};
+    const claimedWager = Number(doc.claimedWager || 0);
+    const lifetimeClaimed = Number(doc.lifetimeClaimed || 0);
+    const unclaimedWager = Math.max(0, totalWagered - claimedWager);
+    const rate = 0.005;
+    const available = Math.floor(unclaimedWager * rate);
+    return {
+      rate,
+      ratePercent: 0.5,
+      totalWagered,
+      claimedWager,
+      unclaimedWager,
+      available,
+      lifetimeClaimed
+    };
+  }
+  async claimRakeback(operationId, userId) {
+    identity(operationId, 'operation');
+    identity(userId, 'user');
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const docKey = `rakeback/${userId}`;
+      await client.query(
+        'INSERT INTO moonflip_private.documents (key, value) VALUES ($1, $2::jsonb) ON CONFLICT (key) DO NOTHING',
+        [docKey, JSON.stringify({ claimedWager: 0, lifetimeClaimed: 0, claims: {} })]
+      );
+      const docRes = await client.query(
+        'SELECT value FROM moonflip_private.documents WHERE key = $1 FOR UPDATE',
+        [docKey]
+      );
+      const doc = docRes.rows[0]?.value || { claimedWager: 0, lifetimeClaimed: 0, claims: {} };
+      if (!doc.claims || typeof doc.claims !== 'object') doc.claims = {};
+
+      if (doc.claims[operationId]) {
+        const prior = doc.claims[operationId];
+        await client.query('COMMIT');
+        return {
+          success: true,
+          applied: false,
+          amount: Number(prior.amount || 0),
+          balance: Number(prior.balanceAfter || 0),
+          lifetimeClaimed: Number(doc.lifetimeClaimed || 0)
+        };
+      }
+
+      const walletRes = await client.query(
+        'SELECT balance, total_bet FROM moonflip_private.wallets WHERE discord_user_id = $1 FOR UPDATE',
+        [userId]
+      );
+      if (walletRes.rows.length === 0) {
+        throw new Error('wallet not found');
+      }
+
+      const totalWagered = Number(walletRes.rows[0].total_bet || 0);
+      const currentBalance = BigInt(walletRes.rows[0].balance);
+      const claimedWager = Number(doc.claimedWager || 0);
+      const unclaimedWager = Math.max(0, totalWagered - claimedWager);
+      const rate = 0.005;
+      const available = Math.floor(unclaimedWager * rate);
+
+      if (available < 1) {
+        await client.query('COMMIT');
+        return {
+          success: false,
+          applied: false,
+          amount: 0,
+          balance: Number(currentBalance),
+          reason: 'No rakeback available to claim',
+          lifetimeClaimed: Number(doc.lifetimeClaimed || 0)
+        };
+      }
+
+      const wagerConsumed = Math.floor(available / rate);
+      const newClaimedWager = claimedWager + wagerConsumed;
+      const newLifetimeClaimed = Number(doc.lifetimeClaimed || 0) + available;
+      const newBalance = currentBalance + BigInt(available);
+
+      doc.claimedWager = newClaimedWager;
+      doc.lifetimeClaimed = newLifetimeClaimed;
+      doc.claims[operationId] = {
+        amount: available,
+        balanceAfter: Number(newBalance),
+        claimedAt: Date.now()
+      };
+
+      const claimKeys = Object.keys(doc.claims);
+      if (claimKeys.length > 50) {
+        delete doc.claims[claimKeys[0]];
+      }
+
+      await client.query(
+        'UPDATE moonflip_private.wallets SET balance = balance + $2, updated_at = now() WHERE discord_user_id = $1',
+        [userId, available]
+      );
+
+      await client.query(
+        'UPDATE moonflip_private.documents SET value = $2::jsonb, updated_at = now() WHERE key = $1',
+        [docKey, JSON.stringify(doc)]
+      );
+
+      await client.query('COMMIT');
+      return {
+        success: true,
+        applied: true,
+        amount: available,
+        balance: Number(newBalance),
+        lifetimeClaimed: newLifetimeClaimed
+      };
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
   async addXp(operationId, userId, value) {
     identity(operationId, 'operation'); identity(userId, 'user'); amount(value, 'xp');
     const result = await this.pool.query('select * from moonflip_private.add_wallet_xp($1::uuid,$2,$3::bigint)', [operationId, userId, value]);

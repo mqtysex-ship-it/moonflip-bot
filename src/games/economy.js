@@ -307,6 +307,82 @@ export function claimDaily(userId, operationId = randomUUID()) {
   };
 }
 
+export function getRakeback(userId) {
+  if (databaseEconomy) return databaseEconomy.getRakeback(userId);
+  const user = getUser(userId);
+  const totalWagered = user.totalBet || 0;
+  const claimedWager = user.claimedWager || 0;
+  const lifetimeClaimed = user.lifetimeClaimed || 0;
+  const unclaimedWager = Math.max(0, totalWagered - claimedWager);
+  const rate = 0.005;
+  const available = Math.floor(unclaimedWager * rate);
+  return {
+    rate,
+    ratePercent: 0.5,
+    totalWagered,
+    claimedWager,
+    unclaimedWager,
+    available,
+    lifetimeClaimed
+  };
+}
+
+export function claimRakeback(userId, operationId = randomUUID()) {
+  if (databaseEconomy) {
+    return databaseEconomy.claimRakeback(operationId, userId).then(result => {
+      if (result.applied && result.success) {
+        emitDatabaseBalance(userId, 'rakeback', result.amount, result.balance);
+      }
+      return result;
+    });
+  }
+  const user = getUser(userId);
+  user.rakebackClaims = user.rakebackClaims || {};
+  if (user.rakebackClaims[operationId]) {
+    const prior = user.rakebackClaims[operationId];
+    return {
+      success: true,
+      applied: false,
+      amount: prior.amount,
+      balance: prior.balanceAfter,
+      lifetimeClaimed: user.lifetimeClaimed || 0
+    };
+  }
+  const totalWagered = user.totalBet || 0;
+  const claimedWager = user.claimedWager || 0;
+  const unclaimedWager = Math.max(0, totalWagered - claimedWager);
+  const rate = 0.005;
+  const available = Math.floor(unclaimedWager * rate);
+  if (available < 1) {
+    return {
+      success: false,
+      applied: false,
+      amount: 0,
+      balance: user.balance,
+      reason: 'No rakeback available to claim',
+      lifetimeClaimed: user.lifetimeClaimed || 0
+    };
+  }
+  const wagerConsumed = Math.floor(available / rate);
+  user.claimedWager = (user.claimedWager || 0) + wagerConsumed;
+  user.lifetimeClaimed = (user.lifetimeClaimed || 0) + available;
+  user.balance += available;
+  user.rakebackClaims[operationId] = {
+    amount: available,
+    balanceAfter: user.balance,
+    claimedAt: Date.now()
+  };
+  scheduleSave();
+  emitEconomyChange(userId, 'rakeback', available);
+  return {
+    success: true,
+    applied: true,
+    amount: available,
+    balance: user.balance,
+    lifetimeClaimed: user.lifetimeClaimed
+  };
+}
+
 export function getLeaderboard(limit = 10) {
   if (databaseEconomy) return databaseEconomy.getLeaderboard(limit);
   return Object.entries(db.users)

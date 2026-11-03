@@ -13,7 +13,8 @@ export function setupRewardsApi(app,{resolvePlayer,pool,economyEvents}) {
       const session=await authorize(req,res);if(!session)return;
       const user=await economy.getUser(session.userId);
       const availableAt=user.lastDaily?user.lastDaily+86400000:0;
-      res.json({amount:500,availableAt,serverNow:Date.now(),available:availableAt<=Date.now()});
+      const rakeback=await economy.getRakeback(session.userId);
+      res.json({amount:500,availableAt,serverNow:Date.now(),available:availableAt<=Date.now(),rakeback});
     } catch {res.status(503).json({error:'Rewards are unavailable. Please retry.'});}
   });
   app.post('/api/play/rewards/claim',async(req,res)=>{
@@ -27,5 +28,24 @@ export function setupRewardsApi(app,{resolvePlayer,pool,economyEvents}) {
       }
       res.json({success:result.success,amount:result.success?500:0,balance:user.balance,availableAt:new Date(result.availableAt).getTime(),serverNow:Date.now()});
     } catch {res.status(503).json({error:'Could not confirm your reward. Retry to recover this claim.'});}
+  });
+  app.post('/api/play/rewards/rakeback/claim',async(req,res)=>{
+    try {
+      const session=await authorize(req,res);if(!session)return;
+      if(!uuid.test(req.body?.operationId || ''))return res.status(400).json({error:'A valid claim ID is required.'});
+      const result=await economy.claimRakeback(req.body.operationId,session.userId);
+      if(result.applied&&result.success){
+        try{economyEvents?.emit('balanceChanged',{userId:session.userId,balance:result.balance,action:'rakeback',amount:result.amount});}catch{}
+      }
+      const rakeback=await economy.getRakeback(session.userId);
+      res.json({
+        success: result.success,
+        amount: result.amount || 0,
+        balance: result.balance,
+        lifetimeClaimed: result.lifetimeClaimed,
+        rakeback,
+        serverNow: Date.now()
+      });
+    } catch {res.status(503).json({error:'Could not confirm your rakeback claim. Retry to recover this claim.'});}
   });
 }

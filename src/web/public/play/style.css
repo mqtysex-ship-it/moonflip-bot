@@ -3209,6 +3209,15 @@ html, body {
 .rewards-caption { color:#aebfcc; font-size:13px; margin:12px 0 28px; }
 .rewards-status { min-height:36px; margin:14px 0 0; color:#b0c1ce; font-size:12px; line-height:1.5; }
 .rewards-card button:focus-visible { outline:2px solid var(--mint); outline-offset:3px; }
+.rewards-nav { display:flex; background:#0c161e; border:1px solid #1c2c38; border-radius:8px; padding:3px; gap:4px; margin-bottom:18px; }
+.rewards-tab-btn { flex:1; padding:8px 12px; font-size:13px; font-weight:600; border:0; border-radius:6px; background:transparent; color:#788c9b; cursor:pointer; transition:all .15s ease; }
+.rewards-tab-btn:hover { color:#c1d2e0; }
+.rewards-tab-btn.active { background:#1b2a37; color:#2ef2b8; box-shadow:0 2px 8px #0004; }
+.rewards-panel[hidden] { display:none !important; }
+.rakeback-stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0 20px; background:#0a141b; border:1px solid #1a2a36; border-radius:8px; padding:10px 14px; text-align:center; }
+.rakeback-stat-item { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.rakeback-stat-label { font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#6d8090; font-weight:600; }
+.rakeback-stat-value { font-size:14px; font-weight:700; color:#e2ecf3; font-variant-numeric:tabular-nums; }
 
 /* Appearance tokens. Brand assets keep their original identity. */
 :root { --surface-controls:#111b24; --surface-row:#1d2c36; --surface-selected:#203b33; --accent-ink:#06251c; --line:#30404c; --ink-soft:#b7c5d1; color-scheme:dark; }

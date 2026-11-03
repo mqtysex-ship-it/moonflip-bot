@@ -1106,11 +1106,40 @@
   <div class="fairness-modal" id="rewardsModal">
     <section class="rewards-card" role="dialog" aria-modal="true" aria-labelledby="rewardsTitle">
       <header class="rewards-header"><h2 id="rewardsTitle">Rewards</h2><button type="button" id="closeRewards" aria-label="Close rewards">&times;</button></header>
-      <div class="rewards-gift" aria-hidden="true"><svg width="64" height="64" viewBox="0 0 64 64" fill="none"><path d="M13 29h38v26H13z" fill="#214a40"/><path d="M9 21h46v12H9z" fill="#2bd7a6"/><path d="M29 21h6v34h-6z" fill="#93f6d5"/><path d="M32 21H21a7 7 0 1 1 7-7l4 7Zm0 0h11a7 7 0 1 0-7-7l-4 7Z" stroke="#93f6d5" stroke-width="3"/></svg></div>
-      <h3>Daily reward</h3><div class="rewards-amount"><img src="/play/assets/token.png" width="28" height="28" alt=""><strong>500</strong><span>tokens</span></div>
-      <p class="rewards-caption">A little extra, every day.</p>
-      <button type="button" class="instant-play" id="claimDailyReward" disabled>Claim 500 tokens</button>
-      <p id="rewardsStatus" class="rewards-status" role="status" aria-live="polite">Checking your reward…</p>
+      <div class="rewards-nav" role="tablist" aria-label="Rewards types">
+        <button type="button" class="rewards-tab-btn active" id="tabDailyReward" role="tab" aria-selected="true" aria-controls="panelDailyReward">Daily Gift</button>
+        <button type="button" class="rewards-tab-btn" id="tabRakeback" role="tab" aria-selected="false" aria-controls="panelRakeback">Rakeback</button>
+      </div>
+      <div class="rewards-panel" id="panelDailyReward" role="tabpanel" aria-labelledby="tabDailyReward">
+        <div class="rewards-gift" aria-hidden="true"><svg width="64" height="64" viewBox="0 0 64 64" fill="none"><path d="M13 29h38v26H13z" fill="#214a40"/><path d="M9 21h46v12H9z" fill="#2bd7a6"/><path d="M29 21h6v34h-6z" fill="#93f6d5"/><path d="M32 21H21a7 7 0 1 1 7-7l4 7Zm0 0h11a7 7 0 1 0-7-7l-4 7Z" stroke="#93f6d5" stroke-width="3"/></svg></div>
+        <h3>Daily reward</h3><div class="rewards-amount"><img src="/play/assets/token.png" width="28" height="28" alt=""><strong>500</strong><span>tokens</span></div>
+        <p class="rewards-caption">A little extra, every day.</p>
+        <button type="button" class="instant-play" id="claimDailyReward" disabled>Claim 500 tokens</button>
+        <p id="rewardsStatus" class="rewards-status" role="status" aria-live="polite">Checking your reward…</p>
+      </div>
+      <div class="rewards-panel" id="panelRakeback" role="tabpanel" aria-labelledby="tabRakeback" hidden>
+        <div class="rewards-gift" aria-hidden="true">
+          <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#2ef2b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+        </div>
+        <h3>Turnover Rakeback</h3>
+        <div class="rewards-amount"><img src="/play/assets/token.png" width="28" height="28" alt=""><strong id="rakebackAmount">0</strong><span>tokens</span></div>
+        <p class="rewards-caption">0.5% turnover cashback on every token wagered across all games.</p>
+        <div class="rakeback-stats-grid">
+          <div class="rakeback-stat-item">
+            <span class="rakeback-stat-label">Total Wagered</span>
+            <span class="rakeback-stat-value" id="rakebackWagered">0</span>
+          </div>
+          <div class="rakeback-stat-item">
+            <span class="rakeback-stat-label">Lifetime Claimed</span>
+            <span class="rakeback-stat-value" id="rakebackClaimed">0</span>
+          </div>
+        </div>
+        <button type="button" class="instant-play" id="claimRakeback" disabled>Claim Rakeback</button>
+        <p id="rakebackStatus" class="rewards-status" role="status" aria-live="polite">Loading rakeback…</p>
+      </div>
     </section>
   </div>
 
