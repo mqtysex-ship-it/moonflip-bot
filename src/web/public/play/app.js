@@ -1570,6 +1570,7 @@
     return json;
   }
 
+  let liveChatUi = null;
   let sseSource = null;
   let sseRetryTimer = null;
 
@@ -1604,6 +1605,10 @@
 
     sseSource = new EventSource(`${API_BASE}/stream?${qs.toString()}`);
 
+    sseSource.addEventListener('open', () => liveChatUi?.refresh());
+    sseSource.addEventListener('live_chat', event => { try { liveChatUi?.receive(JSON.parse(event.data)); } catch {} });
+    sseSource.addEventListener('live_chat_delete', event => { try { liveChatUi?.remove(JSON.parse(event.data).id); } catch {} });
+    sseSource.addEventListener('live_chat_rain', event => { try { liveChatUi?.rain(JSON.parse(event.data)); } catch {} });
     sseSource.addEventListener('instant_round', (event) => {
       try { state.instantActivity.unshift(JSON.parse(event.data)); state.instantActivity=state.instantActivity.slice(0,20); renderLiveActivityTable(state.activeStageTab); } catch {}
     });
@@ -3510,6 +3515,7 @@
     buttons[index].focus();
   });
 
+  liveChatUi = window.createLiveChatUI?.({api,state}) || null;
   appearanceUi = window.createAppearanceUI({api,state});
   rewardsUi = window.createRewardsUI({api,state,updateBalance:updateBalanceDisplay,refreshProfile});
   document.getElementById('btnOpenRewards')?.addEventListener('click',()=>rewardsUi.open());

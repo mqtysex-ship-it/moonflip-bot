@@ -1,3 +1,6 @@
+import { LiveChatRain } from '../games/liveChatRain.js';
+import { setupLiveChatApi } from './liveChatApi.js';
+import { LiveChatStore } from '../games/liveChatStore.js';
 import { setupPlayerFeaturesApi } from './playerFeaturesApi.js';
 import { setupRewardsApi } from './rewardsApi.js';
 import { setupInstantGameApi } from './instantGameApi.js';
@@ -867,7 +870,24 @@ export async function shutdownWebCrash() {
 
 const streamTickets = new Map(); // ticket -> { session, expiresAt }
 
+export function broadcastLiveChatMessage(message) { broadcastArenaEvent('live_chat', message); }
+export function broadcastLiveChatDelete(id) { broadcastArenaEvent('live_chat_delete', {id}); }
+// Run after the Discord cursor is caught up, so missed chat messages are
+// considered before the corresponding hourly reward is calculated.
+export async function processLiveChatRain() {
+  if (!databasePool) return;
+  const rain=new LiveChatRain(databasePool);
+  for(let i=0;i<25;i++) {
+    const result=await rain.run();
+    if(!result.applied)break;
+    if (!result.awards.length) continue;
+    for (const award of result.awards) economyEvents.emit('balanceChanged', {userId:award.userId,balance:award.balance,action:'chat_rain',amount:award.amount});
+    broadcastArenaEvent('live_chat_rain',{total:result.total,count:result.awards.length,period:result.period});
+  }
+}
+
 export function setupPlayApi(app) {
+  setupLiveChatApi(app,{store:databasePool ? new LiveChatStore(databasePool) : null,resolvePlayer,broadcast:broadcastLiveChatMessage});
   setupPlayerFeaturesApi(app,{resolvePlayer,pool:databasePool});
   setupRewardsApi(app,{resolvePlayer,pool:databasePool,economyEvents});
   setupInstantGameApi(app,{resolvePlayer,pool:databasePool,economyEvents,onRound:round=>broadcastArenaEvent('instant_round',round)});

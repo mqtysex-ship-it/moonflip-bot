@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { calculateRainAwards, getNextRainPeriod } from '../src/games/liveChatRain.js';
+assert.deepEqual(calculateRainAwards([{userId:'a',wager:999},{userId:'b',wager:2000},{userId:'c',wager:50000}]),[{userId:'b',wager:2000,amount:2},{userId:'c',wager:50000,amount:25}]);
+const many=Array.from({length:100},(_,i)=>({userId:String(i),wager:100000}));
+const awards=calculateRainAwards(many);
+assert(awards.reduce((sum,x)=>sum+x.amount,0)<=500);
+assert(awards.every(x=>x.amount<=25&&x.amount<=Math.floor(x.wager/1000)));
+const crowded=calculateRainAwards(Array.from({length:600},(_,i)=>({userId:String(i),wager:1000})), 'period');
+assert.equal(crowded.reduce((sum,x)=>sum+x.amount,0),500,'available pool must not disappear under rounding');
+assert.equal(crowded.length,500);
+const now=new Date('2026-11-04T12:00:00Z');
+assert.equal(getNextRainPeriod(now,null).toISOString(),now.toISOString());
+assert.equal(getNextRainPeriod(now,new Date('2026-11-04T10:00:00Z')).toISOString(),'2026-11-04T11:00:00.000Z');
+assert.equal(getNextRainPeriod(now,now),null);
+console.log('Rain wager eligibility, limits and missed-hour recovery passed');

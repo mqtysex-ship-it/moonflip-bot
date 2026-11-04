@@ -15,7 +15,7 @@ const tests = [
   'test-rng-integrity.js', 'test-session-security.js', 'test-data-directory.js', 'test-web-arena.js',
   'test-crash-engine.js', 'test-mines-leaderboard.js',
   'test-blackjack-persistence.js', 'test-crash-persistence.js',
-  'test-security-audit-fixes.js', 'test-guest-identity-security.js', 'test-crash-durable-recovery.js', 'test-stream-reconnect.js', 'test-dashboard-role-hardening.js',
+  'test-live-chat-api.js', 'test-live-chat-rain.js', 'test-discord-live-chat.js', 'test-security-audit-fixes.js', 'test-guest-identity-security.js', 'test-crash-durable-recovery.js', 'test-stream-reconnect.js', 'test-dashboard-role-hardening.js',
 ];
 try {
   fs.cpSync(path.join(project, 'src'), path.join(sandbox, 'src'), { recursive: true });

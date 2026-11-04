@@ -1,4 +1,7 @@
-import { Client, GatewayIntentBits, EmbedBuilder, MessageFlags, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { LIVE_CHAT_CHANNEL_ID, syncDiscordChat, deliverChatOutbox } from './discordLiveChat.js';
+import { LiveChatStore } from './games/liveChatStore.js';
+import { databasePool } from './database.js';
+import { Client, GatewayIntentBits, Partials, EmbedBuilder, MessageFlags, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,7 +17,7 @@ import { startBlackjack, handleBlackjackButton, showBlackjackModal } from './gam
 import { registerGuildSlashCommands, handleChatInputCommand } from './commands/slashCommands.js';
 import { handleTicketInteraction } from './tickets/ticketSystem.js';
 import { handleRulesInteraction } from './rulesSystem.js';
-import { createWebPlaySession, getPublicBaseUrl } from './web/playApi.js';
+import { createWebPlaySession, getPublicBaseUrl, broadcastLiveChatMessage, broadcastLiveChatDelete, processLiveChatRain } from './web/playApi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +28,8 @@ dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 
 let discordClient = null;
 let loginPromise = null;
+let chatBridgeTimer = null;
+const liveChatStore = databasePool ? new LiveChatStore(databasePool) : null;
 
 /**
  * Returns a connected Discord.js Client instance.
@@ -46,9 +51,11 @@ export async function getDiscordClient() {
 
   loginPromise = new Promise((resolve, reject) => {
     const client = new Client({
+      partials: [Partials.Message, Partials.Channel],
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
+        ...(process.env.MOONFLIP_MCP_ONLY === '1' ? [] : [GatewayIntentBits.MessageContent]),
       ],
       rest: {
         timeout: 15000,
@@ -62,6 +69,29 @@ export async function getDiscordClient() {
       resolve(c);
 
       if (process.env.MOONFLIP_MCP_ONLY === '1') return;
+
+      if (databasePool && !chatBridgeTimer) {
+        let bridgeRunning = false;
+        let nextRainCheck = 0;
+        const deliver = async () => {
+          if (bridgeRunning) return;
+          bridgeRunning = true;
+          try {
+            const channel = await c.channels.fetch(LIVE_CHAT_CHANNEL_ID);
+            if (!channel?.isTextBased() || !channel.send) throw new Error('Live chat channel unavailable');
+            const caughtUp = await syncDiscordChat(databasePool,channel,{store:liveChatStore,broadcast:broadcastLiveChatMessage});
+            await deliverChatOutbox(databasePool, channel);
+            if (caughtUp && Date.now() >= nextRainCheck) {
+              await processLiveChatRain();
+              nextRainCheck = Date.now() + 60000;
+            }
+          } catch (error) { console.error('[Live chat bridge]', error.message); }
+          finally { bridgeRunning = false; }
+        };
+        chatBridgeTimer = setInterval(deliver, 2000);
+        chatBridgeTimer.unref?.();
+        deliver();
+      }
 
       // Auto-register slash commands & start continuous crash in parallel for each guild
       try {
@@ -519,6 +549,14 @@ export async function getDiscordClient() {
       }
     });
 
+    const removeChatMessage = message => {
+      if (process.env.MOONFLIP_MCP_ONLY === '1' || !liveChatStore || message.channelId !== LIVE_CHAT_CHANNEL_ID) return;
+      liveChatStore.removeDiscordMessage(message.id).then(ids => ids.forEach(broadcastLiveChatDelete))
+        .catch(error => console.error('[Live chat moderation]',error.message));
+    };
+    client.on('messageDelete', removeChatMessage);
+    client.on('messageDeleteBulk', deleted => { for (const message of deleted.values()) removeChatMessage(message); });
+
     // Chat activity XP & Level-Up Listener
     const xpCooldowns = new Map();
 
@@ -592,6 +630,7 @@ export async function getDiscordClient() {
  * Destroys Discord client session if active.
  */
 export async function destroyDiscordClient() {
+  if (chatBridgeTimer) { clearInterval(chatBridgeTimer); chatBridgeTimer = null; }
   if (discordClient) {
     try {
       discordClient.destroy();

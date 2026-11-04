@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/style.css?v=10.6">
+  <link rel="stylesheet" href="/play/style.css?v=10.7">
 </head>
 <body class="moonflip-theme">
 
@@ -66,6 +66,7 @@
     </div>
 
     <div class="mf-topbar-right">
+      <button type="button" class="mf-icon-btn mf-chat-toggle" id="liveChatToggle" aria-controls="liveChat" aria-expanded="false" aria-label="Open live chat" title="Live chat"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H5l1.5-3.5A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 10h9M8 13.5h6"/></svg></button>
       <!-- Discord Sync Status Pill -->
       <div class="sync-status-pill" id="discordSyncPill" title="Discord Wallet Sync Status">
         <span class="sync-dot" id="discordSyncDot"></span>
@@ -1089,6 +1090,13 @@
       </section>
 
     </main>
+    <aside class="mf-live-chat" id="liveChat" aria-label="Live chat" hidden>
+      <div class="live-chat-header"><div><span class="live-chat-eyebrow">COMMUNITY</span><h2>Live chat <span class="live-chat-dot" aria-hidden="true"></span></h2></div><button type="button" class="live-chat-close" id="liveChatClose" aria-label="Close live chat">×</button></div>
+      <div class="live-chat-note">Level 2 required to write · <a href="https://discord.com/channels/1566215806956601466/1567516974270124172" target="_blank" rel="noopener noreferrer">#web-livechat ↗</a></div>
+      <div class="live-chat-rain"><div class="live-chat-rain-title"><span aria-hidden="true">✦</span> Hourly Rain</div><p>Chat in the previous hour and wager 1,000+ new tokens on settled Coinflip or Plinko rounds in the last 24 hours. Earn up to 0.1% of eligible wager, capped at 25 tokens per player and 500 total per hour.</p></div>
+      <div class="live-chat-messages" id="liveChatMessages" role="log" aria-label="Chat messages" aria-live="polite" aria-relevant="additions text"><p class="live-chat-empty">Loading messages…</p></div>
+      <form class="live-chat-composer" id="liveChatForm"><label for="liveChatInput" class="live-chat-label">Message</label><div class="live-chat-input-wrap"><textarea id="liveChatInput" rows="2" maxlength="500" placeholder="Write a message…" required></textarea><button type="submit" id="liveChatSend" aria-label="Send message">↑</button></div><div class="live-chat-footer"><span id="liveChatStatus" role="status">Connecting…</span><span><span id="liveChatCount">0</span>/500</span></div></form>
+    </aside>
   </div>
 
   <!-- PROVABLY FAIR & REWARDS MODAL -->
@@ -1237,6 +1245,7 @@
   <script src="/play/appearance.js?v=1.0"></script>
   <script src="/play/instant-games.js?v=3.0"></script>
   <script src="/play/rewards.js?v=1.0"></script>
-  <script src="/play/app.js?v=10.0"></script>
+  <script src="/play/live-chat.js?v=1.0"></script>
+  <script src="/play/app.js?v=10.1"></script>
 </body>
 </html>
