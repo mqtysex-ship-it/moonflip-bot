@@ -331,7 +331,7 @@ export async function showCrashLeaderboard(interaction) {
 
   const token = await createWebPlaySession(interaction.user);
   const baseUrl = getPublicBaseUrl(interaction);
-  const playUrl = `${baseUrl}/play?game=crash&token=${token}`;
+  const playUrl = `${baseUrl}/play?game=crash#token=${token}`;
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()

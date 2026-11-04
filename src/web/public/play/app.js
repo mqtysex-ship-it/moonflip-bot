@@ -13,16 +13,25 @@
 
   const API_BASE = '/api/play';
   const urlParams = new URLSearchParams(window.location.search);
-  const incomingToken = urlParams.get('token');
-  const playToken = incomingToken || sessionStorage.getItem('moonflip_play_token') || localStorage.getItem('moonflip_play_token') || null;
+  const hashParams = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '');
+  const incomingToken = hashParams.get('token') || urlParams.get('token');
+  const playToken = incomingToken || sessionStorage.getItem('moonflip_play_token') || null;
+
+  // Never persist auth tokens in localStorage; clear legacy tokens
+  try {
+    localStorage.removeItem('moonflip_play_token');
+  } catch {}
 
   if (incomingToken) {
     try {
       sessionStorage.setItem('moonflip_play_token', incomingToken);
-      localStorage.setItem('moonflip_play_token', incomingToken);
       urlParams.delete('token');
+      hashParams.delete('token');
       const cleanSearch = urlParams.toString();
-      const cleanUrl = window.location.pathname + (cleanSearch ? '?' + cleanSearch : '') + window.location.hash;
+      const cleanHash = hashParams.toString();
+      const cleanUrl = window.location.pathname +
+        (cleanSearch ? '?' + cleanSearch : '') +
+        (cleanHash ? '#' + cleanHash : '');
       window.history.replaceState(null, document.title, cleanUrl);
     } catch {}
   }
@@ -1563,14 +1572,33 @@
 
   let sseSource = null;
 
-  function connectRealtimeStream() {
+  async function connectRealtimeStream() {
     if (sseSource) {
       try { sseSource.close(); } catch {}
     }
 
     const qs = new URLSearchParams();
-    if (playToken) qs.set('token', playToken);
     if (guestId) qs.set('guestId', guestId);
+
+    if (playToken) {
+      try {
+        const ticketRes = await fetch(`${API_BASE}/stream-ticket`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-play-token': playToken,
+          },
+        });
+        if (ticketRes.ok) {
+          const ticketData = await ticketRes.json();
+          if (ticketData?.ticket) {
+            qs.set('ticket', ticketData.ticket);
+          }
+        }
+      } catch (ticketErr) {
+        console.warn('Could not obtain single-use stream ticket:', ticketErr);
+      }
+    }
 
     sseSource = new EventSource(`${API_BASE}/stream?${qs.toString()}`);
 

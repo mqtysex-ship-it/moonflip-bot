@@ -36,7 +36,7 @@ function showToast(message, type = 'success') {
   };
 
   toast.className = `pointer-events-auto px-4 py-3 rounded-2xl border shadow-2xl flex items-center space-x-2 text-sm font-semibold transition-all transform duration-300 translate-y-2 opacity-0 ${colors[type] || colors.info}`;
-  toast.innerHTML = `<span>${message}</span>`;
+  toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
   container.appendChild(toast);
 
   requestAnimationFrame(() => {
@@ -366,11 +366,11 @@ function renderDepartmentsGrid() {
         <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-3 relative group">
           <div class="flex justify-between items-center">
             <div class="flex items-center space-x-2">
-              <input type="text" value="${d.emoji || '🎫'}" onchange="updateDeptProp(${index}, 'emoji', this.value)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-center text-sm focus:outline-none focus:border-accent">
-              <input type="text" value="${d.title}" onchange="updateDeptProp(${index}, 'title', this.value)" class="bg-transparent font-bold text-sm text-white focus:outline-none focus:border-b focus:border-accent">
+              <input type="text" value="${escapeHtml(d.emoji || '🎫')}" onchange="updateDeptProp(${index}, 'emoji', this.value)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-center text-sm focus:outline-none focus:border-accent">
+              <input type="text" value="${escapeHtml(d.title || '')}" onchange="updateDeptProp(${index}, 'title', this.value)" class="bg-transparent font-bold text-sm text-white focus:outline-none focus:border-b focus:border-accent">
             </div>
             <div class="flex items-center space-x-2">
-              <input type="color" value="${d.color || '#2ecc71'}" onchange="updateDeptProp(${index}, 'color', this.value)" class="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent">
+              <input type="color" value="${escapeHtml(d.color || '#2ecc71')}" onchange="updateDeptProp(${index}, 'color', this.value)" class="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent">
               <button onclick="deleteDepartment(${index})" class="text-slate-500 hover:text-red-400 p-1">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
               </button>
@@ -379,11 +379,11 @@ function renderDepartmentsGrid() {
 
           <div>
             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Instructions for Opener</label>
-            <textarea rows="2" onchange="updateDeptProp(${index}, 'instructions', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-300 focus:outline-none focus:border-accent">${d.instructions}</textarea>
+            <textarea rows="2" onchange="updateDeptProp(${index}, 'instructions', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-300 focus:outline-none focus:border-accent">${escapeHtml(d.instructions || '')}</textarea>
           </div>
 
           <div class="flex items-center justify-between text-xs text-slate-400 pt-1">
-            <span class="font-mono text-[11px]">id: ${d.id}</span>
+            <span class="font-mono text-[11px]">id: ${escapeHtml(d.id || '')}</span>
             <select onchange="updateDeptProp(${index}, 'buttonStyle', this.value)" class="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-xs text-white">
               <option value="Primary" ${d.buttonStyle === 'Primary' ? 'selected' : ''}>Blurple Button</option>
               <option value="Success" ${d.buttonStyle === 'Success' ? 'selected' : ''}>Green Button</option>
@@ -577,8 +577,8 @@ async function loadRoles() {
             <i data-lucide="alert-triangle" class="w-6 h-6"></i>
           </div>
           <div>
-            <h4 class="text-sm font-bold text-red-400">Security Warning: ${data.audit.vulnerabilitiesCount} Role(s) Have Excessive Permissions</h4>
-            <p class="text-xs text-slate-300">Vulnerable: ${data.audit.vulnerableRoles.join(', ')}. Click "Enforce Anti-Tamper Security" to fix.</p>
+            <h4 class="text-sm font-bold text-red-400">Security Warning: ${Number(data.audit?.vulnerabilitiesCount || 0)} Role(s) Have Excessive Permissions</h4>
+            <p class="text-xs text-slate-300">Vulnerable: ${(data.audit?.vulnerableRoles || []).map(r => escapeHtml(r)).join(', ')}. Click "Enforce Anti-Tamper Security" to fix.</p>
           </div>
         </div>
       `;
@@ -860,18 +860,18 @@ function renderPlayersTable(players, highlightedUserId = null, changeAction = nu
       }
 
       return `
-        <tr id="player-row-${p.userId}" class="hover:bg-slate-800/40 transition ${flashClass}">
+        <tr id="player-row-${escapeHtml(p.userId)}" class="hover:bg-slate-800/40 transition ${flashClass}">
           <td class="px-4 py-3 font-medium">${medal}</td>
           <td class="px-4 py-3">
-            <button onclick="fillUserId('${p.userId}')" class="font-mono text-xs text-blue-400 hover:underline text-left">
-              ${p.userId}
+            <button onclick="fillUserId('${escapeHtml(p.userId)}')" class="font-mono text-xs text-blue-400 hover:underline text-left">
+              ${escapeHtml(p.userId)}
             </button>
           </td>
           <td class="px-4 py-3 text-right font-mono font-bold text-accent">${p.balance.toLocaleString()} 🪙</td>
           <td class="px-4 py-3 text-right font-mono text-slate-300">${p.gamesPlayed.toLocaleString()}</td>
           <td class="px-4 py-3 text-right font-mono text-slate-400">${p.totalBet.toLocaleString()} 🪙</td>
           <td class="px-4 py-3 text-center">
-            <button onclick="fillUserId('${p.userId}')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold transition">
+            <button onclick="fillUserId('${escapeHtml(p.userId)}')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold transition">
               Select
             </button>
           </td>
@@ -971,8 +971,8 @@ async function loadChannels() {
     const data = await res.json();
     const select = document.getElementById('studio-channel');
 
-    select.innerHTML = data.channels
-      .map((c) => `<option value="${c.id}">#${c.name} (${c.categoryName})</option>`)
+    select.innerHTML = (data.channels || [])
+      .map((c) => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)} (${escapeHtml(c.categoryName || 'uncategorized')})</option>`)
       .join('');
   } catch (err) {
     console.error('Failed to load channels:', err);
@@ -997,8 +997,8 @@ function renderStudioFields() {
     .map((f, i) => {
       return `
         <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-2 text-xs">
-          <input type="text" value="${f.name}" placeholder="Name" oninput="studioFields[${i}].name = this.value; updateStudioPreview();" class="w-1/3 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-white">
-          <input type="text" value="${f.value}" placeholder="Value" oninput="studioFields[${i}].value = this.value; updateStudioPreview();" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-white">
+          <input type="text" value="${escapeHtml(f.name || '')}" placeholder="Name" oninput="studioFields[${i}].name = this.value; updateStudioPreview();" class="w-1/3 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-white">
+          <input type="text" value="${escapeHtml(f.value || '')}" placeholder="Value" oninput="studioFields[${i}].value = this.value; updateStudioPreview();" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-white">
           <label class="flex items-center space-x-1 text-slate-400 cursor-pointer">
             <input type="checkbox" ${f.inline ? 'checked' : ''} onchange="studioFields[${i}].inline = this.checked; updateStudioPreview();" class="rounded bg-slate-950 border-slate-700">
             <span>Inline</span>
@@ -1091,8 +1091,8 @@ function updateStudioPreview() {
       const colSpan = f.inline ? 'sm:col-span-1' : 'col-span-full';
       return `
         <div class="${colSpan}">
-          <div class="text-[11px] font-bold text-white uppercase">${f.name || 'Field'}</div>
-          <div class="text-xs text-slate-300 whitespace-pre-line">${f.value || 'Value'}</div>
+          <div class="text-[11px] font-bold text-white uppercase">${escapeHtml(f.name || 'Field')}</div>
+          <div class="text-xs text-slate-300 whitespace-pre-line">${escapeHtml(f.value || 'Value')}</div>
         </div>
       `;
     })

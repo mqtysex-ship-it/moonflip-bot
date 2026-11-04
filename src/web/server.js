@@ -71,6 +71,12 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
     throw new Error('WEB_SESSION_SECRET must contain at least 32 characters');
   }
   const app = express();
+  const trustProxyEnv = process.env.TRUST_PROXY;
+  if (trustProxyEnv) {
+    app.set('trust proxy', trustProxyEnv === 'true' ? true : (isNaN(Number(trustProxyEnv)) ? trustProxyEnv : Number(trustProxyEnv)));
+  } else {
+    app.set('trust proxy', 1);
+  }
   const readStats = () => economyStore ? economyStore.getEconomyStats() : getEconomyStats();
   const readPlayers = () => economyStore ? economyStore.getEconomyPlayers() : getEconomyPlayers();
 
@@ -406,14 +412,41 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
       }
 
       const client = await getDiscordClient().catch(() => null);
-      const guild = client?.guilds?.cache?.get(DEFAULT_GUILD_ID);
-      const channel = guild?.channels?.cache?.get(channelId);
-
-      if (channel) {
+      if (client) {
+        let guild = null;
         try {
-          await channel.delete('Closed via Web Dashboard');
-        } catch (delErr) {
-          return res.status(500).json({ error: `Failed to delete Discord ticket channel: ${delErr.message}` });
+          guild = await fetchGuild(DEFAULT_GUILD_ID);
+        } catch {
+          guild = client.guilds?.cache?.get(DEFAULT_GUILD_ID) || null;
+        }
+
+        if (!guild) {
+          return res.status(503).json({ error: 'Discord server is currently unavailable. Cannot verify ticket channel deletion.' });
+        }
+
+        let channel = guild.channels?.cache?.get(channelId);
+        if (!channel && guild.channels?.fetch) {
+          try {
+            channel = await guild.channels.fetch(channelId);
+          } catch (fetchErr) {
+            if (fetchErr?.code !== 10003) {
+              return res.status(500).json({ error: `Failed to fetch Discord channel: ${fetchErr.message}` });
+            }
+          }
+        }
+
+        if (channel) {
+          try {
+            await channel.delete('Closed via Web Dashboard');
+          } catch (delErr) {
+            if (delErr?.code !== 10003) {
+              return res.status(500).json({ error: `Failed to delete Discord ticket channel: ${delErr.message}` });
+            }
+          }
+        }
+      } else {
+        if (process.env.NODE_ENV === 'production' && !process.env.MOONFLIP_ISOLATED_TEST) {
+          return res.status(503).json({ error: 'Discord client is offline. Cannot delete Discord channel.' });
         }
       }
 
@@ -469,10 +502,20 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
       rolesList.sort((a, b) => b.position - a.position);
 
       // Audit summary: flag any non-staff role with dangerous perms
-      const staffPattern = /\b(owner|manager|admin|administrator|moderator|mcp|staff)\b/i;
+      const isDashboardStaffRole = (r) => {
+        if (!r) return false;
+        const configuredRoleIds = (process.env.STAFF_ROLE_IDS || '')
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+        if (configuredRoleIds.includes(r.id)) return true;
+        const staffPattern = /\b(owner|manager|admin|administrator|moderator|staff)\b/i;
+        return staffPattern.test(r.name);
+      };
+
       const vulnerableRoles = rolesList.filter(
         (r) =>
-          !staffPattern.test(r.name) &&
+          !isDashboardStaffRole(r) &&
           (r.canManageRoles || r.canManageChannels || r.canManageGuild || r.canMentionEveryone || r.isAdmin)
       );
 
@@ -516,10 +559,9 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
       await everyoneRole.setPermissions(safeEveryonePerms, 'Security fix: Hardened from Web Dashboard');
 
       // Strip dangerous perms from non-staff roles
-      const staffKeywords = ['owner', 'manager', 'admin', 'moderator', 'mcp'];
       for (const [, role] of roles) {
         if (role.id === everyoneRole.id || role.managed) continue;
-        const isStaff = staffKeywords.some((kw) => role.name.toLowerCase().includes(kw));
+        const isStaff = isDashboardStaffRole(role);
         if (!isStaff) {
           const current = role.permissions;
           const hasDangerous =

@@ -236,11 +236,11 @@ export async function getDiscordClient() {
           const isCoinflip = id === 'launch_web_coinflip';
           const isMines = id === 'launch_web_mines';
 
-          const plinkoUrl = `${baseUrl}/play?game=plinko&token=${token}`;
-          const crashUrl = `${baseUrl}/play?game=crash&token=${token}`;
-          const minesUrl = `${baseUrl}/play?game=mines&token=${token}`;
-          const coinflipUrl = `${baseUrl}/play?game=coinflip&token=${token}`;
-          const homeUrl = `${baseUrl}/play?token=${token}`;
+          const plinkoUrl = `${baseUrl}/play?game=plinko#token=${token}`;
+          const crashUrl = `${baseUrl}/play?game=crash#token=${token}`;
+          const minesUrl = `${baseUrl}/play?game=mines#token=${token}`;
+          const coinflipUrl = `${baseUrl}/play?game=coinflip#token=${token}`;
+          const homeUrl = `${baseUrl}/play#token=${token}`;
 
           const gameName = isPlinko
             ? 'Plinko'

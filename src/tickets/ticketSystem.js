@@ -126,6 +126,7 @@ async function saveData(data) {
  */
 export function isStaffMember(member) {
   if (!member) return false;
+  if (member.id && member.guild?.ownerId === member.id) return true;
   if (
     member.permissions?.has(PermissionFlagsBits.Administrator) ||
     member.permissions?.has(PermissionFlagsBits.ManageGuild) ||
@@ -134,7 +135,14 @@ export function isStaffMember(member) {
   ) {
     return true;
   }
-  const staffPattern = /\b(owner|manager|admin|administrator|moderator|mod|staff|support)\b/i;
+  const configuredRoleIds = (process.env.STAFF_ROLE_IDS || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+  if (configuredRoleIds.length > 0 && member.roles?.cache) {
+    if (configuredRoleIds.some(id => member.roles.cache.has(id))) return true;
+  }
+  const staffPattern = /\b(owner|manager|admin|administrator|moderator|staff)\b/i;
   const roles = member.roles?.cache ? Array.from(member.roles.cache.values()) : [];
   return roles.some((r) => staffPattern.test(r.name));
 }
@@ -394,9 +402,13 @@ export async function handleTicketInteraction(interaction) {
       const channelName = `🎫┃${ticketConfig.prefix}-${sanitizedName}`;
 
       // Collect staff roles to allow in ticket
+      const configuredStaffIds = (process.env.STAFF_ROLE_IDS || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      const staffPattern = /\b(owner|manager|admin|administrator|moderator|staff)\b/i;
       const staffRoles = guild.roles.cache.filter((r) => {
-        const n = r.name.toLowerCase();
-        return ['owner', 'manager', 'admin', 'moderator', 'mod'].some((kw) => n.includes(kw));
+        return configuredStaffIds.includes(r.id) || staffPattern.test(r.name);
       });
 
       const everyoneId = guild.roles.everyone?.id || guild.id;

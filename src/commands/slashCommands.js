@@ -454,11 +454,11 @@ export async function handleChatInputCommand(interaction) {
     const isMines = commandName === 'mines';
     const token = (await createWebPlaySession(interaction.user));
     const baseUrl = getPublicBaseUrl(interaction);
-    const homeUrl = `${baseUrl}/play?token=${token}`;
-    const crashUrl = `${baseUrl}/play?game=crash&token=${token}`;
-    const minesUrl = `${baseUrl}/play?game=mines&token=${token}`;
-    const plinkoUrl = `${baseUrl}/play?game=plinko&token=${token}`;
-    const coinflipUrl = `${baseUrl}/play?game=coinflip&token=${token}`;
+    const homeUrl = `${baseUrl}/play#token=${token}`;
+    const crashUrl = `${baseUrl}/play?game=crash#token=${token}`;
+    const minesUrl = `${baseUrl}/play?game=mines#token=${token}`;
+    const plinkoUrl = `${baseUrl}/play?game=plinko#token=${token}`;
+    const coinflipUrl = `${baseUrl}/play?game=coinflip#token=${token}`;
     const balance = await getBalance(interaction.user.id);
 
     const gameTitle = isPlinko

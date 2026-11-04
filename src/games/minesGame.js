@@ -364,7 +364,7 @@ export async function render5x5Board(
 export async function start5x5Mines(interaction) {
   const token = (await createWebPlaySession(interaction.user));
   const baseUrl = getPublicBaseUrl(interaction);
-  const playUrl = `${baseUrl}/play?game=mines&token=${token}`;
+  const playUrl = `${baseUrl}/play?game=mines#token=${token}`;
   const balance = (await getBalance(interaction.user.id));
 
   const embed = new EmbedBuilder()
@@ -457,7 +457,7 @@ export async function showMinesLeaderboard(interaction) {
 
   const token = (await createWebPlaySession(interaction.user));
   const baseUrl = getPublicBaseUrl(interaction);
-  const playUrl = `${baseUrl}/play?game=mines&token=${token}`;
+  const playUrl = `${baseUrl}/play?game=mines#token=${token}`;
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()

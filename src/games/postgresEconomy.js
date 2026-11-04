@@ -81,11 +81,39 @@ export class PostgresEconomy {
     const users = await this.getAllUsers();
     return Object.entries(users).map(([userId, data]) => ({ userId, ...data })).sort((a, b) => b.balance - a.balance).slice(0, limit);
   }
-  async settleRound(roundId, userId, payout) {
+  async settleRound(roundId, userId, payout, state = null) {
     identity(roundId, 'round'); identity(userId, 'user'); amount(payout, 'payout');
-    const result = await this.pool.query('select * from moonflip_private.settle_game_round($1::uuid,$2,$3::bigint)', [roundId, userId, payout]);
-    const row = result.rows[0];
-    return { balance: number(row.balance_after, 'balance'), applied: row.applied };
+    if (!state) {
+      const result = await this.pool.query('select * from moonflip_private.settle_game_round($1::uuid,$2,$3::bigint)', [roundId, userId, payout]);
+      const row = result.rows[0];
+      return { balance: number(row.balance_after, 'balance'), applied: row.applied };
+    }
+    const client = typeof this.pool.connect === 'function' ? await this.pool.connect() : null;
+    if (!client) {
+      await this.updateRoundState(roundId, state);
+      const result = await this.pool.query('select * from moonflip_private.settle_game_round($1::uuid,$2,$3::bigint)', [roundId, userId, payout]);
+      const row = result.rows[0];
+      return { balance: number(row.balance_after, 'balance'), applied: row.applied };
+    }
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE moonflip_private.game_rounds SET game_state = $2::jsonb WHERE round_id = $1::uuid AND discord_user_id = $3 AND status = 'active'`,
+        [roundId, JSON.stringify(state), userId]
+      );
+      const result = await client.query(
+        'select * from moonflip_private.settle_game_round($1::uuid,$2,$3::bigint)',
+        [roundId, userId, payout]
+      );
+      await client.query('COMMIT');
+      const row = result.rows[0];
+      return { balance: number(row.balance_after, 'balance'), applied: row.applied };
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
   }
   async getEconomyStats() {
     const result = await this.pool.query(`SELECT coalesce(sum(balance), 0) AS total_tokens,

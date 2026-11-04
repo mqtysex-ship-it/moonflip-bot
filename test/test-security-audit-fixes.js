@@ -19,6 +19,17 @@ const modernMember = {
 };
 assert.equal(isStaffMember(modernMember), false, 'Words containing "mod" as substring must not grant staff');
 
+const supportMember = {
+  permissions: { has: () => false },
+  roles: {
+    cache: new Map([
+      ['1', { name: 'Community Support' }],
+      ['2', { name: 'Minecraft Mod' }],
+    ])
+  }
+};
+assert.equal(isStaffMember(supportMember), false, 'Roles containing generic words "support" or "mod" must not grant staff');
+
 const legitStaff = {
   permissions: { has: () => false },
   roles: {
@@ -42,6 +53,7 @@ import express from 'express';
 import { createWebServer } from '../src/web/server.js';
 import { shutdownWebCrash } from '../src/web/playApi.js';
 import { shutdownContinuousCrash } from '../src/games/continuousCrash.js';
+import { databasePool } from '../src/database.js';
 
 process.env.DASHBOARD_PASSWORD = 'audit-test-password';
 const app = createWebServer();
@@ -81,20 +93,41 @@ try {
   console.log('✓ Public guest API bounding and sanitation passed');
 
   // Test 4: Crash cashout post-crash tolerance check (Issue 2)
-  const startRes = await fetch(`${base}/api/play/crash/start`, {
+  const { globalCrashEngine } = await import('../src/web/playApi.js');
+  await globalCrashEngine.enterBettingPhase();
+  const betRes = await fetch(`${base}/api/play/crash/bet`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-guest-id': 'test_post_crash_user' },
     body: JSON.stringify({ wager: 100 })
   });
-  assert.equal(startRes.status, 200);
-  const startData = await startRes.json();
-  assert(startData.flightId);
+  assert.equal(betRes.status, 200);
+
+  await globalCrashEngine.enterFlightPhase();
+  await globalCrashEngine.enterCrashedPhase();
+
+  const postCrashCashoutRes = await fetch(`${base}/api/play/crash/cashout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-guest-id': 'test_post_crash_user' },
+  });
+  assert.equal(postCrashCashoutRes.status, 200);
+  const postCrashData = await postCrashCashoutRes.json();
+  assert.equal(postCrashData.crashed, true, 'Must report crashed after crash');
+  assert.equal(postCrashData.cashedOut ?? false, false, 'Must not cash out after crash');
+
+  // Test 5: SSE Stream Ticket unauthenticated rejection
+  const ticketRes = await fetch(`${base}/api/play/stream-ticket`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  assert.equal(ticketRes.status, 401);
 
   console.log('✓ All security audit targeted assertions passed');
 } finally {
   await Promise.allSettled([
     shutdownContinuousCrash(),
     shutdownWebCrash(),
+    databasePool?.end?.(),
   ]);
+  server.closeAllConnections?.();
   server.close();
 }

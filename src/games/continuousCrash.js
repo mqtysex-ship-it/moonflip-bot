@@ -680,18 +680,16 @@ class ContinuousCrashEngine {
       state.currentMultiplier = state.autoCashout;
       state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
 
-      if (databaseEconomy && state.roundId) {
-        await databaseEconomy.updateRoundState(state.roundId, {
-          crashPoint: state.crashPoint,
-          autoCashout: state.autoCashout,
-          outcome: 'cashed_out',
-          cashoutMult: state.autoCashout,
-          winAmount: state.winAmount,
-        });
-      }
+      const winState = {
+        crashPoint: state.crashPoint,
+        autoCashout: state.autoCashout,
+        outcome: 'cashed_out',
+        cashoutMult: state.autoCashout,
+        winAmount: state.winAmount,
+      };
 
       try {
-        if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
+        if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount, winState);
         else await addTokens(state.userId, state.winAmount, true);
       } catch (error) {
         state.stopped = false;
@@ -720,17 +718,15 @@ class ContinuousCrashEngine {
       state.stopped = true;
       state.currentMultiplier = state.crashPoint;
 
-      if (databaseEconomy && state.roundId) {
-        await databaseEconomy.updateRoundState(state.roundId, {
-          crashPoint: state.crashPoint,
-          autoCashout: state.autoCashout,
-          outcome: 'crashed',
-          winAmount: 0,
-        });
-      }
+      const crashState = {
+        crashPoint: state.crashPoint,
+        autoCashout: state.autoCashout,
+        outcome: 'crashed',
+        winAmount: 0,
+      };
 
       try {
-        if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, 0);
+        if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, 0, crashState);
       } catch (error) {
         state.stopped = false;
         state.stepTimer = setTimeout(() => this.runFlightStep(state).catch(console.error), 1000);
@@ -819,18 +815,16 @@ class ContinuousCrashEngine {
     state.pendingCashoutMult = state.cashoutMult;
     state.winAmount = Math.floor(state.betAmount * state.cashoutMult);
 
-    if (databaseEconomy && state.roundId) {
-      await databaseEconomy.updateRoundState(state.roundId, {
-        crashPoint: state.crashPoint,
-        autoCashout: state.autoCashout,
-        outcome: 'cashed_out',
-        cashoutMult: state.cashoutMult,
-        winAmount: state.winAmount,
-      });
-    }
+    const manualCashoutState = {
+      crashPoint: state.crashPoint,
+      autoCashout: state.autoCashout,
+      outcome: 'cashed_out',
+      cashoutMult: state.cashoutMult,
+      winAmount: state.winAmount,
+    };
 
     try {
-      if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount);
+      if (databaseEconomy && state.roundId) await databaseEconomy.settleRound(state.roundId, state.userId, state.winAmount, manualCashoutState);
       else await addTokens(userId, state.winAmount, true);
     } catch (error) {
       state.stopped = false;
@@ -877,8 +871,20 @@ export async function shutdownContinuousCrash() {
     }
     state.stopped = true;
     if (databaseEconomy && state.roundId && !state.cashedOut && !state.crashed) {
-      const payout = state.winAmount !== undefined ? state.winAmount : state.betAmount;
-      await databaseEconomy.settleRound(state.roundId, userId, payout).catch(() => {});
+      if (state.winAmount !== undefined) {
+        await databaseEconomy.settleRound(state.roundId, userId, state.winAmount, {
+          crashPoint: state.crashPoint,
+          outcome: 'cashed_out',
+          winAmount: state.winAmount,
+          reason: 'shutdown_settled',
+        }).catch(console.error);
+      } else {
+        await databaseEconomy.settleRound(state.roundId, userId, state.betAmount, {
+          crashPoint: state.crashPoint,
+          outcome: 'refunded',
+          reason: 'server_shutdown_interrupted',
+        }).catch(console.error);
+      }
     }
   }
   activeCrashFlights.clear();

@@ -172,6 +172,8 @@ async function runTests() {
 
     // Verify placing a bet during IN_FLIGHT is strictly rejected
     globalCrashEngine.enterFlightPhase();
+    globalCrashEngine.crashPoint = Math.max(3.0, globalCrashEngine.crashPoint);
+    globalCrashEngine.flightDurationMs = Math.max(10000, globalCrashEngine.flightDurationMs);
     const midFlightBetRes = await request(baseUrl, '/api/play/crash/bet', 'POST', { wager: 100, autoCashout: 2.0 }, signedToken);
     assert.strictEqual(midFlightBetRes.status, 400, 'Betting while flight is in progress MUST be rejected with 400');
     console.log('  [PASS] Mid-flight bet attempt strictly rejected:', midFlightBetRes.data.error);
