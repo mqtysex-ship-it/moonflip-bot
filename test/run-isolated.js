@@ -15,6 +15,7 @@ const tests = [
   'test-rng-integrity.js', 'test-session-security.js', 'test-data-directory.js', 'test-web-arena.js',
   'test-crash-engine.js', 'test-mines-leaderboard.js',
   'test-blackjack-persistence.js', 'test-crash-persistence.js',
+  'test-security-audit-fixes.js',
 ];
 try {
   fs.cpSync(path.join(project, 'src'), path.join(sandbox, 'src'), { recursive: true });

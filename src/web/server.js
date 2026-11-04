@@ -395,27 +395,39 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
   app.post('/api/tickets/close', async (req, res) => {
     try {
       const { channelId } = req.body;
-      if (!channelId) {
+      if (!channelId || typeof channelId !== 'string') {
         return res.status(400).json({ error: 'channelId is required' });
       }
 
-      const client = await getDiscordClient();
-      const guild = client.guilds.cache.get(DEFAULT_GUILD_ID);
-      const channel = guild?.channels.cache.get(channelId);
+      const ticketsData = await loadTicketsData();
+      const ticket = ticketsData?.activeTickets?.[channelId];
+      if (!ticket) {
+        return res.status(404).json({ error: 'Channel is not an active ticket in records.' });
+      }
+
+      const client = await getDiscordClient().catch(() => null);
+      const guild = client?.guilds?.cache?.get(DEFAULT_GUILD_ID);
+      const channel = guild?.channels?.cache?.get(channelId);
 
       if (channel) {
-        await channel.delete('Closed via Web Dashboard').catch(() => {});
+        try {
+          await channel.delete('Closed via Web Dashboard');
+        } catch (delErr) {
+          return res.status(500).json({ error: `Failed to delete Discord ticket channel: ${delErr.message}` });
+        }
       }
 
       if (databasePool) {
-        await updateDocument('tickets', { counter: 0, activeTickets: {} }, data => { delete data.activeTickets[channelId]; return data; });
+        await updateDocument('tickets', { counter: 0, activeTickets: {} }, data => {
+          if (data?.activeTickets) delete data.activeTickets[channelId];
+          return data;
+        });
       } else {
-        const data = await loadTicketsData();
-        delete data.activeTickets[channelId];
-        await saveTicketsData(data);
+        if (ticketsData.activeTickets) delete ticketsData.activeTickets[channelId];
+        await saveTicketsData(ticketsData);
       }
 
-      res.json({ success: true, message: `Ticket channel ${channelId} closed.` });
+      res.json({ success: true, message: `Ticket #${ticket.id || channelId} closed successfully.` });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -457,10 +469,10 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
       rolesList.sort((a, b) => b.position - a.position);
 
       // Audit summary: flag any non-staff role with dangerous perms
-      const staffKeywords = ['owner', 'manager', 'admin', 'moderator', 'mcp'];
+      const staffPattern = /\b(owner|manager|admin|administrator|moderator|mcp|staff)\b/i;
       const vulnerableRoles = rolesList.filter(
         (r) =>
-          !staffKeywords.some((kw) => r.name.toLowerCase().includes(kw)) &&
+          !staffPattern.test(r.name) &&
           (r.canManageRoles || r.canManageChannels || r.canManageGuild || r.canMentionEveryone || r.isAdmin)
       );
 

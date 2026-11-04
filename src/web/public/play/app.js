@@ -13,10 +13,18 @@
 
   const API_BASE = '/api/play';
   const urlParams = new URLSearchParams(window.location.search);
-  const playToken = urlParams.get('token') || localStorage.getItem('moonflip_play_token') || null;
+  const incomingToken = urlParams.get('token');
+  const playToken = incomingToken || sessionStorage.getItem('moonflip_play_token') || localStorage.getItem('moonflip_play_token') || null;
 
-  if (urlParams.get('token')) {
-    localStorage.setItem('moonflip_play_token', urlParams.get('token'));
+  if (incomingToken) {
+    try {
+      sessionStorage.setItem('moonflip_play_token', incomingToken);
+      localStorage.setItem('moonflip_play_token', incomingToken);
+      urlParams.delete('token');
+      const cleanSearch = urlParams.toString();
+      const cleanUrl = window.location.pathname + (cleanSearch ? '?' + cleanSearch : '') + window.location.hash;
+      window.history.replaceState(null, document.title, cleanUrl);
+    } catch {}
   }
 
   let guestId = localStorage.getItem('moonflip_guest_id');

@@ -297,19 +297,19 @@ async function loadTickets() {
 
         return `
           <tr class="hover:bg-slate-800/40 transition">
-            <td class="px-5 py-3 font-mono font-bold text-accent">#${t.id}</td>
+            <td class="px-5 py-3 font-mono font-bold text-accent">#${escapeHtml(t.id)}</td>
             <td class="px-5 py-3">
-              <span class="font-bold text-white">${t.userName}</span>
-              <div class="text-[11px] font-mono text-slate-500">${t.userId}</div>
+              <span class="font-bold text-white">${escapeHtml(t.userName)}</span>
+              <div class="text-[11px] font-mono text-slate-500">${escapeHtml(t.userId)}</div>
             </td>
-            <td class="px-5 py-3 font-medium text-slate-200">${t.title}</td>
+            <td class="px-5 py-3 font-medium text-slate-200">${escapeHtml(t.title)}</td>
             <td class="px-5 py-3">
-              <code class="text-xs text-purple-400 font-mono font-semibold">#${t.channelName}</code>
+              <code class="text-xs text-purple-400 font-mono font-semibold">#${escapeHtml(t.channelName)}</code>
             </td>
             <td class="px-5 py-3">${statusBadge}</td>
-            <td class="px-5 py-3 text-xs text-slate-400">${openedDate}</td>
+            <td class="px-5 py-3 text-xs text-slate-400">${escapeHtml(openedDate)}</td>
             <td class="px-5 py-3 text-right">
-              <button onclick="closeTicket('${t.channelId}')" class="py-1 px-3 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-xs font-semibold transition inline-flex items-center gap-1">
+              <button onclick="closeTicket('${encodeURIComponent(t.channelId)}')" class="py-1 px-3 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-xs font-semibold transition inline-flex items-center gap-1">
                 <i data-lucide="lock" class="w-3.5 h-3.5"></i>
                 <span>Close</span>
               </button>
@@ -599,7 +599,7 @@ async function loadRoles() {
           <tr class="hover:bg-slate-800/40 transition">
             <td class="px-5 py-3 font-mono font-bold text-slate-400">#${r.position}</td>
             <td class="px-5 py-3">
-              <span class="font-bold text-white">${r.name}</span>
+              <span class="font-bold text-white">${escapeHtml(r.name)}</span>
               ${r.managed ? '<span class="ml-1 text-[10px] text-slate-500 uppercase">(Managed Bot)</span>' : ''}
             </td>
             <td class="px-5 py-3">
@@ -1204,7 +1204,8 @@ async function loadLogs() {
 }
 
 function escapeHtml(str) {
-  return str.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
 }
 
 // Manual Refresh Button

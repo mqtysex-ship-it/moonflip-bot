@@ -126,11 +126,17 @@ async function saveData(data) {
  */
 export function isStaffMember(member) {
   if (!member) return false;
-  if (member.permissions.has(PermissionFlagsBits.Administrator)) return true;
-  const staffKeywords = ['owner', 'manager', 'admin', 'moderator', 'mod'];
-  return member.roles.cache.some((r) =>
-    staffKeywords.some((kw) => r.name.toLowerCase().includes(kw))
-  );
+  if (
+    member.permissions?.has(PermissionFlagsBits.Administrator) ||
+    member.permissions?.has(PermissionFlagsBits.ManageGuild) ||
+    member.permissions?.has(PermissionFlagsBits.ManageChannels) ||
+    member.permissions?.has(PermissionFlagsBits.ModerateMembers)
+  ) {
+    return true;
+  }
+  const staffPattern = /\b(owner|manager|admin|administrator|moderator|mod|staff|support)\b/i;
+  const roles = member.roles?.cache ? Array.from(member.roles.cache.values()) : [];
+  return roles.some((r) => staffPattern.test(r.name));
 }
 
 /**
@@ -661,6 +667,16 @@ export async function handleTicketInteraction(interaction) {
 
   // 4. Cancel Close
   if (customId === 'ticket_cancel_close') {
+    const data = await loadData();
+    const ticket = data.activeTickets[interaction.channelId];
+    const isOwner = ticket && ticket.userId === user.id;
+    const isStaff = isStaffMember(member);
+    if (!isOwner && !isStaff) {
+      return interaction.reply({
+        content: '⛔ You do not have permission to cancel closing this ticket.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
     await interaction.message.delete().catch(() => {});
     return interaction.reply({
       content: '✅ Ticket close cancelled.',
@@ -672,6 +688,15 @@ export async function handleTicketInteraction(interaction) {
   if (customId === 'ticket_confirm_close') {
     const data = await loadData();
     const ticket = data.activeTickets[interaction.channelId];
+    const isOwner = ticket && ticket.userId === user.id;
+    const isStaff = isStaffMember(member);
+
+    if (!isOwner && !isStaff) {
+      return interaction.reply({
+        content: '⛔ You do not have permission to close this ticket.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
 
     await interaction.reply({
       content: '🔒 **Ticket closing...** Generating final transcript and removing channel in **5 seconds**.',
