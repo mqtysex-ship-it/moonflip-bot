@@ -3298,3 +3298,51 @@ body,.mf-main { background:var(--bg-body); }
 @media (max-width: 640px) {
   .coin-3d { width: 160px; height: 160px; }
 }
+
+/* Home hero — World of Games. The selected concept remains the artwork; the
+   copy and calls to action are real, accessible interface elements. */
+.mf-hero-card {
+  min-height: clamp(370px, 30vw, 485px);
+  padding: 48px clamp(32px, 5vw, 68px);
+  background: #071321;
+  border: 1px solid #27415d;
+  border-radius: 28px;
+  isolation: isolate;
+}
+.mf-hero-content { position: relative; max-width: 47%; z-index: 2; }
+.mf-hero-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 38px; white-space: nowrap; }
+.mf-hero-brand-icon { width: 32px; height: 32px; color: #6ef6cd; filter: drop-shadow(0 0 9px #26e4b47a); }
+.mf-hero-brand-name { color: #fff; font-size: 21px; font-weight: 800; letter-spacing: -.025em; }
+.mf-hero-brand-divider { width: 1px; height: 20px; margin: 0 10px; background: #61748c; opacity: .65; }
+.mf-hero-brand-category { color: #acc7ff; font-size: 11px; font-weight: 700; letter-spacing: .23em; text-transform: uppercase; }
+.mf-hero-title { margin: 0 0 20px; color: #fff; font-size: clamp(32px, 3.65vw, 56px); line-height: 1.12; letter-spacing: -.035em; font-weight: 800; }
+.mf-hero-title .text-mint { display: block; color: #9db5ff !important; }
+.mf-hero-sub { max-width: 470px; margin-bottom: 30px; color: #bfd2ee; font-size: 17px; line-height: 1.55; }
+.mf-hero-actions { gap: 18px; }
+.mf-hero-actions .mf-btn-mint, .mf-hero-actions .mf-btn-outline { min-height: 54px; justify-content: center; padding: 14px 25px; border-radius: 14px; font-size: 15px; }
+.mf-hero-actions .mf-btn-mint { color: #071223; background: #a3baff; box-shadow: 0 8px 30px #22e5b52b; }
+.mf-hero-actions .mf-btn-mint:hover { background: #bed0ff; }
+.mf-hero-actions .mf-btn-outline { background: #101d2b; border-color: #334254; }
+.mf-hero-artwork { position: absolute; inset: 0; width: auto; height: auto; display: block; pointer-events: none; overflow: hidden; z-index: 0; -webkit-mask-image: linear-gradient(to right, transparent 41%, #000 48%); mask-image: linear-gradient(to right, transparent 41%, #000 48%); }
+.mf-hero-emblem-img { position: absolute; top: 50%; left: 50%; width: 110%; height: auto; max-width: none; transform: translate(-50%, -50%); object-fit: initial; mix-blend-mode: normal; -webkit-mask-image: none; mask-image: none; filter: none; }
+@media (max-width: 1080px) {
+  .mf-hero-card { min-height: 0; padding: 34px 32px 0; display: flex; flex-direction: column; align-items: stretch; }
+  .mf-hero-content { max-width: 100%; }
+  .mf-hero-brand { margin-bottom: 24px; }
+  .mf-hero-title { font-size: 38px; }
+  .mf-hero-artwork { position: relative; inset: auto; display: block; width: 100%; height: clamp(200px, 48vw, 350px); margin-top: 4px; -webkit-mask-image: linear-gradient(to right, transparent 9%, #000 24%), linear-gradient(to bottom, transparent 0%, #000 16%, #000 85%, transparent 100%); mask-image: linear-gradient(to right, transparent 9%, #000 24%), linear-gradient(to bottom, transparent 0%, #000 16%, #000 85%, transparent 100%); -webkit-mask-composite: source-in; mask-composite: intersect; }
+  .mf-hero-emblem-img { width: 180%; left: auto; right: -10%; transform: translateY(-50%); }
+}
+@media (max-width: 600px) {
+  .mf-hero-card { padding: 25px 20px 0; border-radius: 18px; }
+  .mf-hero-brand { gap: 7px; margin-bottom: 20px; }
+  .mf-hero-brand-icon { width: 26px; height: 26px; }
+  .mf-hero-brand-name { font-size: 18px; }
+  .mf-hero-brand-divider { margin: 0 6px; }
+  .mf-hero-brand-category { font-size: 9px; letter-spacing: .17em; }
+  .mf-hero-title { font-size: 32px; line-height: 1.1; margin-bottom: 14px; }
+  .mf-hero-sub { font-size: 14px; margin-bottom: 20px; }
+  .mf-hero-actions { gap: 8px; }
+  .mf-hero-actions .mf-btn-mint, .mf-hero-actions .mf-btn-outline { min-height: 46px; height: auto; padding: 11px 10px; font-size: 13px; }
+  .mf-hero-artwork { height: clamp(185px, 55vw, 270px); }
+}
