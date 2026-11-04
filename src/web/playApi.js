@@ -171,9 +171,10 @@ async function resolvePlayer(req) {
 
   // 3. Persistent Demo Guest Session (keyed by guestId or IP so demo balance doesn't reset every click)
   const rawGuestId = req.headers['x-guest-id'] || req.query?.guestId || req.body?.guestId;
-  const guestKey = (typeof rawGuestId === 'string' && /^[a-zA-Z0-9_.-]{1,64}$/.test(rawGuestId))
+  const guestId = (typeof rawGuestId === 'string' && /^[a-zA-Z0-9_.-]{1,64}$/.test(rawGuestId))
     ? rawGuestId
     : (req.ip || 'default_guest');
+  const guestKey = `guest:${guestId}`;
 
   if (!guestBalances.has(guestKey)) {
     if (guestBalances.size >= 2000) {
@@ -353,31 +354,39 @@ class GlobalCrashArenaEngine {
 
   async enterFlightPhase() {
     if (this.stopped) return;
-    this.phase = 'IN_FLIGHT';
-    this.phaseStartTime = Date.now();
-    this.flightStartTime = this.phaseStartTime;
-    this.currentMultiplier = 1.0;
-
-    // Calculate total human wager for RNG calibration
+    // Close betting before any asynchronous database work. No flight is
+    // published until every accepted wager has the same durable flight state.
+    this.phase = 'STARTING';
     let totalHumanWager = 0;
-    for (const b of this.bets.values()) {
-      if (!b.isAmbient) totalHumanWager += b.wager;
-    }
-
-    this.crashPoint = generateCrashMultiplier(totalHumanWager);
-    this.flightDurationMs = Math.max(80, Math.round(Math.log(this.crashPoint) / 0.00006));
-
-    // Persist crash point to active round states in database for crash recovery
-    for (const bet of this.bets.values()) {
-      if (!bet.isAmbient && bet.authenticated && bet.userId && bet.roundId && databaseEconomy) {
-        databaseEconomy.updateRoundState(bet.roundId, {
-          autoCashout: bet.autoCashout,
-          roundNumber: this.roundNumber,
-          phase: 'IN_FLIGHT',
-          crashPoint: this.crashPoint,
-        }).catch(reportCrashError);
+    for (const bet of this.bets.values()) if (!bet.isAmbient) totalHumanWager += bet.wager;
+    const crashPoint = generateCrashMultiplier(totalHumanWager);
+    const flightStartTime = Date.now();
+    const flightDurationMs = Math.max(80, Math.round(Math.log(crashPoint) / 0.00006));
+    const durableBets = [...this.bets.values()].filter(b => !b.isAmbient && b.authenticated && b.roundId);
+    try {
+      if (databaseEconomy && durableBets.length) {
+        await databaseEconomy.recordCrashFlight(durableBets.map(b => ({
+          roundId: b.roundId, userId: b.userId,
+          state: { engine: 'web-global-v1', phase: 'IN_FLIGHT', autoCashout: b.autoCashout,
+            roundNumber: this.roundNumber, crashPoint, flightStartTime, flightDurationMs },
+        })));
       }
+    } catch (error) {
+      // Keep wagers unstarted and retry the transition; recovery refunds them.
+      this.phase = 'BETTING';
+      if (!this.stopped) {
+        this.timer = setTimeout(() => this.enterFlightPhase().catch(reportCrashError), 1000);
+        this.timer.unref?.();
+      }
+      throw error;
     }
+    if (this.stopped) return;
+    this.phase = 'IN_FLIGHT';
+    this.phaseStartTime = flightStartTime;
+    this.flightStartTime = flightStartTime;
+    this.currentMultiplier = 1.0;
+    this.crashPoint = crashPoint;
+    this.flightDurationMs = flightDurationMs;
 
     this.broadcastState('crash_phase');
 
@@ -391,7 +400,7 @@ class GlobalCrashArenaEngine {
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.enterCrashedPhase().catch(reportCrashError);
-    }, this.flightDurationMs);
+    }, Math.max(0, this.flightDurationMs - (Date.now() - this.flightStartTime)));
     if (this.timer.unref) this.timer.unref();
   }
 
@@ -909,6 +918,10 @@ export function setupPlayApi(app) {
       }
     }
 
+    if (ticketParam && !ticketSession) {
+      return res.status(401).json({ error: 'Stream ticket expired or already used' });
+    }
+
     let resolved;
     try {
       if (ticketSession) {
@@ -939,7 +952,7 @@ export function setupPlayApi(app) {
     });
     res.flushHeaders?.();
 
-    const clientEntry = { res, userId: session?.userId, gameKey };
+    const clientEntry = { res, userId: resolved.authenticated ? session?.userId : null, gameKey };
     arenaSseClients.add(clientEntry);
 
     // Push immediate snapshot
@@ -1515,13 +1528,17 @@ export function setupPlayApi(app) {
         activeWebCrash.delete(gameKey);
       }
 
+      const crashPoint = generateCrashMultiplier(cleanBet);
+      const flightDurationMs = Math.max(100, Math.round(Math.log(crashPoint) / 0.00006));
+      const flightStartTime = Date.now();
       let newBalance = currentBalance;
       let roundId = null;
       if (authenticated) {
         if (databaseEconomy) {
           roundId = crypto.randomUUID();
           const res = await databaseEconomy.startRound(roundId, session.userId, 'crash', cleanBet, {
-            autoCashout: cleanAuto,
+            engine: 'web-global-v1', phase: 'IN_FLIGHT', autoCashout: cleanAuto,
+            crashPoint, flightStartTime, flightDurationMs,
           });
           newBalance = res.balance;
         } else {
@@ -1533,8 +1550,6 @@ export function setupPlayApi(app) {
         newBalance = session.demoBalance;
       }
 
-      const crashPoint = generateCrashMultiplier(cleanBet);
-      const flightDurationMs = Math.max(100, Math.round(Math.log(crashPoint) / 0.00006));
       const flightId = 'cf_' + Date.now() + '_' + crypto.randomBytes(6).toString('hex');
 
       const flightState = {
@@ -1545,7 +1560,7 @@ export function setupPlayApi(app) {
         autoCashout: cleanAuto,
         crashPoint,
         durationMs: flightDurationMs,
-        startTime: Date.now(),
+        startTime: flightStartTime,
         cashedOut: false,
         crashed: false,
         finalMult: null,
@@ -1643,9 +1658,7 @@ export function setupPlayApi(app) {
       const { flightId } = req.body || {};
 
       // A. Check Global Continuous Crash Engine first (when no custom flightId is passed or matches roundId)
-      const globalBet = globalCrashEngine.bets.get(gameKey) ||
-        (session?.userId && globalCrashEngine.bets.get(session.userId)) ||
-        (guestKey && globalCrashEngine.bets.get(guestKey));
+      const globalBet = globalCrashEngine.bets.get(gameKey);
 
       if (globalBet && (!flightId || flightId === globalCrashEngine.roundId)) {
         if (globalBet.cashedOut) {

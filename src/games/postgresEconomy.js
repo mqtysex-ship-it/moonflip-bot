@@ -454,6 +454,23 @@ export class PostgresEconomy {
       [roundId, JSON.stringify(state)]
     );
   }
+  async recordCrashFlight(bets) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const bet of bets) {
+        const result = await client.query(
+          `UPDATE moonflip_private.game_rounds SET game_state = $3::jsonb
+           WHERE round_id = $1::uuid AND discord_user_id = $2 AND game_type = 'crash' AND status = 'active'`,
+          [bet.roundId, bet.userId, JSON.stringify(bet.state)]);
+        if (result.rowCount !== 1) throw new Error('Crash wager is no longer active');
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally { client.release(); }
+  }
   async recoverInterruptedRounds(game, refund = true, olderThanSeconds = 1200, activeRoundIds = []) {
     identity(game, 'game');
     amount(olderThanSeconds, 'olderThanSeconds', 0);
@@ -478,6 +495,15 @@ export class PostgresEconomy {
           payout = BigInt(gs.winAmount);
         } else if (gs.outcome === 'crashed') {
           payout = 0n;
+        } else if (gs.engine === 'web-global-v1' && gs.phase === 'IN_FLIGHT') {
+          const target = Number(gs.autoCashout);
+          const crashPoint = Number(gs.crashPoint);
+          const start = Number(gs.flightStartTime);
+          const duration = Number(gs.flightDurationMs);
+          if (!Number.isFinite(crashPoint) || crashPoint < 1 || !Number.isFinite(start) || !Number.isFinite(duration) || duration < 0) throw new Error('Invalid persisted Crash flight');
+          if (Date.now() < start + duration) continue;
+          payout = Number.isFinite(target) && target >= 1.01 && target <= crashPoint
+            ? BigInt(Math.floor(Number(r.wager) * target)) : 0n;
         } else {
           payout = refund ? BigInt(r.wager) : 0n;
         }

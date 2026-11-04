@@ -66,7 +66,14 @@ console.error = (...args) => {
 
 const DEFAULT_GUILD_ID = '1566215806956601466';
 
-export function createWebServer({ economyStore = databaseEconomy } = {}) {
+const isDashboardStaffRole = (role) => {
+  if (!role) return false;
+  const configuredRoleIds = (process.env.STAFF_ROLE_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (configuredRoleIds.includes(role.id)) return true;
+  return /\b(owner|manager|admin|administrator|moderator|staff)\b/i.test(role.name);
+};
+
+export function createWebServer({ economyStore = databaseEconomy, fetchGuildFn = fetchGuild } = {}) {
   if (process.env.MOONFLIP_ISOLATED_TEST !== '1' && (process.env.WEB_SESSION_SECRET || '').length < 32) {
     throw new Error('WEB_SESSION_SECRET must contain at least 32 characters');
   }
@@ -469,7 +476,7 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
   // 7. GET /api/roles - Roles list with security analysis
   app.get('/api/roles', async (req, res) => {
     try {
-      const guild = await fetchGuild(DEFAULT_GUILD_ID);
+      const guild = await fetchGuildFn(DEFAULT_GUILD_ID);
       const roles = await guild.roles.fetch();
 
       const rolesList = roles.map((r) => {
@@ -502,17 +509,6 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
       rolesList.sort((a, b) => b.position - a.position);
 
       // Audit summary: flag any non-staff role with dangerous perms
-      const isDashboardStaffRole = (r) => {
-        if (!r) return false;
-        const configuredRoleIds = (process.env.STAFF_ROLE_IDS || '')
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean);
-        if (configuredRoleIds.includes(r.id)) return true;
-        const staffPattern = /\b(owner|manager|admin|administrator|moderator|staff)\b/i;
-        return staffPattern.test(r.name);
-      };
-
       const vulnerableRoles = rolesList.filter(
         (r) =>
           !isDashboardStaffRole(r) &&
@@ -535,7 +531,7 @@ export function createWebServer({ economyStore = databaseEconomy } = {}) {
   // 8. POST /api/roles/fix-permissions - Run role hardening
   app.post('/api/roles/fix-permissions', async (req, res) => {
     try {
-      const guild = await fetchGuild(DEFAULT_GUILD_ID);
+      const guild = await fetchGuildFn(DEFAULT_GUILD_ID);
       const roles = await guild.roles.fetch();
 
       // Fix @everyone

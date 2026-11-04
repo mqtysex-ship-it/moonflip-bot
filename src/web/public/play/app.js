@@ -1571,8 +1571,10 @@
   }
 
   let sseSource = null;
+  let sseRetryTimer = null;
 
   async function connectRealtimeStream() {
+    if (sseRetryTimer) { clearTimeout(sseRetryTimer); sseRetryTimer = null; }
     if (sseSource) {
       try { sseSource.close(); } catch {}
     }
@@ -1589,14 +1591,14 @@
             'x-play-token': playToken,
           },
         });
-        if (ticketRes.ok) {
-          const ticketData = await ticketRes.json();
-          if (ticketData?.ticket) {
-            qs.set('ticket', ticketData.ticket);
-          }
-        }
+        if (!ticketRes.ok) throw new Error('Stream authentication failed');
+        const ticketData = await ticketRes.json();
+        if (!ticketData?.ticket) throw new Error('Stream ticket missing');
+        qs.set('ticket', ticketData.ticket);
       } catch (ticketErr) {
         console.warn('Could not obtain single-use stream ticket:', ticketErr);
+        if (!sseRetryTimer) sseRetryTimer = setTimeout(() => { sseRetryTimer = null; connectRealtimeStream(); }, 2000);
+        return;
       }
     }
 
@@ -1672,8 +1674,14 @@
       } catch {}
     });
 
-    sseSource.onerror = () => {
-      setTimeout(() => {
+    const connectedSource = sseSource;
+    connectedSource.onerror = () => {
+      if (sseSource !== connectedSource) return;
+      connectedSource.close();
+      sseSource = null;
+      if (!sseRetryTimer) sseRetryTimer = setTimeout(() => {
+        sseRetryTimer = null;
+        connectRealtimeStream();
         if (!document.hidden) fetchCrashState();
       }, 2000);
     };
@@ -1722,7 +1730,7 @@
   }
 
   function syncMyBetFromPlayers() {
-    const myKey = state.authenticated && state.userId ? String(state.userId) : guestId;
+    const myKey = state.authenticated && state.userId ? String(state.userId) : `guest:${guestId}`;
     if (!myKey && !state.userId) return;
     const found = state.crashPlayers.find((p) => {
       const pUid = String(p.userId || p.key || '');
@@ -1847,7 +1855,7 @@
       return;
     }
 
-    const myKey = state.authenticated && state.userId ? state.userId : (playToken || guestId);
+    const myKey = state.authenticated && state.userId ? state.userId : `guest:${guestId}`;
     let html = '';
     for (let i = 0; i < players.length; i++) {
       const p = players[i];
