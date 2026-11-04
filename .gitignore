@@ -13,3 +13,5 @@ data/settings.json
 data/mines_leaderboard.json
 data/crash_leaderboard.json
 data/*.tmp.json
+
+.playwright-mcp/
