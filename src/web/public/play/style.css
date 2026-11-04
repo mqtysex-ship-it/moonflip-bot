@@ -427,7 +427,7 @@ html, body {
 /* Main Content Container */
 .mf-main {
   padding: 26px 32px 48px;
-  max-width: 1360px;
+  max-width: 1660px;
   width: 100%;
   margin: 0 auto;
   display: flex;
@@ -1248,7 +1248,7 @@ html, body {
 
 .game-chassis {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
@@ -1934,7 +1934,7 @@ html, body {
 .matrix-grid-frame {
   position: relative;
   flex: 1;
-  min-height: 470px;
+  min-height: clamp(520px, 47vw, 720px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1957,7 +1957,7 @@ html, body {
   grid-template-columns: repeat(5, 1fr);
   gap: 11px;
   width: 100%;
-  max-width: 440px;
+  max-width: 680px;
   aspect-ratio: 1 / 1;
   z-index: 2;
 }
@@ -2953,7 +2953,7 @@ html, body {
   /* Mines 5x5 Grid Fit */
   .mines-grid {
     width: 100% !important;
-    max-width: min(340px, calc(100vw - 44px)) !important;
+    max-width: min(520px, calc(100vw - 48px)) !important;
     aspect-ratio: 1 / 1 !important;
     gap: 7px !important;
     margin: 0 auto !important;
@@ -3145,7 +3145,7 @@ html, body {
 
 /* Instant originals share the arena's wallet and control vocabulary. */
 [hidden] { display: none !important; }
-.instant-chassis { display: grid; grid-template-columns: 300px minmax(0,1fr); width:100%; max-width:1360px; margin:24px auto; background:#0d141b; border:1px solid var(--border-subtle); border-radius:12px; overflow:hidden; }
+.instant-chassis { display: grid; grid-template-columns: 300px minmax(0,1fr); width:100%; max-width:1660px; margin:24px auto; background:#0d141b; border:1px solid var(--border-subtle); border-radius:12px; overflow:hidden; }
 .instant-controls { padding:24px 20px; background:#111b24; border-right:1px solid var(--border-subtle); }
 .instant-controls h1 { font-size:20px; margin:0 0 26px; letter-spacing:-.02em; }
 .instant-field { margin-bottom:20px; }
@@ -3175,15 +3175,15 @@ html, body {
 .instant-arena { padding:22px 28px; min-width:0; }
 .instant-arena-header { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#ccd7df; }
 .instant-wallet-label { font-size:11px; color:#9eb1c0; }
-.coin-stage { min-height:325px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; }
+.coin-stage { min-height:clamp(440px, 43vw, 640px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; }
 .coin-perspective { perspective:800px; padding:25px; }
-.coin-3d { position:relative; width:150px; height:150px; transform-style:preserve-3d; }
+.coin-3d { position:relative; width:210px; height:210px; transform-style:preserve-3d; }
 .coin-face { position:absolute; inset:0; backface-visibility:hidden; border-radius:50%; background:#e5bd64; border:7px solid #c5963b; box-shadow:inset 0 0 0 3px #f6d994,0 6px 0 #8c642b; color:#77511c; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 .coin-face span { font-size:68px; line-height:1; }.coin-face small { font-size:10px; font-weight:800; letter-spacing:2px; margin-top:8px; }
 .coin-tails { transform:rotateY(180deg); background:#d4dfe5; border-color:#93a7b3; color:#526b7b; box-shadow:inset 0 0 0 3px #f3f7f9,0 6px 0 #4e6674; }
 .coin-hint { font-size:13px; color:#acbfcd; }
-.plinko-stage { max-width:720px; margin:auto; }
-#plinkoBoard { width:100%; display:block; max-height:530px; overflow:visible; }
+.plinko-stage { max-width:880px; margin:auto; }
+#plinkoBoard { width:100%; display:block; max-height:700px; overflow:visible; }
 #plinkoBoard g[role=button] { cursor:pointer; outline:none; }
 #plinkoBoard g[role=button]:focus rect { stroke:#fff; stroke-width:2; }
 .plinko-detail { color:#aebfcc; font-size:11px; min-height:32px; text-align:center; }
@@ -3282,3 +3282,15 @@ body,.mf-main { background:var(--bg-body); }
 .plinko-progress-line { display:flex; justify-content:space-between; align-items:center; }
 #plinkoCancelRun { border:0; border-radius:4px; padding:4px 6px; background:transparent; color:var(--text-secondary); font:500 11px var(--font-sans); cursor:pointer; }
 #plinkoCancelRun:hover { color:var(--text-white); background:var(--bg-elevated); }
+
+/* Give each game room to breathe while keeping controls compact. */
+@media (min-width: 861px) {
+  .arena-matrix-stage { min-width: 0; }
+  .crash-radar-frame { min-height: clamp(520px, 43vw, 700px); }
+}
+@media (max-width: 860px) {
+  .matrix-grid-frame:not(.crash-radar-frame) { min-height: 0; padding: 10px 0; }
+}
+@media (max-width: 640px) {
+  .coin-3d { width: 160px; height: 160px; }
+}
