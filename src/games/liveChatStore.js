@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 const fail=(code,message)=>Object.assign(new Error(message),{code});
 function publicMessage(row){return {id:row.message_id,userId:row.discord_user_id,username:row.username,avatarUrl:row.avatar_url,level:row.level,text:row.message_text,origin:row.origin,createdAt:new Date(row.created_at).toISOString()};}
 export class LiveChatStore {
@@ -14,7 +15,19 @@ export class LiveChatStore {
     try{
       await client.query('BEGIN');
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,8))',[session.userId]);
-      const previous=(await client.query('SELECT * FROM moonflip_private.live_chat_messages WHERE message_id=$1::uuid',[id])).rows[0];
+      if (discordMessageId) {
+        const existing = await client.query('SELECT * FROM moonflip_private.live_chat_messages WHERE discord_message_id=$1', [discordMessageId]);
+        if (existing.rows[0]) {
+          await client.query('COMMIT');
+          return { message: publicMessage(existing.rows[0]), applied: false };
+        }
+      }
+      let previous=(await client.query('SELECT * FROM moonflip_private.live_chat_messages WHERE message_id=$1::uuid',[id])).rows[0];
+      // Recover from web clients that reserved a Discord ID before UUID validation was tightened.
+      if (discordMessageId && previous?.origin === 'web') {
+        id = randomUUID();
+        previous = null;
+      }
       if(previous){
         if(previous.deleted_at)throw fail('CHAT_ID_CONFLICT','Message was removed');
         if(previous.discord_user_id!==session.userId||previous.message_text!==text||previous.origin!==origin)throw fail('CHAT_ID_CONFLICT','Message ID already used');

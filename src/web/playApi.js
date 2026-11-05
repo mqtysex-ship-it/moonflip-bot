@@ -46,10 +46,11 @@ export const recentCrashHistory = [2.45, 1.18, 8.45, 1.85, 12.50, 3.20, 1.42, 4.
 // Active SSE Clients for Web Arena (/api/play/stream)
 const arenaSseClients = new Set();
 
-function broadcastArenaEvent(eventName, payload) {
+function broadcastArenaEvent(eventName, payload, demo = null) {
   if (arenaSseClients.size === 0) return;
   const msg = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
   for (const client of arenaSseClients) {
+    if (demo !== null && demo !== !client.userId) continue;
     try {
       client.res.write(msg);
     } catch {
@@ -71,14 +72,19 @@ economyEvents.on('balanceChanged', (change) => {
 
   for (const client of arenaSseClients) {
     if (client.userId === change.userId) {
-      try {
-        client.res.write(msg);
-      } catch {
-        arenaSseClients.delete(client);
-      }
+      client.walletDelivery = (client.walletDelivery || Promise.resolve()).then(async () => {
+        if (!client.res.writableEnded && await ensureActiveStream(client)) client.res.write(msg);
+      }).catch(() => client.res.end());
     }
   }
 });
+
+async function ensureActiveStream(client) {
+  if (!databasePool || !client.userId) return true;
+  const active = !!verifyTokenPayload(client.token) && await sessionRegistry.isActive(client.userId, client.token);
+  if (!active) client.res.end();
+  return active;
+}
 
 // ============================================================================
 // CRYPTOGRAPHIC STATELESS SESSION TOKENS (SURVIVES SERVER RESTARTS / REDEPLOYS)
@@ -133,6 +139,9 @@ export function createWebPlaySession(userOrId, maybeUsername, maybeAvatarUrl) {
   };
   if (databasePool) return Promise.resolve(metadataSave).then(async () => {
     await sessionRegistry.activate(session.userId, token);
+    for (const client of arenaSseClients) {
+      if (client.userId === session.userId && client.token !== token) client.res.end();
+    }
     return token;
   });
   webPlaySessions.set(token, session);
@@ -168,7 +177,7 @@ async function resolvePlayer(req) {
       expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
     };
     await setUserMeta(session.userId, session.username, session.avatarUrl);
-    webPlaySessions.set(token, session);
+    if (!databasePool) webPlaySessions.set(token, session);
     return { authenticated: true, session, token };
   }
 
@@ -179,10 +188,12 @@ async function resolvePlayer(req) {
     : (req.ip || 'default_guest');
   const guestKey = `guest:${guestId}`;
 
+  const now = Date.now();
+  if (guestBalances.get(guestKey)?.expiresAt <= now) evictGuest(guestKey);
   if (!guestBalances.has(guestKey)) {
     if (guestBalances.size >= 2000) {
       const oldestKey = guestBalances.keys().next().value;
-      if (oldestKey) guestBalances.delete(oldestKey);
+      if (oldestKey) evictGuest(oldestKey);
     }
     guestBalances.set(guestKey, {
       userId: guestKey,
@@ -191,6 +202,8 @@ async function resolvePlayer(req) {
       demoBalance: 1000,
     });
   }
+
+  guestBalances.get(guestKey).expiresAt = now + 15 * 60_000;
 
   return {
     authenticated: false,
@@ -273,7 +286,9 @@ const AI_PILOT_POOL = [
 ];
 
 class GlobalCrashArenaEngine {
-  constructor() {
+  constructor(demo = false) {
+    this.demo = demo;
+    this.history = demo ? [...recentCrashHistory] : recentCrashHistory;
     this.phase = 'BETTING'; // 'BETTING' | 'IN_FLIGHT' | 'CRASHED'
     this.roundNumber = 1042;
     this.roundId = `global_${Date.now()}`;
@@ -429,7 +444,7 @@ class GlobalCrashArenaEngine {
     }
 
     for (const p of cashedPlayers) {
-      broadcastArenaEvent('crash_cashout', {
+      this.broadcast('crash_cashout', {
         ...this.getPublicSnapshot(),
         player: p,
       });
@@ -437,7 +452,7 @@ class GlobalCrashArenaEngine {
 
     // Broadcast authoritative flight telemetry tick every 200ms to prevent any client clock drift
     if (this.tickCounter % 2 === 0) {
-      broadcastArenaEvent('crash_tick', {
+      this.broadcast('crash_tick', {
         roundId: this.roundId,
         roundNumber: this.roundNumber,
         phase: 'IN_FLIGHT',
@@ -500,14 +515,15 @@ class GlobalCrashArenaEngine {
         }
       }
 
-      await recordCrashWin({
-        userId: bet.userId,
-        username: bet.username,
-        avatarUrl: bet.avatarUrl,
-        wager: bet.wager,
-        multiplier: cleanMult,
-        payout: winAmount,
-        profit,
+      if (bet.authenticated) {
+        await recordCrashWin({
+          userId: bet.userId,
+          username: bet.username,
+          avatarUrl: bet.avatarUrl,
+          wager: bet.wager,
+          multiplier: cleanMult,
+          payout: winAmount,
+          profit,
       });
 
       broadcastWinToDiscord({
@@ -520,6 +536,7 @@ class GlobalCrashArenaEngine {
         payout: winAmount,
         profit,
       });
+      }
     }
 
     if (bet.isAmbient) { bet.cashedOut = true; bet.cashoutMult = cleanMult; bet.winAmount = winAmount; bet.profit = profit; }
@@ -565,8 +582,8 @@ class GlobalCrashArenaEngine {
     this.phaseStartTime = Date.now();
     this.currentMultiplier = this.crashPoint;
 
-    recentCrashHistory.unshift(this.crashPoint);
-    if (recentCrashHistory.length > 20) recentCrashHistory.pop();
+    this.history.unshift(this.crashPoint);
+    if (this.history.length > 20) this.history.pop();
 
     this.broadcastState('crash_phase');
 
@@ -704,7 +721,7 @@ class GlobalCrashArenaEngine {
       multiplier: roundedMult,
       currentMult: roundedMult,
       crashPoint: this.phase === 'CRASHED' ? this.crashPoint : undefined,
-      history: recentCrashHistory.slice(0, 12),
+      history: this.history.slice(0, 12),
       players,
       myBet: gameKey ? myBet : undefined,
       myQueued: gameKey ? myQueued : undefined,
@@ -712,12 +729,26 @@ class GlobalCrashArenaEngine {
     };
   }
 
+  broadcast(eventType, payload) {
+    broadcastArenaEvent(eventType, payload, this.demo);
+  }
+
   broadcastState(eventType = 'crash_state') {
-    broadcastArenaEvent(eventType, this.getPublicSnapshot());
+    this.broadcast(eventType, this.getPublicSnapshot());
   }
 }
 
 export const globalCrashEngine = new GlobalCrashArenaEngine();
+export const demoCrashEngine = new GlobalCrashArenaEngine(true);
+const crashEngineFor = authenticated => authenticated ? globalCrashEngine : demoCrashEngine;
+
+function evictGuest(key) {
+  guestBalances.delete(key);
+  activeWebMines.delete(key);
+  activeWebCrash.delete(key);
+  demoCrashEngine.bets.delete(key);
+  demoCrashEngine.queuedBets.delete(key);
+}
 
 
 function operationUuid(roundId, action) {
@@ -790,11 +821,16 @@ async function databaseMinesAction(action, req, session) {
 let crashSweeperTimer = null;
 
 export function startCrashSweeper(intervalMs = 300000, olderThanSeconds = 1200) {
-  if (!databaseEconomy) return;
   const sweep = () => {
+    const now = Date.now();
+    for (const [key, guest] of guestBalances) {
+      if (guest.expiresAt <= now) evictGuest(key);
+    }
+    if (!databaseEconomy) return;
     const activeIds = [
       ...Array.from(activeCrashFlights.values(), flight => flight.roundId),
-      ...Array.from(activeWebCrash.values(), flight => flight.roundId),
+      ...Array.from(activeWebCrash.values(), flight =>
+        now < flight.startTime + flight.durationMs ? flight.roundId : null),
       ...Array.from(globalCrashEngine.bets.values(), bet => bet.roundId),
     ].filter(Boolean);
     databaseEconomy.recoverInterruptedRounds('crash', true, olderThanSeconds, activeIds).catch(reportCrashError);
@@ -814,58 +850,40 @@ export function stopCrashSweeper() {
 
 export async function shutdownWebCrash() {
   stopCrashSweeper();
-  if (globalCrashEngine) {
-    globalCrashEngine.stopped = true;
-    if (globalCrashEngine.timer) {
-      clearTimeout(globalCrashEngine.timer);
-      globalCrashEngine.timer = null;
-    }
-    if (globalCrashEngine.tickTimer) {
-      clearInterval(globalCrashEngine.tickTimer);
-      globalCrashEngine.tickTimer = null;
-    }
-    for (const bet of globalCrashEngine.bets.values()) {
-      if (!bet.cashedOut && !bet.isAmbient && bet.authenticated && bet.userId && bet.roundId && databaseEconomy) {
-        if (globalCrashEngine.phase === 'CRASHED' || (globalCrashEngine.crashPoint && globalCrashEngine.currentMultiplier >= globalCrashEngine.crashPoint)) {
-          // Flight has crashed: uncashed bets are lost, settle at 0
-          await databaseEconomy.settleRound(bet.roundId, bet.userId, 0, {
-            outcome: 'crashed',
-            crashPoint: globalCrashEngine.crashPoint,
-            winAmount: 0,
-            roundNumber: globalCrashEngine.roundNumber,
-          }).catch(reportCrashError);
-        } else if (globalCrashEngine.phase === 'BETTING') {
-          // Betting phase: flight never started, refund wager
-          await databaseEconomy.settleRound(bet.roundId, bet.userId, bet.wager, {
-            outcome: 'refunded',
-            reason: 'server_shutdown_pre_flight',
-            roundNumber: globalCrashEngine.roundNumber,
-          }).catch(reportCrashError);
-        } else if (globalCrashEngine.phase === 'IN_FLIGHT') {
-          // In flight: if autoCashout was already reached, award winAmount
-          if (bet.autoCashout && globalCrashEngine.currentMultiplier >= bet.autoCashout) {
-            const cleanMult = Math.max(1.01, Math.round(bet.autoCashout * 100) / 100);
-            const winAmount = Math.floor(bet.wager * cleanMult);
-            await databaseEconomy.settleRound(bet.roundId, bet.userId, winAmount, {
-              outcome: 'cashed_out',
-              winAmount,
-              multiplier: cleanMult,
-              crashPoint: globalCrashEngine.crashPoint,
-              roundNumber: globalCrashEngine.roundNumber,
-            }).catch(reportCrashError);
-          } else {
-            // Interrupted mid-flight before outcome: refund wager
-            await databaseEconomy.settleRound(bet.roundId, bet.userId, bet.wager, {
-              outcome: 'refunded',
-              reason: 'server_shutdown_interrupted_flight',
-              crashPoint: globalCrashEngine.crashPoint,
-              roundNumber: globalCrashEngine.roundNumber,
-            }).catch(reportCrashError);
-          }
-        }
-      }
-    }
+  for (const engine of [globalCrashEngine, demoCrashEngine]) {
+    engine.stopped = true;
+    clearTimeout(engine.timer);
+    clearInterval(engine.tickTimer);
   }
+  const roundIds = [
+    ...Array.from(globalCrashEngine.bets.values(), bet => bet.roundId),
+    ...Array.from(activeWebCrash.values(), flight => flight.roundId),
+  ].filter(Boolean);
+  if (databaseEconomy && roundIds.length) {
+    await databaseEconomy.recoverInterruptedRounds('crash', true, 0, [], roundIds);
+  }
+}
+
+async function finishDirectCrash(gameKey, flight, authenticated, session) {
+  let payout = 0;
+  if (authenticated && databaseEconomy && flight.roundId) {
+    await databaseEconomy.recoverInterruptedRounds('crash', true, 0, [], [flight.roundId]);
+    const settled = await databaseEconomy.loadRound(flight.roundId, session.userId);
+    if (settled?.status !== 'settled') throw new Error('Crash settlement is pending');
+    payout = settled.payout;
+  } else if (flight.autoCashout && flight.autoCashout <= flight.crashPoint) {
+    payout = Math.floor(flight.wager * flight.autoCashout);
+    if (authenticated) await addTokens(session.userId, payout);
+    else session.demoBalance += payout;
+  }
+  flight.cashedOut = payout > 0;
+  flight.crashed = !flight.cashedOut;
+  flight.finalMult = flight.cashedOut ? flight.autoCashout : null;
+  if (activeWebCrash.get(gameKey) === flight) activeWebCrash.delete(gameKey);
+  for (const notify of flight.monitorResolvers) notify();
+  return { crashed: flight.crashed, cashedOut: flight.cashedOut, finalMult: flight.finalMult,
+    winAmount: payout, crashPoint: flight.crashPoint,
+    balance: authenticated ? await getBalance(session.userId) : session.demoBalance };
 }
 
 const streamTickets = new Map(); // ticket -> { session, expiresAt }
@@ -899,21 +917,19 @@ export function setupPlayApi(app) {
   // POST /api/play/stream-ticket - Short-lived, single-use ticket for EventSource
   app.post('/api/play/stream-ticket', async (req, res) => {
     try {
-      const { authenticated, session } = await resolvePlayer(req);
+      const { authenticated, session, token } = await resolvePlayer(req);
       if (!authenticated || !session?.userId) {
         return res.status(401).json({ error: 'Authentication required' });
       }
       const ticket = crypto.randomUUID();
-      streamTickets.set(ticket, {
-        session,
-        expiresAt: Date.now() + 30000,
-      });
-      if (streamTickets.size > 1000) {
+      if (streamTickets.size >= 1000) {
         const now = Date.now();
         for (const [k, v] of streamTickets.entries()) {
           if (v.expiresAt <= now) streamTickets.delete(k);
         }
       }
+      if (streamTickets.size >= 1000) return res.status(429).json({ error: 'Too many pending stream tickets' });
+      streamTickets.set(ticket, { session, token, expiresAt: Date.now() + 30_000 });
       res.json({ success: true, ticket });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -923,29 +939,33 @@ export function setupPlayApi(app) {
   // 0. GET /api/play/stream - Real-Time SSE Stream for Continuous Crash & Live Discord Wallet Sync
   app.get('/api/play/stream', async (req, res) => {
     const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
-    const currentIpCount = ipSseCounts.get(clientIp) || 0;
-    if (arenaSseClients.size >= MAX_GLOBAL_SSE || currentIpCount >= MAX_PER_IP_SSE) {
+    const streamLimitReached = () => arenaSseClients.size >= MAX_GLOBAL_SSE || (ipSseCounts.get(clientIp) || 0) >= MAX_PER_IP_SSE;
+    if (streamLimitReached()) {
       return res.status(429).json({ error: 'Too many active stream connections. Please wait.' });
     }
 
-    let ticketSession = null;
+    let streamTicket = null;
     const ticketParam = req.query?.ticket;
     if (ticketParam && typeof ticketParam === 'string' && streamTickets.has(ticketParam)) {
       const entry = streamTickets.get(ticketParam);
       streamTickets.delete(ticketParam);
       if (entry.expiresAt > Date.now()) {
-        ticketSession = entry.session;
+        streamTicket = entry;
       }
     }
 
-    if (ticketParam && !ticketSession) {
+    if (ticketParam && !streamTicket) {
       return res.status(401).json({ error: 'Stream ticket expired or already used' });
     }
 
     let resolved;
     try {
-      if (ticketSession) {
-        resolved = { authenticated: true, session: ticketSession, token: null };
+      if (streamTicket) {
+        const { session, token } = streamTicket;
+        if (databasePool && (!verifyTokenPayload(token) || !await sessionRegistry.isActive(session.userId, token))) {
+          return res.status(401).json({ error: 'Stream session expired' });
+        }
+        resolved = { authenticated: true, session, token };
       } else {
         resolved = await resolvePlayer(req);
       }
@@ -956,6 +976,7 @@ export function setupPlayApi(app) {
     const { session, token, guestKey } = resolved;
     const gameKey = session?.userId || token || guestKey || 'demo';
 
+    if (streamLimitReached()) return res.status(429).json({ error: 'Too many active stream connections. Please wait.' });
     ipSseCounts.set(clientIp, (ipSseCounts.get(clientIp) || 0) + 1);
 
     const decrementIp = () => {
@@ -972,11 +993,11 @@ export function setupPlayApi(app) {
     });
     res.flushHeaders?.();
 
-    const clientEntry = { res, userId: resolved.authenticated ? session?.userId : null, gameKey };
+    const clientEntry = { res, userId: resolved.authenticated ? session?.userId : null, gameKey, token };
     arenaSseClients.add(clientEntry);
 
     // Push immediate snapshot
-    const snapshot = globalCrashEngine.getPublicSnapshot(gameKey);
+    const snapshot = crashEngineFor(resolved.authenticated).getPublicSnapshot(gameKey);
     res.write(`event: crash_phase\ndata: ${JSON.stringify(snapshot)}\n\n`);
 
     let cleanedUp = false;
@@ -988,10 +1009,12 @@ export function setupPlayApi(app) {
       decrementIp();
     };
 
-    const heartbeat = setInterval(() => {
+    const heartbeat = setInterval(async () => {
       try {
+        if (!await ensureActiveStream(clientEntry) || res.writableEnded) return;
         res.write(': heartbeat\n\n');
       } catch {
+        res.end();
         cleanup();
       }
     }, 15000);
@@ -1026,7 +1049,7 @@ export function setupPlayApi(app) {
         };
       }
 
-      const crashSnapshot = globalCrashEngine.getPublicSnapshot(gameKey);
+      const crashSnapshot = crashEngineFor(authenticated).getPublicSnapshot(gameKey);
 
       res.json({
         authenticated,
@@ -1038,7 +1061,7 @@ export function setupPlayApi(app) {
         crashState: crashSnapshot,
         crashArena: crashSnapshot,
         history: recentPlayHistory.slice(0, 12),
-        crashHistory: recentCrashHistory.slice(0, 12),
+        crashHistory: crashSnapshot.history,
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -1165,8 +1188,10 @@ export function setupPlayApi(app) {
         game.explodedIdx = idx;
         activeWebMines.delete(gameKey);
 
-        recentPlayHistory.unshift({ multiplier: 0.0, won: false });
-        if (recentPlayHistory.length > 20) recentPlayHistory.pop();
+        if (authenticated) {
+          recentPlayHistory.unshift({ multiplier: 0.0, won: false });
+          if (recentPlayHistory.length > 20) recentPlayHistory.pop();
+        }
 
         const balance = authenticated ? await getBalance(session.userId) : session.demoBalance;
 
@@ -1202,12 +1227,14 @@ export function setupPlayApi(app) {
           finalBalance = session.demoBalance;
         }
 
-        recentPlayHistory.unshift({ multiplier: mult, won: true });
-        if (recentPlayHistory.length > 20) recentPlayHistory.pop();
+        if (authenticated) {
+          recentPlayHistory.unshift({ multiplier: mult, won: true });
+          if (recentPlayHistory.length > 20) recentPlayHistory.pop();
+        }
 
         const profit = currentWin - game.wager;
 
-        await recordMinesWin({
+        if (authenticated) await recordMinesWin({
           userId: session.userId,
           username: session.username,
           avatarUrl: session.avatarUrl,
@@ -1219,7 +1246,7 @@ export function setupPlayApi(app) {
           profit,
         });
 
-        broadcastWinToDiscord({
+        if (authenticated) broadcastWinToDiscord({
           game: 'mines',
           username: session.username,
           userId: session.userId,
@@ -1322,10 +1349,12 @@ export function setupPlayApi(app) {
       game.peekMode = true;
       game.peekRevealed = [];
 
-      recentPlayHistory.unshift({ multiplier: game.multiplier, won: true });
-      if (recentPlayHistory.length > 20) recentPlayHistory.pop();
+      if (authenticated) {
+        recentPlayHistory.unshift({ multiplier: game.multiplier, won: true });
+        if (recentPlayHistory.length > 20) recentPlayHistory.pop();
+      }
 
-      await recordMinesWin({
+      if (authenticated) await recordMinesWin({
         userId: session.userId,
         username: session.username,
         avatarUrl: session.avatarUrl,
@@ -1337,7 +1366,7 @@ export function setupPlayApi(app) {
         profit,
       });
 
-      broadcastWinToDiscord({
+      if (authenticated) broadcastWinToDiscord({
         game: 'mines',
         username: session.username,
         userId: session.userId,
@@ -1415,13 +1444,15 @@ export function setupPlayApi(app) {
   // 7. GET /api/play/crash/state - Current Global Continuous Crash State
   app.get('/api/play/crash/state', async (req, res) => {
     const { authenticated, session, token, guestKey } = await resolvePlayer(req);
+    const crashEngine = crashEngineFor(authenticated);
     const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
-    res.json(globalCrashEngine.getPublicSnapshot(gameKey));
+    res.json(crashEngine.getPublicSnapshot(gameKey));
   });
 
   // 8. POST /api/play/crash/bet - Place or Queue Bet in the Global Continuous Crash Loop
   app.post('/api/play/crash/bet', async (req, res) => {
     const { authenticated, session, token, guestKey } = await resolvePlayer(req);
+    const crashEngine = crashEngineFor(authenticated);
     const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
 
     if (playerLocks.has(gameKey)) {
@@ -1434,13 +1465,13 @@ export function setupPlayApi(app) {
 
       // Allow canceling a queued next-round bet
       if (cancelQueue) {
-        globalCrashEngine.queuedBets.delete(gameKey);
+        crashEngine.queuedBets.delete(gameKey);
         const balance = authenticated ? await getBalance(session.userId) : (session.demoBalance ?? 1000);
         return res.json({
           success: true,
           canceledQueue: true,
           balance,
-          crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+          crashState: crashEngine.getPublicSnapshot(gameKey),
         });
       }
 
@@ -1459,19 +1490,19 @@ export function setupPlayApi(app) {
       }
 
       // Strictly allow bets ONLY during the BETTING countdown phase!
-      if (globalCrashEngine.phase !== 'BETTING') {
+      if (crashEngine.phase !== 'BETTING') {
         return res.status(400).json({
           error: 'Flight is already in progress! Wait for the next launchpad countdown to place a bet.',
-          phase: globalCrashEngine.phase,
-          crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+          phase: crashEngine.phase,
+          crashState: crashEngine.getPublicSnapshot(gameKey),
         });
       }
 
-      if (globalCrashEngine.bets.has(gameKey)) {
+      if (crashEngine.bets.has(gameKey)) {
         return res.status(400).json({ error: 'You already placed a bet for this flight!' });
       }
 
-      const result = await globalCrashEngine.placeBetInternal(gameKey, {
+      const result = await crashEngine.placeBetInternal(gameKey, {
         authenticated,
         session,
         wager: cleanBet,
@@ -1482,17 +1513,17 @@ export function setupPlayApi(app) {
         return res.status(400).json(result);
       }
 
-      globalCrashEngine.broadcastState('crash_bet');
+      crashEngine.broadcastState('crash_bet');
       return res.json({
         success: true,
         status: 'placed',
         queued: false,
-        roundId: globalCrashEngine.roundId,
+        roundId: crashEngine.roundId,
         wager: cleanBet,
         autoCashout: cleanAuto,
         bet: result.bet,
         balance: result.balance,
-        crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+        crashState: crashEngine.getPublicSnapshot(gameKey),
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -1641,24 +1672,12 @@ export function setupPlayApi(app) {
       });
 
       if (!flight.cashedOut && !flight.crashed) {
-        if (authenticated && databaseEconomy && flight.roundId) {
-          await databaseEconomy.settleRound(flight.roundId, session.userId, 0);
-        }
-        flight.crashed = true;
-        activeWebCrash.delete(gameKey);
-        recentCrashHistory.unshift(flight.crashPoint);
-        if (recentCrashHistory.length > 20) recentCrashHistory.pop();
+        flight.settlementPromise ??= finishDirectCrash(gameKey, flight, authenticated, session)
+          .finally(() => { flight.settlementPromise = null; });
+        return res.json(await flight.settlementPromise);
       }
-
-      const balance = authenticated ? await getBalance(session.userId) : session.demoBalance;
-
-      res.json({
-        crashed: !flight.cashedOut,
-        cashedOut: flight.cashedOut,
-        finalMult: flight.finalMult,
-        crashPoint: flight.crashPoint,
-        balance,
-      });
+      return res.json({ crashed: flight.crashed, cashedOut: flight.cashedOut,
+        finalMult: flight.finalMult, crashPoint: flight.crashPoint });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -1667,6 +1686,7 @@ export function setupPlayApi(app) {
   // 11. POST /api/play/crash/cashout - Lock in Flight Winnings (Supports both Global Continuous Loop & Direct Flight)
   app.post('/api/play/crash/cashout', async (req, res) => {
     const { authenticated, session, token, guestKey } = await resolvePlayer(req);
+    const crashEngine = crashEngineFor(authenticated);
     const gameKey = authenticated ? session.userId : (token || guestKey || 'demo');
 
     if (playerLocks.has(gameKey)) {
@@ -1678,81 +1698,81 @@ export function setupPlayApi(app) {
       const { flightId } = req.body || {};
 
       // A. Check Global Continuous Crash Engine first (when no custom flightId is passed or matches roundId)
-      const globalBet = globalCrashEngine.bets.get(gameKey);
+      const globalBet = crashEngine.bets.get(gameKey);
 
-      if (globalBet && (!flightId || flightId === globalCrashEngine.roundId)) {
+      if (globalBet && (!flightId || flightId === crashEngine.roundId)) {
         if (globalBet.cashedOut) {
           const balance = authenticated ? await getBalance(session.userId) : (session?.demoBalance ?? 1000);
           return res.json({
             success: true,
             cashedOut: true,
-            flightId: globalCrashEngine.roundId,
+            flightId: crashEngine.roundId,
             multiplier: globalBet.cashoutMult || 1.0,
             winAmount: globalBet.winAmount || 0,
             profit: globalBet.profit || 0,
             balance,
-            crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+            crashState: crashEngine.getPublicSnapshot(gameKey),
           });
         }
 
-        if (globalCrashEngine.phase === 'CRASHED') {
+        if (crashEngine.phase === 'CRASHED') {
           const balance = authenticated ? await getBalance(session.userId) : (session?.demoBalance ?? 1000);
           return res.json({
             crashed: true,
-            crashPoint: globalCrashEngine.crashPoint,
+            crashPoint: crashEngine.crashPoint,
             balance,
-            crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+            crashState: crashEngine.getPublicSnapshot(gameKey),
           });
         }
 
-        if (globalCrashEngine.phase !== 'IN_FLIGHT') {
+        if (crashEngine.phase !== 'IN_FLIGHT') {
           return res.status(400).json({ error: 'Flight is not in progress.' });
         }
 
-        const elapsedMs = Math.max(0, Date.now() - (globalCrashEngine.flightStartTime || globalCrashEngine.phaseStartTime));
+        const elapsedMs = Math.max(0, Date.now() - (crashEngine.flightStartTime || crashEngine.phaseStartTime));
         const currentFlightMult = Math.exp(0.00006 * elapsedMs);
-        if (elapsedMs >= globalCrashEngine.flightDurationMs || currentFlightMult >= globalCrashEngine.crashPoint) {
+        if (elapsedMs >= crashEngine.flightDurationMs || currentFlightMult >= crashEngine.crashPoint) {
           const balance = authenticated ? await getBalance(session.userId) : (session?.demoBalance ?? 1000);
           return res.json({
             crashed: true,
-            crashPoint: globalCrashEngine.crashPoint,
+            crashPoint: crashEngine.crashPoint,
             balance,
-            crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+            crashState: crashEngine.getPublicSnapshot(gameKey),
           });
         }
 
-        let achievedMult = Math.min(globalCrashEngine.crashPoint, currentFlightMult);
+        let achievedMult = Math.min(crashEngine.crashPoint, currentFlightMult);
         if (globalBet.autoCashout && achievedMult >= globalBet.autoCashout) {
           achievedMult = globalBet.autoCashout;
         }
 
-        const out = await globalCrashEngine.executeBetCashout(globalBet, achievedMult) || {
+        const out = await crashEngine.executeBetCashout(globalBet, achievedMult) || {
           multiplier: globalBet.cashoutMult || Math.max(1.01, Math.round(achievedMult * 100) / 100),
           winAmount: globalBet.winAmount || Math.floor(globalBet.wager * (achievedMult || 1.0)),
           profit: globalBet.profit || 0,
           balance: authenticated ? await getBalance(session.userId) : (session?.demoBalance ?? 1000),
         };
 
-        broadcastArenaEvent('crash_cashout', {
-          ...globalCrashEngine.getPublicSnapshot(),
-          player: globalCrashEngine.serializeBet(globalBet),
+        crashEngine.broadcast('crash_cashout', {
+          ...crashEngine.getPublicSnapshot(),
+          player: crashEngine.serializeBet(globalBet),
         });
 
         return res.json({
           success: true,
           cashedOut: true,
-          flightId: globalCrashEngine.roundId,
+          flightId: crashEngine.roundId,
           multiplier: out.multiplier,
           winAmount: out.winAmount,
           profit: out.profit,
           balance: out.balance,
-          crashState: globalCrashEngine.getPublicSnapshot(gameKey),
+          crashState: crashEngine.getPublicSnapshot(gameKey),
         });
       }
 
       // B. Fallback: Direct Flight Session (for unit tests or legacy flightId)
       const flight = activeWebCrash.get(gameKey);
-      if (!flight || flight.crashed || flight.cashedOut) {
+      if (!flight || flight.crashed || flight.cashedOut || flight.settlementPromise) {
         return res.status(400).json({ error: 'No active flight to cash out.' });
       }
 
@@ -1763,32 +1783,13 @@ export function setupPlayApi(app) {
       const elapsedMs = Date.now() - flight.startTime;
       const currentFlightMult = Math.exp(0.00006 * elapsedMs);
 
-      if (elapsedMs >= flight.durationMs || currentFlightMult >= flight.crashPoint) {
-        if (authenticated && databaseEconomy && flight.roundId) {
-          const roundState = {
-            outcome: 'crashed',
-            crashPoint: flight.crashPoint,
-            winAmount: 0,
-          };
-          await databaseEconomy.settleRound(flight.roundId, session.userId, 0, roundState);
-        }
-        flight.crashed = true;
-        activeWebCrash.delete(gameKey);
-        recentCrashHistory.unshift(flight.crashPoint);
-        if (recentCrashHistory.length > 20) recentCrashHistory.pop();
-
-        if (Array.isArray(flight.monitorResolvers)) {
-          flight.monitorResolvers.forEach((fn) => {
-            try { fn(); } catch {}
-          });
-        }
-
-        const balance = authenticated ? await getBalance(session.userId) : session.demoBalance;
-        return res.json({
-          crashed: true,
-          crashPoint: flight.crashPoint,
-          balance,
-        });
+      if (elapsedMs >= flight.durationMs) {
+        flight.settlementPromise ??= finishDirectCrash(gameKey, flight, authenticated, session)
+          .finally(() => { flight.settlementPromise = null; });
+        return res.json(await flight.settlementPromise);
+      }
+      if (currentFlightMult >= flight.crashPoint) {
+        return res.status(409).json({ error: 'Flight settlement is pending.' });
       }
 
       let achievedMult = Math.min(flight.crashPoint, currentFlightMult);
@@ -1823,8 +1824,10 @@ export function setupPlayApi(app) {
       flight.cashedOut = true;
       flight.finalMult = achievedMult;
 
-      recentCrashHistory.unshift(achievedMult);
-      if (recentCrashHistory.length > 20) recentCrashHistory.pop();
+      if (authenticated) {
+        recentCrashHistory.unshift(achievedMult);
+        if (recentCrashHistory.length > 20) recentCrashHistory.pop();
+      }
 
       if (Array.isArray(flight.monitorResolvers)) {
         flight.monitorResolvers.forEach((fn) => {
@@ -1832,7 +1835,7 @@ export function setupPlayApi(app) {
         });
       }
 
-      await recordCrashWin({
+      if (authenticated) await recordCrashWin({
         userId: session.userId,
         username: session.username,
         avatarUrl: session.avatarUrl,
@@ -1842,7 +1845,7 @@ export function setupPlayApi(app) {
         profit,
       });
 
-      broadcastWinToDiscord({
+      if (authenticated) broadcastWinToDiscord({
         game: 'crash',
         username: session.username,
         userId: session.userId,

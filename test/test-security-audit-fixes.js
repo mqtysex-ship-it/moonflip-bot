@@ -38,13 +38,16 @@ const legitStaff = {
     ])
   }
 };
-assert.equal(isStaffMember(legitStaff), true, 'Exact word moderator must grant staff');
+assert.equal(isStaffMember(legitStaff), false, 'Role names cannot grant staff access');
+process.env.STAFF_ROLE_IDS = '1';
+assert.equal(isStaffMember(legitStaff), true, 'A configured role ID grants staff access');
+delete process.env.STAFF_ROLE_IDS;
 
 const adminPermMember = {
   permissions: { has: perm => perm === PermissionFlagsBits.Administrator },
   roles: { cache: new Map() }
 };
-assert.equal(isStaffMember(adminPermMember), true, 'Administrator permission must grant staff');
+assert.equal(isStaffMember(adminPermMember), false, 'Staff actions require a configured role ID');
 
 console.log('✓ Staff role check hardening passed');
 
@@ -93,8 +96,8 @@ try {
   console.log('✓ Public guest API bounding and sanitation passed');
 
   // Test 4: Crash cashout post-crash tolerance check (Issue 2)
-  const { globalCrashEngine } = await import('../src/web/playApi.js');
-  await globalCrashEngine.enterBettingPhase();
+  const { demoCrashEngine, globalCrashEngine } = await import('../src/web/playApi.js');
+  await demoCrashEngine.enterBettingPhase();
   const betRes = await fetch(`${base}/api/play/crash/bet`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-guest-id': 'test_post_crash_user' },
@@ -102,8 +105,9 @@ try {
   });
   assert.equal(betRes.status, 200);
 
-  await globalCrashEngine.enterFlightPhase();
-  await globalCrashEngine.enterCrashedPhase();
+  assert.equal(globalCrashEngine.bets.has('guest:test_post_crash_user'), false);
+  await demoCrashEngine.enterFlightPhase();
+  await demoCrashEngine.enterCrashedPhase();
 
   const postCrashCashoutRes = await fetch(`${base}/api/play/crash/cashout`, {
     method: 'POST',

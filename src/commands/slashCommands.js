@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   SlashCommandBuilder,
   PermissionFlagsBits,
@@ -10,8 +11,7 @@ import {
 import {
   getUser,
   getBalance,
-  addTokens,
-  setBalance,
+  adjustWallet,
   claimDaily,
   transferTokens,
   getLeaderboard,
@@ -60,14 +60,6 @@ export function getSlashCommandDefinitions() {
       .addUserOption((opt) => opt.setName('user').setDescription('The recipient member').setRequired(true))
       .addIntegerOption((opt) =>
         opt.setName('amount').setDescription('Amount of tokens to send').setMinValue(1).setRequired(true)
-      ),
-
-    // 5. /deposit-test
-    new SlashCommandBuilder()
-      .setName('deposit-test')
-      .setDescription('Simulate a credit/token test deposit into your wallet')
-      .addIntegerOption((opt) =>
-        opt.setName('amount').setDescription('Amount of test tokens to credit (e.g. 500, 1000, 5000)').setMinValue(10).setRequired(true)
       ),
 
     // 6. /rank
@@ -146,9 +138,22 @@ export function getSlashCommandDefinitions() {
   ];
 }
 
+const walletCommands = new Set(['addtokens', 'removetokens', 'setbalance']);
+
+function canAdjustWallet(interaction) {
+  return !!process.env.DISCORD_GUILD_ID && interaction.guildId === process.env.DISCORD_GUILD_ID
+    && (process.env.WALLET_ADMIN_USER_IDS || '').split(',').some(id => id.trim() === interaction.user.id);
+}
+
+function walletOperationId(interactionId) {
+  const hex = createHash('sha256').update('discord-wallet-adjust:' + interactionId).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 export async function registerGuildSlashCommands(guild) {
   try {
-    const definitions = getSlashCommandDefinitions();
+    const definitions = getSlashCommandDefinitions().filter(command =>
+      !walletCommands.has(command.name) || guild.id === process.env.DISCORD_GUILD_ID);
     await guild.commands.set(definitions);
     console.log(`[Slash Commands] Registered ${definitions.length} slash commands in guild: ${guild.name}`);
   } catch (err) {
@@ -265,22 +270,6 @@ export async function handleChatInputCommand(interaction) {
     return interaction.reply({ embeds: [embed] });
   }
 
-  // 5. /deposit-test
-  if (commandName === 'deposit-test') {
-    const amount = interaction.options.getInteger('amount');
-    const newBal = (await addTokens(interaction.user.id, amount));
-
-    const embed = new EmbedBuilder()
-      .setColor(0x57f287)
-      .setTitle('💳 Test Deposit Credited')
-      .setDescription(
-        `> Added **+${amount.toLocaleString()} tokens** to your wallet.\n\n` +
-        `• **New Balance:** \`${newBal.toLocaleString()} tokens\``
-      );
-
-    return interaction.reply({ embeds: [embed] });
-  }
-
   // 6. /rank
   if (commandName === 'rank') {
     const targetUser = interaction.options.getUser('user') || interaction.user;
@@ -333,17 +322,16 @@ export async function handleChatInputCommand(interaction) {
 
   // 8. /addtokens (Admin Only)
   if (commandName === 'addtokens') {
-    if (!isStaffOrOwner(interaction)) {
+    if (!canAdjustWallet(interaction)) {
       return interaction.reply({
-        content: '⛔ **Access Denied**: Only the Server Owner or Admins can add tokens.',
+        content: '⛔ **Access Denied**: This command requires wallet administration access.',
         flags: MessageFlags.Ephemeral,
       });
     }
 
     const targetUser = interaction.options.getUser('user');
     const amount = interaction.options.getInteger('amount');
-    const prevBal = (await getBalance(targetUser.id));
-    const newBal = (await addTokens(targetUser.id, amount));
+    const { balance: newBal } = await adjustWallet(targetUser.id, 'add', amount, walletOperationId(interaction.id));
 
     const embed = new EmbedBuilder()
       .setColor(0x57f287)
@@ -362,17 +350,16 @@ export async function handleChatInputCommand(interaction) {
 
   // 7. /removetokens (Admin Only)
   if (commandName === 'removetokens') {
-    if (!isStaffOrOwner(interaction)) {
+    if (!canAdjustWallet(interaction)) {
       return interaction.reply({
-        content: '⛔ **Access Denied**: Only the Server Owner or Admins can remove tokens.',
+        content: '⛔ **Access Denied**: This command requires wallet administration access.',
         flags: MessageFlags.Ephemeral,
       });
     }
 
     const targetUser = interaction.options.getUser('user');
     const amount = interaction.options.getInteger('amount');
-    const prevBal = (await getBalance(targetUser.id));
-    const newBal = (await setBalance(targetUser.id, Math.max(0, prevBal - amount)));
+    const { balance: newBal, previousBalance: prevBal } = await adjustWallet(targetUser.id, 'deduct', amount, walletOperationId(interaction.id));
 
     const embed = new EmbedBuilder()
       .setColor(0xed4245)
@@ -380,7 +367,7 @@ export async function handleChatInputCommand(interaction) {
       .setDescription(
         `> Admin deducted tokens from <@${targetUser.id}>.\n\n` +
         `• **Member:** <@${targetUser.id}> (\`${targetUser.tag || targetUser.username}\`)\n` +
-        `• **Deducted:** \`-${amount.toLocaleString()} 🪙\`\n` +
+        `• **Deducted:** \`-${(prevBal - newBal).toLocaleString()} 🪙\`\n` +
         `• **New Balance:** \`${newBal.toLocaleString()} 🪙\`\n` +
         `• **Authorized By:** <@${interaction.user.id}>`
       )
@@ -391,17 +378,16 @@ export async function handleChatInputCommand(interaction) {
 
   // 8. /setbalance (Admin Only)
   if (commandName === 'setbalance') {
-    if (!isStaffOrOwner(interaction)) {
+    if (!canAdjustWallet(interaction)) {
       return interaction.reply({
-        content: '⛔ **Access Denied**: Only the Server Owner or Admins can set balances.',
+        content: '⛔ **Access Denied**: This command requires wallet administration access.',
         flags: MessageFlags.Ephemeral,
       });
     }
 
     const targetUser = interaction.options.getUser('user');
     const amount = interaction.options.getInteger('amount');
-    const prevBal = (await getBalance(targetUser.id));
-    const newBal = (await setBalance(targetUser.id, amount));
+    const { balance: newBal, previousBalance: prevBal } = await adjustWallet(targetUser.id, 'set', amount, walletOperationId(interaction.id));
 
     const embed = new EmbedBuilder()
       .setColor(0x9b59b6)

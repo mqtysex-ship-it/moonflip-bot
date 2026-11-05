@@ -16,7 +16,7 @@ import {
   getEconomyStats,
   getEconomyPlayers,
 } from '../games/economy.js';
-import { setupTicketPanel, loadDepartments, saveDepartments } from '../tickets/ticketSystem.js';
+import { archiveDashboardTicket, setupTicketPanel, loadDepartments, saveDepartments } from '../tickets/ticketSystem.js';
 import { deployGamePanels } from '../games/panels.js';
 import { getAnnouncementsBannerGif } from '../games/animator.js';
 import { setupPlayApi } from './playApi.js';
@@ -335,7 +335,7 @@ export function createWebServer({ economyStore = databaseEconomy, fetchGuildFn =
   // 4. POST /api/economy/adjust - Set, Add, or Deduct tokens
   app.post('/api/economy/adjust', async (req, res) => {
     try {
-      const { userId, action, amount } = req.body;
+      const { userId, action, amount, operationId } = req.body;
       if (!userId || !Number.isSafeInteger(amount) || amount < 0) {
         return res.status(400).json({ error: 'Valid userId and positive amount are required.' });
       }
@@ -345,7 +345,10 @@ export function createWebServer({ economyStore = databaseEconomy, fetchGuildFn =
       }
 
       if (economyStore) {
-        const result = await economyStore.adjust(crypto.randomUUID(), userId, action, amount);
+        if (typeof operationId !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(operationId)) {
+          return res.status(400).json({ error: 'Valid operationId is required.' });
+        }
+        const result = await economyStore.adjust(operationId, userId, action, amount);
         return res.json({ success: true, userId, previousBalance: result.previousBalance,
           newBalance: result.balance, action, amount });
       }
@@ -443,6 +446,7 @@ export function createWebServer({ economyStore = databaseEconomy, fetchGuildFn =
         }
 
         if (channel) {
+          if (databasePool) await archiveDashboardTicket(channel);
           try {
             await channel.delete('Closed via Web Dashboard');
           } catch (delErr) {

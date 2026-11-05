@@ -84,6 +84,7 @@ const rakebackClient = {
       walletBalance += BigInt(params[1]);
       return { rows: [] };
     }
+    if (sql.includes('AS excluded_wager')) return { rows: [{ excluded_wager: '0' }] };
     throw new Error('unexpected rakeback query: ' + sql);
   },
   release() {}

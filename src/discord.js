@@ -5,7 +5,7 @@ import { Client, GatewayIntentBits, Partials, EmbedBuilder, MessageFlags, Permis
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getBalance, claimDaily, addTokens, getLeaderboard } from './games/economy.js';
+import { getBalance, claimDaily, getLeaderboard } from './games/economy.js';
 import { addXp, getUserLevelData, LEVEL_TIERS } from './games/levels.js';
 import { start5x5Mines, handle5x5MinesInteraction, showMinesSetupModal, showMinesLeaderboard } from './games/minesGame.js';
 import { continuousCrash, showCrashModal } from './games/continuousCrash.js';
@@ -15,7 +15,7 @@ import { playSlots, showSlotsModal } from './games/slotsGame.js';
 import { playCoinflip, showCoinflipModal } from './games/coinflipGame.js';
 import { startBlackjack, handleBlackjackButton, showBlackjackModal } from './games/blackjackGame.js';
 import { registerGuildSlashCommands, handleChatInputCommand } from './commands/slashCommands.js';
-import { handleTicketInteraction } from './tickets/ticketSystem.js';
+import { handleTicketInteraction, recoverArchivedTickets, restrictExistingTicketChannels } from './tickets/ticketSystem.js';
 import { handleRulesInteraction } from './rulesSystem.js';
 import { createWebPlaySession, getPublicBaseUrl, broadcastLiveChatMessage, broadcastLiveChatDelete, processLiveChatRain } from './web/playApi.js';
 
@@ -71,26 +71,40 @@ export async function getDiscordClient() {
       if (process.env.MOONFLIP_MCP_ONLY === '1') return;
 
       if (databasePool && !chatBridgeTimer) {
-        let bridgeRunning = false;
-        let nextRainCheck = 0;
-        const deliver = async () => {
-          if (bridgeRunning) return;
-          bridgeRunning = true;
-          try {
-            const channel = await c.channels.fetch(LIVE_CHAT_CHANNEL_ID);
-            if (!channel?.isTextBased() || !channel.send) throw new Error('Live chat channel unavailable');
-            const caughtUp = await syncDiscordChat(databasePool,channel,{store:liveChatStore,broadcast:broadcastLiveChatMessage});
-            await deliverChatOutbox(databasePool, channel);
-            if (caughtUp && Date.now() >= nextRainCheck) {
-              await processLiveChatRain();
-              nextRainCheck = Date.now() + 60000;
-            }
-          } catch (error) { console.error('[Live chat bridge]', error.message); }
-          finally { bridgeRunning = false; }
+        const channel = async () => {
+          const target = await c.channels.fetch(LIVE_CHAT_CHANNEL_ID);
+          if (!target?.isTextBased() || !target.send) throw new Error('Live chat channel unavailable');
+          return target;
         };
-        chatBridgeTimer = setInterval(deliver, 2000);
+        const independentJob = (name, task) => {
+          let running = false;
+          return async () => {
+            if (running) return;
+            running = true;
+            try { await task(); }
+            catch (error) { console.error(name, error.message); }
+            finally { running = false; }
+          };
+        };
+        const sync = independentJob('[Live chat sync]', async () =>
+          syncDiscordChat(databasePool, await channel(), { store: liveChatStore, broadcast: broadcastLiveChatMessage }));
+        const deliver = independentJob('[Live chat delivery]', async () =>
+          deliverChatOutbox(databasePool, await channel()));
+        const rain = independentJob('[Live chat rain]', processLiveChatRain);
+        const recoverTickets = independentJob('[Ticket recovery]', () => recoverArchivedTickets(c));
+        let nextMaintenance = 0;
+        const tick = () => {
+          void sync();
+          void deliver();
+          if (Date.now() >= nextMaintenance) {
+            nextMaintenance = Date.now() + 60000;
+            void rain();
+            void recoverTickets();
+          }
+        };
+        chatBridgeTimer = setInterval(tick, 2000);
         chatBridgeTimer.unref?.();
-        deliver();
+        tick();
       }
 
       // Auto-register slash commands & start continuous crash in parallel for each guild
@@ -101,6 +115,7 @@ export async function getDiscordClient() {
           Promise.allSettled([
             registerGuildSlashCommands(g),
             continuousCrash.start(g),
+            restrictExistingTicketChannels(g).catch(error => console.error('[Ticket visibility]', error.message)),
           ]).catch(() => {});
         }
       } catch (err) {
@@ -235,16 +250,8 @@ export async function getDiscordClient() {
           return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        // Test Deposit (+1,000)
         if (id === 'eco_test_deposit_1000') {
-          const amount = 1000;
-          const newBal = (await addTokens(interaction.user.id, amount, false));
-
-          const embed = new EmbedBuilder()
-            .setColor(0x2ecc71)
-            .setTitle('Test Deposit Credited')
-            .setDescription(`Added **+${amount.toLocaleString()}** tokens. New balance: **${newBal.toLocaleString()}** tokens.`);
-          return await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+          return interaction.reply({ content: 'This button has expired.', flags: MessageFlags.Ephemeral });
         }
 
         // Web Arena 1-Click Launch Buttons (WebApp, Mines, Crash, Plinko & Coinflip)

@@ -121,30 +121,26 @@ async function saveData(data) {
   fs.writeFileSync(TICKETS_FILE, JSON.stringify(data, null, 2), 'utf-8');
 }
 
-/**
- * Checks if member is staff based on permissions and role keywords.
- */
+function staffRoleIds() {
+  return (process.env.STAFF_ROLE_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
+}
+
 export function isStaffMember(member) {
-  if (!member) return false;
-  if (member.id && member.guild?.ownerId === member.id) return true;
-  if (
-    member.permissions?.has(PermissionFlagsBits.Administrator) ||
-    member.permissions?.has(PermissionFlagsBits.ManageGuild) ||
-    member.permissions?.has(PermissionFlagsBits.ManageChannels) ||
-    member.permissions?.has(PermissionFlagsBits.ModerateMembers)
-  ) {
-    return true;
-  }
-  const configuredRoleIds = (process.env.STAFF_ROLE_IDS || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-  if (configuredRoleIds.length > 0 && member.roles?.cache) {
-    if (configuredRoleIds.some(id => member.roles.cache.has(id))) return true;
-  }
-  const staffPattern = /\b(owner|manager|admin|administrator|moderator|staff)\b/i;
-  const roles = member.roles?.cache ? Array.from(member.roles.cache.values()) : [];
-  return roles.some((r) => staffPattern.test(r.name));
+  return staffRoleIds().some(id => id !== member?.guild?.id && member?.roles?.cache?.has(id));
+}
+
+async function privateTicketArchive(guild, type) {
+  const id = type === 'redemption' ? process.env.REDEMPTION_TICKET_ARCHIVE_CHANNEL_ID
+    : process.env.TICKET_ARCHIVE_CHANNEL_ID;
+  if (!id) return null;
+  const channel = await guild.channels.fetch(id, { force: true });
+  if (channel?.type !== ChannelType.GuildText || channel.guildId !== guild.id) return null;
+  const everyone = guild.roles.everyone;
+  if (!channel.permissionOverwrites.cache.get(everyone.id)?.deny.has(PermissionFlagsBits.ViewChannel)) return null;
+  const allowed = new Set([...staffRoleIds().filter(roleId => roleId !== everyone.id), guild.client.user.id]);
+  const unexpected = channel.permissionOverwrites.cache.some(overwrite =>
+    overwrite.allow.has(PermissionFlagsBits.ViewChannel) && !allowed.has(overwrite.id));
+  return unexpected ? null : channel;
 }
 
 /**
@@ -369,12 +365,16 @@ export async function handleTicketInteraction(interaction) {
       // Check if user already has an active open ticket in the server
       const data = await loadData();
       const existing = Object.entries(data.activeTickets).find(
-        ([, t]) => t.userId === user.id && t.status === 'open'
+        ([, t]) => t.userId === user.id && (!t.guildId || t.guildId === guild.id)
+          && ['open', 'archived'].includes(t.status)
       );
 
       if (existing) {
         const [exChanId] = existing;
-        const exChan = guild.channels.cache.get(exChanId);
+        const exChan = await guild.channels.fetch(exChanId, { force: true }).catch(error => {
+          if (error.code === 10003) return null;
+          throw error;
+        });
         if (exChan) {
           return interaction.editReply({
             content: `⚠️ **Active Ticket Open**: You already have an open ticket in <#${exChanId}>. Please use your existing ticket or close it before opening a new one.`,
@@ -396,22 +396,14 @@ export async function handleTicketInteraction(interaction) {
       );
 
       // Format new ticket number & channel name
-      data.counter = (data.counter || 0) + 1;
-      const ticketNum = String(data.counter).padStart(4, '0');
       const sanitizedName = user.username.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15);
       const channelName = `🎫┃${ticketConfig.prefix}-${sanitizedName}`;
 
       // Collect staff roles to allow in ticket
-      const configuredStaffIds = (process.env.STAFF_ROLE_IDS || '')
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean);
-      const staffPattern = /\b(owner|manager|admin|administrator|moderator|staff)\b/i;
-      const staffRoles = guild.roles.cache.filter((r) => {
-        return configuredStaffIds.includes(r.id) || staffPattern.test(r.name);
-      });
-
       const everyoneId = guild.roles.everyone?.id || guild.id;
+      const configuredStaffIds = staffRoleIds();
+      const staffRoles = guild.roles.cache.filter(role =>
+        role.id !== everyoneId && configuredStaffIds.includes(role.id));
 
       // Build permission overwrites
       const overwrites = [
@@ -462,28 +454,49 @@ export async function handleTicketInteraction(interaction) {
         });
       }
 
-    // Create channel
-    const ticketChannel = await guild.channels.create({
-      name: channelName,
-      type: ChannelType.GuildText,
-      parent: supportCat ? supportCat.id : null,
-      topic: `ticket_user_${user.id} | id:#${ticketNum} | dept:${ticketConfig.prefix} | opened:${new Date().toISOString()}`,
-      permissionOverwrites: overwrites,
-    });
+    const openTicket = async current => {
+      const active = Object.entries(current.activeTickets).find(([, ticket]) =>
+        ticket.userId === user.id && (!ticket.guildId || ticket.guildId === guild.id)
+        && ['open', 'archived'].includes(ticket.status));
+      if (active) return { existingId: active[0] };
 
-    // Save ticket state
-    data.activeTickets[ticketChannel.id] = {
-      id: ticketNum,
-      userId: user.id,
-      userName: user.tag || user.username,
-      type: ticketConfig.prefix,
-      title: ticketConfig.title,
-      channelId: ticketChannel.id,
-      openedAt: Date.now(),
-      claimedBy: null,
-      status: 'open',
+      const ticketNum = String((current.counter || 0) + 1).padStart(4, '0');
+      const marker = `moonflip-ticket-v2:${user.id}`;
+      // A successful Discord create can outlive a failed database commit.
+      const channels = databasePool ? await guild.channels.fetch() : null;
+      const ticketChannel = channels?.find(channel =>
+        channel?.type === ChannelType.GuildText && channel.topic === marker)
+        || await guild.channels.create({
+          name: channelName,
+          type: ChannelType.GuildText,
+          parent: supportCat?.id ?? null,
+          topic: marker,
+          permissionOverwrites: overwrites,
+        });
+      current.counter = Number(ticketNum);
+      current.activeTickets[ticketChannel.id] = {
+        id: ticketNum,
+        userId: user.id,
+        userName: user.tag || user.username,
+        guildId: guild.id,
+        type: ticketConfig.prefix,
+        title: ticketConfig.title,
+        channelId: ticketChannel.id,
+        openedAt: Date.now(),
+        claimedBy: null,
+        status: 'open',
+      };
+      return { ticketChannel, ticketNum };
     };
-    await saveData(data);
+
+    const opened = databasePool
+      ? await updateDocument('tickets', { counter: 0, activeTickets: {} }, openTicket)
+      : await openTicket(data);
+    if (opened.existingId) {
+      return interaction.editReply({ content: `You already have an active ticket in <#${opened.existingId}>.` });
+    }
+    const { ticketChannel, ticketNum } = opened;
+    if (!databasePool) await saveData(data);
 
     // Build Ticket Welcome Embed
     const welcomeEmbed = new EmbedBuilder()
@@ -531,16 +544,16 @@ export async function handleTicketInteraction(interaction) {
     });
 
     // Store message ID to update status later
-    data.activeTickets[ticketChannel.id].messageId = initialMsg.id;
-    await saveData(data);
+    const latest = await loadData();
+    const openedTicket = latest.activeTickets[ticketChannel.id];
+    if (openedTicket?.status === 'open') {
+      openedTicket.messageId = initialMsg.id;
+      await saveData(latest);
+    }
 
     // Notify Staff HQ (#🎁┃redemption-review for redemptions, #🔨┃mod-operations for general/wallet/bug)
     try {
-      const targetStaffChName =
-        ticketConfig.prefix === 'redemption' ? 'redemption-review' : 'mod-operations';
-      const staffAlertCh = guild.channels.cache.find(
-        (c) => c.type === ChannelType.GuildText && c.name.includes(targetStaffChName)
-      );
+      const staffAlertCh = await privateTicketArchive(guild, ticketConfig.prefix);
       if (staffAlertCh) {
         const alertEmbed = new EmbedBuilder()
           .setColor(ticketConfig.color || 0xf1c40f)
@@ -651,7 +664,7 @@ export async function handleTicketInteraction(interaction) {
     const isOwner = ticket && ticket.userId === user.id;
     const isStaff = isStaffMember(member);
 
-    if (!isOwner && !isStaff) {
+    if (!ticket || (!isOwner && !isStaff)) {
       return interaction.reply({
         content: '⛔ You do not have permission to close this ticket.',
         flags: MessageFlags.Ephemeral,
@@ -672,7 +685,7 @@ export async function handleTicketInteraction(interaction) {
     );
 
     return interaction.reply({
-      content: '⚠️ **Are you sure you want to close this ticket?**\nA transcript will be compiled and this channel will be permanently removed in 5 seconds after confirmation.',
+      content: '⚠️ **Are you sure you want to close this ticket?**\nA transcript will be compiled and this channel will be removed once the transcript is archived.',
       components: [confirmRow],
     });
   }
@@ -683,7 +696,7 @@ export async function handleTicketInteraction(interaction) {
     const ticket = data.activeTickets[interaction.channelId];
     const isOwner = ticket && ticket.userId === user.id;
     const isStaff = isStaffMember(member);
-    if (!isOwner && !isStaff) {
+    if (!ticket || (!isOwner && !isStaff)) {
       return interaction.reply({
         content: '⛔ You do not have permission to cancel closing this ticket.',
         flags: MessageFlags.Ephemeral,
@@ -703,20 +716,17 @@ export async function handleTicketInteraction(interaction) {
     const isOwner = ticket && ticket.userId === user.id;
     const isStaff = isStaffMember(member);
 
-    if (!isOwner && !isStaff) {
+    if (!ticket || (!isOwner && !isStaff)) {
       return interaction.reply({
         content: '⛔ You do not have permission to close this ticket.',
         flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.reply({
-      content: '🔒 **Ticket closing...** Generating final transcript and removing channel in **5 seconds**.',
-    });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    // Generate transcript
+    await archiveTicket(interaction.channel, data, ticket);
     const transcriptAttachment = await generateTranscriptFile(interaction.channel, ticket);
-
     // Try sending transcript to ticket creator DM
     if (ticket && ticket.userId) {
       try {
@@ -742,62 +752,25 @@ export async function handleTicketInteraction(interaction) {
       }
     }
 
-    // Also archive transcript to Staff HQ (#🎁┃redemption-review or #🔨┃mod-operations)
     try {
-      const logChKeyword =
-        ticket?.type === 'redemption' ? 'redemption-review' : 'mod-operations';
-      const staffLogCh = guild.channels.cache.find(
-        (c) => c.type === ChannelType.GuildText && c.name.includes(logChKeyword)
-      );
-      if (staffLogCh) {
-        const logEmbed = new EmbedBuilder()
-          .setColor(0x95a5a6)
-          .setTitle(`🔒  TICKET ARCHIVED — #${ticket?.id || 'Support'}`)
-          .addFields(
-            { name: '👤 Member', value: ticket?.userId ? `<@${ticket.userId}>` : 'Unknown', inline: true },
-            { name: '📂 Department', value: `\`${ticket?.title || 'Support'}\``, inline: true },
-            { name: '🙋‍♂️ Claimed By', value: ticket?.claimedBy ? `<@${ticket.claimedBy}>` : '`Unclaimed`', inline: true },
-            { name: '🔒 Closed By', value: `<@${user.id}>`, inline: true }
-          )
-          .setFooter({ text: 'Moonflip Staff HQ Archive' })
-          .setTimestamp();
-
-        const staffAttachment = await generateTranscriptFile(interaction.channel, ticket);
-        await staffLogCh
-          .send({
-            embeds: [logEmbed],
-            files: staffAttachment ? [staffAttachment] : [],
-          })
-          .catch(() => {});
-      }
-    } catch {
-      // Ignore archive error
+      await interaction.channel.delete(`Ticket closed by ${user.tag}`);
+    } catch (error) {
+      if (error.code !== 10003) throw error;
     }
-
-    // Clean from active data
-    if (ticket) {
-      delete data.activeTickets[interaction.channelId];
-      await saveData(data);
-    }
-
-    // Delete channel after 5 seconds
-    setTimeout(async () => {
-      try {
-        await interaction.channel.delete(`Ticket closed by ${user.tag}`);
-      } catch (err) {
-        console.error('Failed to delete ticket channel:', err.message);
-      }
-    }, 5000);
-
+    delete data.activeTickets[interaction.channelId];
+    await saveData(data);
     return;
   }
 
   // 6. Generate Transcript on Demand
   if (customId === 'ticket_action_transcript') {
-    await interaction.deferReply();
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const data = await loadData();
     const ticket = data.activeTickets[interaction.channelId];
+    if (!ticket || (ticket.userId !== user.id && !isStaffMember(member))) {
+      return interaction.editReply({ content: '⛔ You do not have permission to read this transcript.' });
+    }
     const transcriptAttachment = await generateTranscriptFile(interaction.channel, ticket);
 
     if (!transcriptAttachment) {
@@ -818,6 +791,85 @@ export async function handleTicketInteraction(interaction) {
       flags: MessageFlags.Ephemeral,
     }).catch(() => {});
   }
+}
+
+async function archiveTicket(channel, data, ticket) {
+  if (ticket.status === 'archived') return;
+  const archive = await privateTicketArchive(channel.guild, ticket.type);
+  if (!archive) throw new Error('A private ticket archive must be configured before this ticket can close.');
+  const transcript = await generateTranscriptFile(channel, ticket);
+  if (!transcript) throw new Error('Could not generate the ticket transcript. Please retry.');
+  const receipt = await archive.send({
+    content: `Ticket #${ticket.id} archived from <#${channel.id}>.`,
+    files: [transcript],
+    allowedMentions: { parse: [] },
+    nonce: channel.id,
+    enforceNonce: true,
+  });
+  ticket.guildId = channel.guildId;
+  ticket.status = 'archived';
+  ticket.archiveMessageId = receipt.id;
+  ticket.archivedAt = Date.now();
+  await saveData(data);
+}
+
+export async function restrictExistingTicketChannels(guild) {
+  if (!databasePool) return;
+  const data = await loadData();
+  const channels = await guild.channels.fetch();
+  const view = PermissionFlagsBits.ViewChannel;
+  for (const [id, ticket] of Object.entries(data.activeTickets)) {
+    const channel = channels.get(id);
+    if (channel?.type !== ChannelType.GuildText || ticket.status !== 'open') continue;
+    const allowed = new Set([...staffRoleIds(), ticket.userId, guild.client.user.id]);
+    const overwrites = channel.permissionOverwrites.cache;
+    const everyone = overwrites.get(guild.id);
+    const unexpected = overwrites.some(entry => entry.id !== guild.id
+      && entry.allow.has(view) && !allowed.has(entry.id));
+    if (!unexpected && everyone?.deny.has(view) && !everyone.allow.has(view)) continue;
+    const safe = overwrites.filter(entry => entry.id !== guild.id).map(entry => ({
+      id: entry.id,
+      type: entry.type,
+      allow: allowed.has(entry.id) ? entry.allow.bitfield : entry.allow.bitfield & ~view,
+      deny: entry.deny.bitfield,
+    }));
+    safe.push({ id: guild.id, type: OverwriteType.Role,
+      allow: (everyone?.allow.bitfield ?? 0n) & ~view, deny: (everyone?.deny.bitfield ?? 0n) | view });
+    await channel.permissionOverwrites.set(safe, 'Restrict existing support ticket visibility');
+  }
+}
+
+export async function recoverArchivedTickets(client) {
+  if (!databasePool) return;
+  const data = await loadData();
+  for (const [channelId, ticket] of Object.entries(data.activeTickets)) {
+    if (ticket.status !== 'archived' || !ticket.guildId || !ticket.archiveMessageId
+      || Date.now() - (ticket.archivedAt || 0) < 60_000) continue;
+    try {
+      const guild = await client.guilds.fetch(ticket.guildId);
+      const channel = await guild.channels.fetch(channelId, { force: true });
+      if (channel) await channel.delete('Completing archived ticket closure');
+    } catch (error) {
+      if (error.code !== 10003) {
+        console.error('[Ticket close recovery]', error.message);
+        continue;
+      }
+    }
+    await updateDocument('tickets', { counter: 0, activeTickets: {} }, current => {
+      if (current.activeTickets[channelId]?.archiveMessageId === ticket.archiveMessageId) {
+        delete current.activeTickets[channelId];
+      }
+    });
+  }
+}
+
+export async function archiveDashboardTicket(channel) {
+  const data = await loadData();
+  const ticket = data.activeTickets[channel.id];
+  if (!ticket || (ticket.guildId && ticket.guildId !== channel.guildId)) {
+    throw new Error('Channel is not an active ticket in this server.');
+  }
+  await archiveTicket(channel, data, ticket);
 }
 
 /**

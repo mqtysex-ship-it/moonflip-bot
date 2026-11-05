@@ -234,18 +234,16 @@ export async function startBlackjack(interaction, betAmount = 100) {
   processingBJUsers.add(userId);
 
   try {
-    let autoNotice = null;
-
-    // Auto-recover if player had a previous unfinished hand (never lock out!)
     const existing = await getActiveBlackjack(userId);
     if (existing) {
-      if (databaseEconomy) {
-        await databaseEconomy.settleRound(existing.roundId, userId, existing.betAmount);
-      } else {
-        activeBJGames.delete(userId);
-        await addTokens(userId, existing.betAmount, false);
+      const embed = await renderBJEmbed(existing.playerHand, existing.dealerHand,
+        true, 'playing', existing.betAmount, 0, interaction.user);
+      const payload = { embeds: [embed], components: [await buildActiveRow(existing)] };
+      if (interaction.replied || interaction.deferred) return interaction.editReply(payload);
+      if (interaction.isButton() && interaction.message?.flags?.has(MessageFlags.Ephemeral)) {
+        return interaction.update(payload);
       }
-      autoNotice = `🔄 **Table Reset**: Refunded your previous unfinished **${existing.betAmount.toLocaleString()} 🪙** hand and dealt a fresh hand!`;
+      return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
     }
 
     const cleanBet = Math.max(10, Math.floor(betAmount) || 100);
@@ -293,8 +291,7 @@ export async function startBlackjack(interaction, betAmount = 100) {
         'natural',
         cleanBet,
         payout,
-        interaction.user,
-        autoNotice
+        interaction.user
       ));
       const replayRow = buildReplayRow(cleanBet);
 
@@ -350,8 +347,7 @@ export async function startBlackjack(interaction, betAmount = 100) {
       'playing',
       cleanBet,
       0,
-      interaction.user,
-      autoNotice
+      interaction.user
     ));
     const row = (await buildActiveRow(currentGameState));
 

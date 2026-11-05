@@ -48,6 +48,9 @@ const mockClient = {
     if (sql.includes('FROM moonflip_private.wallets WHERE discord_user_id = $1 FOR UPDATE')) {
       return { rows: [{ balance: fakeWallet.balance, total_bet: fakeWallet.total_bet }] };
     }
+    if (sql.includes('AS excluded_wager')) {
+      return { rows: [{ excluded_wager: '2000' }] };
+    }
     if (sql.includes('UPDATE moonflip_private.wallets SET balance')) {
       fakeWallet.balance = (BigInt(fakeWallet.balance) + BigInt(params[1])).toString();
       return { rows: [] };
@@ -86,9 +89,9 @@ try {
   assert.equal(rewardsData.available, true);
   assert(rewardsData.rakeback);
   assert.equal(rewardsData.rakeback.rate, 0.005);
-  assert.equal(rewardsData.rakeback.totalWagered, 10000);
+  assert.equal(rewardsData.rakeback.totalWagered, 8000);
   assert.equal(rewardsData.rakeback.claimedWager, 0);
-  assert.equal(rewardsData.rakeback.available, 50); // 10,000 * 0.005 = 50 tokens
+  assert.equal(rewardsData.rakeback.available, 40); // 8,000 eligible tokens * 0.005
 
   // Invalid operationId rejected with 400
   const badClaim = await fetch(base2 + '/api/play/rewards/rakeback/claim', {
@@ -108,15 +111,15 @@ try {
   assert.equal(goodClaim.status, 200);
   const claimResult = await goodClaim.json();
   assert.equal(claimResult.success, true);
-  assert.equal(claimResult.amount, 50);
-  assert.equal(claimResult.balance, 5050);
+  assert.equal(claimResult.amount, 40);
+  assert.equal(claimResult.balance, 5040);
   assert.equal(claimResult.rakeback.available, 0);
-  assert.equal(claimResult.rakeback.claimedWager, 10000);
-  assert.equal(claimResult.rakeback.lifetimeClaimed, 50);
+  assert.equal(claimResult.rakeback.claimedWager, 8000);
+  assert.equal(claimResult.rakeback.lifetimeClaimed, 40);
   assert.equal(emittedEvents.length, 1);
   assert.equal(emittedEvents[0].action, 'rakeback');
-  assert.equal(emittedEvents[0].amount, 50);
-  assert.equal(emittedEvents[0].balance, 5050);
+  assert.equal(emittedEvents[0].amount, 40);
+  assert.equal(emittedEvents[0].balance, 5040);
 
   console.log('Rewards API rakeback integration tests passed');
 } finally {

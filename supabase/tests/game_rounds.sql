@@ -32,5 +32,17 @@ begin
      or (select games_played from moonflip_private.wallets where discord_user_id = '999999999999999993') <> 1 then
     raise exception 'statistics incorrect';
   end if;
+  perform moonflip_private.start_game_round(
+    '00000000-0000-4000-8000-000000000202', '999999999999999993', 'blackjack', 100, '{}');
+  begin
+    perform moonflip_private.start_game_round(
+      '00000000-0000-4000-8000-000000000203', '999999999999999993', 'blackjack', 100, '{}');
+    raise exception 'second active Blackjack round accepted';
+  exception when unique_violation then
+    if sqlerrm <> 'An active round already exists' then raise; end if;
+  end;
+  if (select balance from moonflip_private.wallets where discord_user_id = '999999999999999993') <> 1020 then
+    raise exception 'rejected round changed wallet balance';
+  end if;
 end $$;
 rollback;

@@ -933,6 +933,8 @@ function setAmountQuick(amt) {
   document.getElementById('input-eco-amount').value = amt;
 }
 
+const pendingBalanceAdjustments = new Map();
+
 async function handleBalanceSubmit(event) {
   event.preventDefault();
   const userId = document.getElementById('input-eco-userid').value.trim();
@@ -944,13 +946,18 @@ async function handleBalanceSubmit(event) {
   }
 
   try {
+    const key = JSON.stringify([userId, action, amount]);
+    if (!pendingBalanceAdjustments.has(key)) pendingBalanceAdjustments.set(key, crypto.randomUUID());
+    const operationId = pendingBalanceAdjustments.get(key);
     const res = await fetch('/api/economy/adjust', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, action, amount }),
+      body: JSON.stringify({ userId, action, amount, operationId }),
     });
     const data = await res.json();
     if (data.success) {
+      if (pendingBalanceAdjustments.get(key) !== operationId) return;
+      pendingBalanceAdjustments.delete(key);
       showToast(`Balance updated for ${userId}: now ${data.newBalance.toLocaleString()} 🪙`, 'success');
       loadEconomy();
       loadStats();

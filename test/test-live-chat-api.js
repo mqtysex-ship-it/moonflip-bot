@@ -12,6 +12,7 @@ try {
  const id='00000000-0000-4000-8000-000000000001';
  assert.equal((await req({id,text:'hi'})).status,401);
  assert.equal((await req({id,text:'hi'},'low')).status,403);
+ assert.equal((await req({id:id.replace('-4000-', '-5000-'),text:'reserved'},'ok')).status,400);
  assert.equal((await req({id,text:'   '},'ok')).status,400);
  assert.equal((await req({id,text:'x'.repeat(501)},'ok')).status,400);
  let response=await req({id,text:'hi'},'ok');assert.equal(response.status,200);assert.equal((await response.json()).message.text,'hi');

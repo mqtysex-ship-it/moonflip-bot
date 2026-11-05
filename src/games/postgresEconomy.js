@@ -12,6 +12,13 @@ function identity(value, name) {
   if (typeof value !== 'string' || !value) throw new Error(`Invalid ${name}`);
   return value;
 }
+// A stake returned in full does not earn volume rewards. Open stakes only
+// become eligible after settlement, so claiming before a refund cannot bypass this.
+const ineligibleRakebackVolume = `SELECT coalesce(sum(wager), 0) AS excluded_wager
+  FROM moonflip_private.game_rounds
+  WHERE discord_user_id = $1
+    AND (status = 'active' OR payout = wager OR game_state->>'outcome' = 'refunded')`;
+
 export class PostgresEconomy {
   constructor(pool) {
     if (!pool || typeof pool.query !== 'function') throw new Error('Database pool required');
@@ -184,7 +191,8 @@ export class PostgresEconomy {
   async getRakeback(userId) {
     identity(userId, 'user');
     const user = await this.getUser(userId);
-    const totalWagered = user.totalBet || 0;
+    const excluded = await this.pool.query(ineligibleRakebackVolume, [userId]);
+    const totalWagered = Math.max(0, user.totalBet - Number(excluded.rows[0].excluded_wager));
     const docRes = await this.pool.query(
       'SELECT value FROM moonflip_private.documents WHERE key = $1',
       [`rakeback/${userId}`]
@@ -243,7 +251,8 @@ export class PostgresEconomy {
         throw new Error('wallet not found');
       }
 
-      const totalWagered = Number(walletRes.rows[0].total_bet || 0);
+      const excluded = await client.query(ineligibleRakebackVolume, [userId]);
+      const totalWagered = Math.max(0, Number(walletRes.rows[0].total_bet) - Number(excluded.rows[0].excluded_wager));
       const currentBalance = BigInt(walletRes.rows[0].balance);
       const claimedWager = Number(doc.claimedWager || 0);
       const unclaimedWager = Math.max(0, totalWagered - claimedWager);
@@ -471,7 +480,7 @@ export class PostgresEconomy {
       throw error;
     } finally { client.release(); }
   }
-  async recoverInterruptedRounds(game, refund = true, olderThanSeconds = 1200, activeRoundIds = []) {
+  async recoverInterruptedRounds(game, refund = true, olderThanSeconds = 1200, activeRoundIds = [], onlyRoundIds = null) {
     identity(game, 'game');
     amount(olderThanSeconds, 'olderThanSeconds', 0);
     const client = await this.pool.connect();
@@ -484,8 +493,9 @@ export class PostgresEconomy {
          WHERE game_type = $1 AND status = 'active'
            AND created_at < now() - ($2 || ' seconds')::interval
            AND round_id <> ALL($3::uuid[])
+           AND ($4::uuid[] IS NULL OR round_id = ANY($4::uuid[]))
          FOR UPDATE`,
-        [game, olderThanSeconds, activeRoundIds]
+        [game, olderThanSeconds, activeRoundIds, onlyRoundIds]
       );
       let count = 0;
       for (const r of activeRounds.rows) {

@@ -246,6 +246,18 @@ export function addTokens(userId, amount, countAsWin = true, operationId = rando
   return user.balance;
 }
 
+export async function adjustWallet(userId, action, amount, operationId) {
+  if (databaseEconomy) {
+    const result = await databaseEconomy.adjust(operationId, userId, action, amount);
+    if (result.applied) emitDatabaseBalance(userId, action, amount, result.balance);
+    return result;
+  }
+  const previousBalance = getBalance(userId);
+  const balance = action === 'add' ? addTokens(userId, amount, false)
+    : setBalance(userId, action === 'deduct' ? previousBalance - amount : amount);
+  return { previousBalance, balance, applied: true };
+}
+
 export function setBalance(userId, amount, operationId = randomUUID()) {
   if (databaseEconomy) return databaseEconomy.adjust(operationId, userId, 'set', amount).then(result => { emitDatabaseBalance(userId, 'set', amount, result.balance); return result.balance; });
   const user = getUser(userId);

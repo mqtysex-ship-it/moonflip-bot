@@ -3,6 +3,7 @@ if (process.env.MOONFLIP_ISOLATED_TEST !== '1') throw new Error('Isolated test r
 process.env.DASHBOARD_PASSWORD = 'isolated-password';
 const { createWebServer } = await import('../src/web/server.js');
 let captured;
+const operationId = 'fb7ec7ae-aed5-4727-b5b5-57ea9b3a41c5';
 const store = { async getEconomyStats() { return { totalTokens: 450, totalWagered: 50, totalGamesPlayed: 1, totalUsers: 1 }; },
   async getEconomyPlayers() { return [{ userId: '123', balance: 450, totalBet: 50, gamesPlayed: 1 }]; },
   async adjust(operation, user, action, amount) {
@@ -19,7 +20,7 @@ try {
   assert.equal((await statsResponse.json()).economy.totalTokens, 450);
   const response = await fetch(`http://127.0.0.1:${server.address().port}/api/economy/adjust`, {
     method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Basic ' + Buffer.from('admin:isolated-password').toString('base64') },
-    body: JSON.stringify({ userId: '123', action: 'deduct', amount: 200 }),
+    body: JSON.stringify({ userId: '123', action: 'deduct', amount: 200, operationId }),
   });
   const result = await response.json();
   assert.equal(response.status, 200);
@@ -28,6 +29,6 @@ try {
   assert.equal(captured.user, '123');
   assert.equal(captured.action, 'deduct');
   assert.equal(captured.amount, 200);
-  assert.match(captured.operation, /^[0-9a-f-]{36}$/);
+  assert.equal(captured.operation, operationId);
 } finally { await new Promise(resolve => server.close(resolve)); }
 console.log('Database dashboard adjustment passed');
