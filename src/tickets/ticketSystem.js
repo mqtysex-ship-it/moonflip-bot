@@ -172,7 +172,7 @@ export const TICKET_TYPES = {
     color: 0xe67e22,
     emoji: '🐛',
     instructions:
-      'Please describe the bug encountered, which game or command was affected (Crash, Mines, Keno, etc.), steps to reproduce it, and attach any relevant screenshots.',
+      'Please describe the bug encountered, which game or command was affected (Crash, Mines, Plinko, etc.), steps to reproduce it, and attach any relevant screenshots.',
   },
   general: {
     id: 'ticket_open_general',

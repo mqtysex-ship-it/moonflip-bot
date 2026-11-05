@@ -1,7 +1,7 @@
 /**
  * Pure-JS Casino Animation Engine (GIF89a)
  * Generates smooth 25 FPS animated GIFs for Coinflip (3D parabolic coin toss)
- * and Las Vegas Slots (3-reel vertical scrolling cabinet with lever & lighting).
+ * and arcade/table games.
  * Zero external binary dependencies required.
  */
 
@@ -70,7 +70,7 @@ function buildPalette() {
   addColor(165, 172, 188);  // 40: Reel deep shadow cream
   addColor(5, 7, 12);       // 41: Pure black shadow
 
-  // Fill remaining slots with a 6x6x5 RGB cube for any blended color lookup
+  // Fill remaining palette entries with a 6x6x5 RGB cube for any blended color lookup
   for (let r = 0; r < 6; r++) {
     for (let g = 0; g < 6; g++) {
       for (let b = 0; b < 5; b++) {
@@ -887,15 +887,10 @@ export function getCoinflipAnimationGif(outcome = 'heads') {
 }
 
 // ============================================================================
-// 4. LAS VEGAS SLOTS 3-REEL ANIMATION GENERATOR
+// 4. MINES GEM SPRITE RENDERER
 // ============================================================================
 
-const SYMBOL_ORDER = ['💎', '7️⃣', '🔔', '🍇', '🍒', '🍋'];
-
-/**
- * Draws a crisp vector/pixel-art casino slot symbol centered at (cx, cy).
- */
-function drawSlotSymbolSprite(canvas, symbol, cx, cy, clipY0, clipY1) {
+function drawGemSymbolSprite(canvas, symbol, cx, cy, clipY0, clipY1) {
   const ix = cx | 0;
   const iy = cy | 0;
   if (iy + 18 < clipY0 || iy - 18 > clipY1) return;
@@ -904,18 +899,7 @@ function drawSlotSymbolSprite(canvas, symbol, cx, cy, clipY0, clipY1) {
     if (y >= clipY0 && y < clipY1) canvas.setPixel(x, y, col);
   };
 
-  const fillRectClipped = (x, y, w, h, col) => {
-    const y0 = Math.max(clipY0, y | 0);
-    const y1 = Math.min(clipY1, (y + h) | 0);
-    for (let py = y0; py < y1; py++) {
-      for (let px = x | 0; px < (x + w) | 0; px++) {
-        canvas.setPixel(px, py, col);
-      }
-    }
-  };
-
-  if (symbol === '💎') {
-    // Faceted Cyan Diamond
+  if (symbol === "💎") {
     for (let dy = -13; dy <= 14; dy++) {
       let halfW = 0;
       if (dy < -5) halfW = Math.round(((dy + 13) / 8) * 15);
@@ -929,303 +913,11 @@ function drawSlotSymbolSprite(canvas, symbol, cx, cy, clipY0, clipY1) {
         setClipped(ix + dx, iy + dy, col);
       }
     }
-  } else if (symbol === '7️⃣') {
-    // Bold Casino Lucky 7 (Red + Gold trim)
-    fillRectClipped(ix - 12, iy - 13, 25, 7, C.GOLD_DARKEST);
-    fillRectClipped(ix - 13, iy - 14, 25, 7, C.GOLD_PURE);
-    fillRectClipped(ix - 11, iy - 12, 21, 4, C.RED_BRIGHT);
-    for (let dy = -7; dy <= 13; dy++) {
-      const shift = Math.round(((dy + 7) / 20) * 10);
-      const sx = ix + 6 - shift;
-      for (let dx = -4; dx <= 4; dx++) {
-        setClipped(sx + dx + 1, iy + dy + 1, C.GOLD_DARKEST);
-        setClipped(sx + dx, iy + dy, Math.abs(dx) === 4 ? C.GOLD_PURE : C.RED_BRIGHT);
-      }
-    }
-  } else if (symbol === '🔔') {
-    // Golden Liberty Bell
-    for (let dy = -12; dy <= 9; dy++) {
-      const t = (dy + 12) / 21; // 0..1
-      const halfW = Math.round(4 + t * t * 11);
-      for (let dx = -halfW; dx <= halfW; dx++) {
-        let col = C.GOLD_PURE;
-        if (dx < -halfW * 0.4) col = C.GOLD_GLEAM;
-        else if (dx > halfW * 0.45) col = C.GOLD_DEEP;
-        if (dy >= 6) col = C.GOLD_BRIGHT;
-        setClipped(ix + dx, iy + dy, col);
-      }
-    }
-    // Bell top loop & bottom clapper
-    fillRectClipped(ix - 2, iy - 15, 5, 3, C.GOLD_RICH);
-    fillRectClipped(ix - 3, iy + 10, 6, 4, C.GOLD_DEEP);
-  } else if (symbol === '🍇') {
-    // Cluster of Royal Purple Grapes + Green Leaf
-    fillRectClipped(ix - 3, iy - 14, 7, 4, C.GREEN_BRIGHT);
-    const spheres = [
-      [-6, -6], [0, -6], [6, -6],
-      [-4, 0], [3, 0],
-      [0, 6],
-    ];
-    for (const [gx, gy] of spheres) {
-      for (let dy = -4; dy <= 4; dy++) {
-        for (let dx = -4; dx <= 4; dx++) {
-          if (dx * dx + dy * dy <= 18) {
-            const c = (dx < -1 && dy < -1) ? C.PURPLE_LIGHT : (dx > 1 || dy > 1 ? C.PURPLE_DEEP : C.PURPLE_MID);
-            setClipped(ix + gx + dx, iy + gy + dy, c);
-          }
-        }
-      }
-    }
-  } else if (symbol === '🍒') {
-    // Twin Glossy Ruby Cherries + Green Stems
-    fillRectClipped(ix - 1, iy - 13, 6, 3, C.GREEN_BRIGHT);
-    for (let s = 0; s < 14; s++) {
-      setClipped(ix - Math.round(s * 0.5), iy - 12 + s, C.GREEN_DARK);
-      setClipped(ix + Math.round(s * 0.45), iy - 12 + s, C.GREEN_DARK);
-    }
-    const centers = [[-6, 5], [6, 6]];
-    for (const [cxOff, cyOff] of centers) {
-      for (let dy = -6; dy <= 6; dy++) {
-        for (let dx = -6; dx <= 6; dx++) {
-          if (dx * dx + dy * dy <= 34) {
-            let c = C.RED_BRIGHT;
-            if (dx < -1 && dy < -1) c = C.WHITE;
-            else if (dx > 2 || dy > 2) c = C.RED_DARK;
-            setClipped(ix + cxOff + dx, iy + cyOff + dy, c);
-          }
-        }
-      }
-    }
-  } else {
-    // Golden Lemon ('🍋')
-    for (let dy = -9; dy <= 9; dy++) {
-      for (let dx = -12; dx <= 12; dx++) {
-        if ((dx * dx) / 144 + (dy * dy) / 81 <= 1.0) {
-          let c = C.GOLD_BRIGHT;
-          if (dx < -3 && dy < -2) c = C.GOLD_GLEAM;
-          else if (dx > 4 || dy > 4) c = C.GOLD_ROD;
-          setClipped(ix + dx, iy + dy, c);
-        }
-      }
-    }
   }
-}
-
-/**
- * Generates an animated 25 FPS Slot Machine GIF for a specific spin result.
- * @param {string[]} r1 - [top, center, bottom] for Reel 1
- * @param {string[]} r2 - [top, center, bottom] for Reel 2
- * @param {string[]} r3 - [top, center, bottom] for Reel 3
- * @param {object} result - { reels, multiplier, matches, symbolName }
- */
-export function generateSlotsAnimationGif(r1, r2, r3, result) {
-  const width = 390;
-  const height = 235;
-  const frames = [];
-  const isSuspense = r1[1] === r2[1];
-  const totalFrames = isSuspense ? 38 : 32;
-
-  const lockFrame1 = 12;
-  const lockFrame2 = 20;
-  const lockFrame3 = isSuspense ? 31 : 26;
-
-  const reelTargets = [r1, r2, r3];
-  const reelXPositions = [52, 150, 248];
-  const reelW = 82;
-  const reelY = 44;
-  const reelH = 132;
-  const cellH = 44; // 3 visible rows * 44px = 132px
-
-  for (let f = 0; f < totalFrames; f++) {
-    const canvas = new PixelCanvas(width, height);
-    const allLocked = f >= lockFrame3;
-    const isWin = result.multiplier > 0;
-    const isJackpot = result.matches === 3;
-
-    // 1. Background & Luxury Slot Machine Cabinet Body
-    canvas.clear(C.BG_DEEP);
-
-    // Outer Cabinet Frame
-    const cabX = 24;
-    const cabY = 8;
-    const cabW = 326;
-    const cabH = 218;
-    canvas.fillRoundedRect(cabX, cabY, cabW, cabH, 12, C.BG_NAVY);
-    const cabBorderCol = allLocked && isJackpot
-      ? (f % 2 === 0 ? C.GOLD_GLEAM : C.GOLD_PURE)
-      : (f >= lockFrame2 && !allLocked && isSuspense)
-      ? (f % 2 === 0 ? C.ORANGE_BRIGHT : C.RED_BRIGHT)
-      : C.GOLD_RICH;
-    canvas.strokeRoundedRect(cabX, cabY, cabW, cabH, 12, 3, cabBorderCol);
-    canvas.strokeRoundedRect(cabX + 5, cabY + 5, cabW - 10, cabH - 10, 9, 1, C.BORDER_NAVY);
-
-    // Chasing Marquee Light Bulbs around the Cabinet Perimeter
-    for (let bx = cabX + 14; bx <= cabX + cabW - 14; bx += 22) {
-      const onTop = ((bx / 22 + f) | 0) % 2 === 0;
-      canvas.fillEllipse(bx, cabY + 4, 3, 3, onTop ? C.GOLD_GLEAM : C.RED_BRIGHT);
-      canvas.fillEllipse(bx, cabY + cabH - 4, 3, 3, !onTop ? C.GOLD_GLEAM : C.RED_BRIGHT);
-    }
-
-    // 2. Mechanical Slot Lever on the Right Side (x = 350..378)
-    const leverPull = f < 8 ? Math.sin((f / 8) * Math.PI) : 0; // 0 -> 1 -> 0
-    const knobY = Math.round(52 + leverPull * 78);
-    // Lever mount box
-    canvas.fillRoundedRect(cabX + cabW, 118, 12, 34, 3, C.GOLD_DEEP);
-    // Lever chrome arm
-    const armTopY = Math.min(knobY, 132);
-    const armBotY = Math.max(knobY, 132);
-    canvas.fillRect(365, armTopY, 5, armBotY - armTopY + 4, C.SILVER_LIGHT);
-    canvas.fillRect(368, armTopY, 2, armBotY - armTopY + 4, C.SILVER_DARK);
-    // Glossy Red Lever Ball Handle
-    canvas.fillEllipse(367, knobY, 11, 11, C.RED_BRIGHT);
-    canvas.fillEllipse(364, knobY - 3, 4, 4, C.WHITE);
-
-    // 3. Top Marquee Title Banner
-    let marqueeTitle = '★ MOONFLIP VEGAS SLOTS ★';
-    let marqueeCol = C.GOLD_GLEAM;
-    if (allLocked) {
-      if (isJackpot) {
-        marqueeTitle = `★ MOONFLIP JACKPOT ${result.multiplier}X! ★`;
-        marqueeCol = f % 2 === 0 ? C.WHITE : C.GOLD_GLEAM;
-      } else if (isWin) {
-        marqueeTitle = `★ MOONFLIP WINNER +${result.multiplier}X! ★`;
-        marqueeCol = C.GREEN_LIGHT;
-      } else {
-        marqueeTitle = 'ROUND COMPLETE';
-        marqueeCol = C.SILVER_LIGHT;
-      }
-    } else if (f >= lockFrame2 && isSuspense) {
-      marqueeTitle = '★ JACKPOT SUSPENSE! ★';
-      marqueeCol = f % 2 === 0 ? C.ORANGE_BRIGHT : C.GOLD_GLEAM;
-    }
-    canvas.drawText(marqueeTitle, cabX + cabW / 2, 19, 1, marqueeCol, C.BLACK);
-
-    // 4. Render the 3 Reel Windows
-    const lockFrames = [lockFrame1, lockFrame2, lockFrame3];
-
-    for (let r = 0; r < 3; r++) {
-      const rx = reelXPositions[r];
-      const ry = reelY;
-      const isLocked = f >= lockFrames[r];
-      const justLocked = f === lockFrames[r] || f === lockFrames[r] + 1;
-
-      // Reel Window Background with cylindrical top/bottom shading
-      canvas.fillRoundedRect(rx, ry, reelW, reelH, 6, C.REEL_BG);
-      canvas.fillRect(rx + 2, ry + 2, reelW - 4, 24, C.REEL_SHADE2);
-      canvas.fillRect(rx + 2, ry + 26, reelW - 4, 16, C.REEL_SHADE1);
-      canvas.fillRect(rx + 2, ry + reelH - 42, reelW - 4, 16, C.REEL_SHADE1);
-      canvas.fillRect(rx + 2, ry + reelH - 26, reelW - 4, 24, C.REEL_SHADE2);
-
-      // Center Payline Highlight Row inside Reel
-      const paylineRowBg = allLocked && isJackpot
-        ? C.GOLD_LIGHT
-        : allLocked && isWin
-        ? C.WHITE
-        : C.WHITE;
-      canvas.fillRect(rx + 2, ry + cellH, reelW - 4, cellH, paylineRowBg);
-
-      // Draw Symbols inside this Reel Window (clipped to [ry+3, ry+reelH-3])
-      const clipY0 = ry + 3;
-      const clipY1 = ry + reelH - 3;
-      const centerX = rx + reelW / 2;
-
-      if (isLocked) {
-        // Elastic bounce offset right when locking
-        const bounceY = f === lockFrames[r] ? 5 : f === lockFrames[r] + 1 ? -2 : 0;
-        const targetSyms = reelTargets[r]; // [top, center, bottom]
-        for (let row = 0; row < 3; row++) {
-          const symY = ry + row * cellH + cellH / 2 + bounceY;
-          drawSlotSymbolSprite(canvas, targetSyms[row], centerX, symY, clipY0, clipY1);
-        }
-      } else {
-        // Smooth vertical scrolling strip!
-        const speed = (r === 2 && isSuspense && f > lockFrame2) ? 16 : 26;
-        const scrollPx = (f * speed + r * 35);
-        const shiftInCell = scrollPx % cellH;
-        const baseIdx = Math.floor(scrollPx / cellH);
-
-        for (let row = -1; row <= 3; row++) {
-          const symIdx = ((baseIdx - row) % SYMBOL_ORDER.length + SYMBOL_ORDER.length) % SYMBOL_ORDER.length;
-          const sym = SYMBOL_ORDER[symIdx];
-          const symY = ry + row * cellH + shiftInCell + cellH / 2;
-          drawSlotSymbolSprite(canvas, sym, centerX, symY, clipY0, clipY1);
-        }
-      }
-
-      // Reel Window Border (Gold if locked, Emerald/Gold if winning, Navy if spinning)
-      let reelBorder = C.BORDER_NAVY;
-      let borderThick = 2;
-      if (justLocked) {
-        reelBorder = C.WHITE;
-        borderThick = 3;
-      } else if (allLocked && isJackpot) {
-        reelBorder = C.GOLD_PURE;
-        borderThick = 3;
-      } else if (allLocked && isWin && result.reels[r] === (result.reels[0] === result.reels[1] ? result.reels[0] : result.reels[2])) {
-        reelBorder = C.GREEN_BRIGHT;
-        borderThick = 3;
-      } else if (isLocked && isSuspense && r < 2 && !allLocked) {
-        reelBorder = C.ORANGE_BRIGHT;
-        borderThick = 3;
-      } else if (isLocked) {
-        reelBorder = C.GOLD_RICH;
-      }
-      canvas.strokeRoundedRect(rx, ry, reelW, reelH, 6, borderThick, reelBorder);
-    }
-
-    // 5. Center Payline Frame Rails & Side Arrows
-    const paylineY = reelY + cellH + cellH / 2;
-    const arrowCol = allLocked && isWin ? C.GOLD_GLEAM : C.RED_BRIGHT;
-    // Left payline arrow ►
-    for (let i = 0; i < 9; i++) {
-      canvas.fillRect(34 + i, paylineY - (8 - i), 2, (8 - i) * 2 + 1, arrowCol);
-    }
-    // Right payline arrow ◄
-    for (let i = 0; i < 9; i++) {
-      canvas.fillRect(340 - i, paylineY - (8 - i), 2, (8 - i) * 2 + 1, arrowCol);
-    }
-    // Glowing Payline Rails framing the center row when winning
-    if (allLocked && isWin) {
-      const railCol = isJackpot ? C.GOLD_PURE : C.GREEN_BRIGHT;
-      canvas.fillRect(48, reelY + cellH - 1, 286, 2, railCol);
-      canvas.fillRect(48, reelY + cellH * 2 - 1, 286, 2, railCol);
-    }
-
-    // 6. Reel Status Badges & Bottom Paybar
-    for (let r = 0; r < 3; r++) {
-      const rx = reelXPositions[r];
-      const isLocked = f >= lockFrames[r];
-      const badgeCol = isLocked ? (allLocked && isWin ? C.GREEN_DARK : C.GOLD_DEEP) : C.PANEL_NAVY;
-      canvas.fillRoundedRect(rx + 10, 184, reelW - 20, 16, 4, badgeCol);
-      canvas.drawText(isLocked ? 'LOCKED' : 'SPIN', rx + reelW / 2, 189, 1, isLocked ? C.WHITE : C.SILVER_MID);
-    }
-
-    // 7. Jackpot / Win Celebration Sparkles
-    if (allLocked && isWin) {
-      const spCoords = [
-        [65, 60], [185, 55], [305, 60],
-        [95, 160], [190, 165], [285, 160],
-      ];
-      for (let i = 0; i < spCoords.length; i++) {
-        if ((f + i) % 2 === 0) {
-          canvas.drawStarSparkle(spCoords[i][0], spCoords[i][1], isJackpot ? 7 : 5, C.GOLD_GLEAM, C.WHITE);
-        }
-      }
-    }
-
-    // Hold final frame for 3 seconds (300cs)
-    const delayCs = f === totalFrames - 1 ? 300 : 5;
-    frames.push({ pixels: canvas.pixels, delayCs });
-  }
-
-  // Put the locked Hero Jackpot Frame at Frame 0 so paused [GIF] state never says "SPIN"!
-  frames.unshift({ pixels: frames[frames.length - 1].pixels, delayCs: 120 });
-
-  return encodeGIF(width, height, frames, 0);
 }
 
 // ============================================================================
-// 5. MOONFLIP PREVIEW GIFS (MINES, KENO, BLACKJACK, CRASH) & BANNERS (RULES, VERIFY)
+// 5. MOONFLIP PREVIEW GIFS (MINES, BLACKJACK, CRASH) & BANNERS (RULES, VERIFY)
 // ============================================================================
 
 const PREVIEW_CACHE = new Map();
@@ -1305,7 +997,7 @@ export function getMinesPreviewGif() {
           // Revealed Cyan Diamond Tile!
           canvas.fillRoundedRect(tx, ty, tileW, tileH, 5, C.BLUE_DEEP);
           canvas.strokeRoundedRect(tx, ty, tileW, tileH, 5, 2, isCashedOut ? C.GREEN_BRIGHT : C.CYAN_DIAMOND);
-          drawSlotSymbolSprite(canvas, '💎', cx, cy, ty + 2, ty + tileH - 2);
+          drawGemSymbolSprite(canvas, '💎', cx, cy, ty + 2, ty + tileH - 2);
         } else if (isCashedOut && bombSet.has(idx)) {
           // Revealed Bomb Tile (dimmed after safe cashout)
           canvas.fillRoundedRect(tx, ty, tileW, tileH, 5, C.RED_DARK);
@@ -1352,119 +1044,6 @@ export function getMinesPreviewGif() {
 
   const buf = encodeGIF(width, height, frames, 0);
   PREVIEW_CACHE.set('mines', buf);
-  return buf;
-}
-/**
- * Generates an animated 20-Ball Keno Preview GIF for the #keno lobby panel.
- */
-export function getKenoPreviewGif() {
-  if (PREVIEW_CACHE.has('keno')) return PREVIEW_CACHE.get('keno');
-
-  const width = 390;
-  const height = 235;
-  const frames = [];
-
-  const playerPicks = new Set([3, 7, 12, 14, 19]);
-  const drawSeq = [3, 9, 7, 12, 16, 14, 19]; // 5/5 hits showcase!
-  const hitPayouts = ['0.0X', '0.0X', '0.4X', '2.0X', '6.0X', '25.0X'];
-
-  const totalFrames = 22;
-
-  for (let f = 0; f < totalFrames; f++) {
-    const canvas = new PixelCanvas(width, height);
-    canvas.clear(C.BG_DEEP);
-
-    const isJackpot = f >= 16;
-    canvas.fillRoundedRect(14, 8, width - 28, height - 16, 10, C.BG_NAVY);
-    canvas.strokeRoundedRect(14, 8, width - 28, height - 16, 10, 2, isJackpot ? C.GOLD_GLEAM : C.PURPLE_MID);
-    canvas.drawText('★ MOONFLIP PROVABLY FAIR KENO • MULTI-RISK ★', width / 2, 18, 1, C.GOLD_GLEAM, C.BLACK);
-
-    const drawnCount = Math.min(drawSeq.length, Math.floor(f / 2));
-    const drawnSet = new Set(drawSeq.slice(0, drawnCount));
-
-    let hits = 0;
-    for (const p of playerPicks) {
-      if (drawnSet.has(p)) hits++;
-    }
-
-    // 4x5 Keno Board (x = 26..242, y = 36..182)
-    const startX = 28;
-    const startY = 38;
-    const cellW = 40;
-    const cellH = 32;
-    const gap = 4;
-
-    for (let r = 0; r < 4; r++) {
-      for (let c = 0; c < 5; c++) {
-        const num = r * 5 + c + 1;
-        const bx = startX + c * (cellW + gap);
-        const by = startY + r * (cellH + gap);
-        const isPick = playerPicks.has(num);
-        const isDrawn = drawnSet.has(num);
-
-        let bg = C.PANEL_NAVY;
-        let border = C.BORDER_NAVY;
-        let txtCol = C.SILVER_MID;
-
-        if (isPick && isDrawn) {
-          // HIT!
-          bg = C.GREEN_DARK;
-          border = C.GOLD_GLEAM;
-          txtCol = C.WHITE;
-        } else if (isPick) {
-          bg = C.BLUE_DEEP;
-          border = C.BLUE_BRIGHT;
-          txtCol = C.WHITE;
-        } else if (isDrawn) {
-          bg = C.GOLD_DEEP;
-          border = C.GOLD_PURE;
-          txtCol = C.GOLD_GLEAM;
-        }
-
-        canvas.fillRoundedRect(bx, by, cellW, cellH, 5, bg);
-        canvas.strokeRoundedRect(bx, by, cellW, cellH, 5, isPick && isDrawn ? 2 : 1, border);
-        const label = num < 10 ? `0${num}` : `${num}`;
-        canvas.drawText(label, bx + cellW / 2, by + 12, 1, txtCol, C.BLACK);
-
-        if (isPick && isDrawn && (f + num) % 2 === 0) {
-          canvas.drawStarSparkle(bx + cellW - 6, by + 6, 3, C.GOLD_GLEAM, C.WHITE);
-        }
-      }
-    }
-
-    // Right Keno Payout Panel
-    const panX = 252;
-    canvas.fillRoundedRect(panX, 38, 114, 140, 8, C.PANEL_NAVY);
-    canvas.strokeRoundedRect(panX, 38, 114, 140, 8, 1, C.PURPLE_MID);
-
-    canvas.drawText(`HITS: ${hits} / 5`, panX + 57, 48, 1, C.WHITE);
-    canvas.drawText(hitPayouts[hits], panX + 57, 64, 2, hits === 5 ? C.GOLD_GLEAM : C.GREEN_LIGHT, C.BLACK);
-    canvas.drawText('5/5 = 25.0X', panX + 57, 94, 1, C.GOLD_PURE);
-    canvas.drawText('4/5 =  6.0X', panX + 57, 108, 1, C.SILVER_LIGHT);
-    canvas.drawText('3/5 =  2.0X', panX + 57, 122, 1, C.SILVER_LIGHT);
-    canvas.drawText('2/5 =  0.4X', panX + 57, 136, 1, C.SILVER_MID);
-    canvas.drawText('HIGH RISK: 45X', panX + 57, 154, 1, C.RED_LIGHT);
-
-    // Bottom Banner
-    canvas.fillRoundedRect(28, 186, width - 56, 28, 6, isJackpot ? C.GREEN_DARK : C.PANEL_NAVY);
-    canvas.strokeRoundedRect(28, 186, width - 56, 28, 6, 1, isJackpot ? C.GOLD_GLEAM : C.PURPLE_LIGHT);
-    canvas.drawText(
-      isJackpot ? '★ 5/5 HITS! 25.0X JACKPOT (+2,500) ★' : `PNEUMATIC DRAW TUBE... (${drawnCount}/7 BALLS)`,
-      width / 2,
-      196,
-      1,
-      isJackpot ? C.GOLD_GLEAM : C.WHITE,
-      C.BLACK
-    );
-
-    const delayCs = f === totalFrames - 1 ? 260 : 6;
-    frames.push({ pixels: canvas.pixels, delayCs });
-  }
-
-  frames.unshift({ pixels: frames[frames.length - 1].pixels, delayCs: 120 });
-
-  const buf = encodeGIF(width, height, frames, 0);
-  PREVIEW_CACHE.set('keno', buf);
   return buf;
 }
 /**

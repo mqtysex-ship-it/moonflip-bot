@@ -685,7 +685,7 @@ export function createWebServer({ economyStore = databaseEconomy, fetchGuildFn =
       await deployGamePanels(DEFAULT_GUILD_ID);
       res.json({
         success: true,
-        message: 'Casino game panels deployed to #mines, #keno, #slots, #coinflip, #blackjack!',
+        message: 'Casino game panels deployed to #mines, #crash, #plinko, #coinflip, #blackjack!',
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -815,10 +815,9 @@ export function createWebServer({ economyStore = databaseEconomy, fetchGuildFn =
       const totalGames = users.reduce((acc, u) => acc + (u.gamesPlayed || 0), 0);
       const gameEstimates = {
         Mines: Math.round(totalGames * 0.35),
-        Crash: Math.round(totalGames * 0.25),
-        Keno: Math.round(totalGames * 0.15),
-        Slots: Math.round(totalGames * 0.12),
-        Coinflip: Math.round(totalGames * 0.08),
+        Crash: Math.round(totalGames * 0.30),
+        Plinko: Math.round(totalGames * 0.20),
+        Coinflip: Math.round(totalGames * 0.10),
         Blackjack: Math.round(totalGames * 0.05),
       };
 

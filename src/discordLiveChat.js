@@ -45,7 +45,12 @@ export async function syncDiscordChat(pool,channel,{store,broadcast}) {
     if(!items.length)return true;
     for(const message of items)await ingestDiscordChat(message,{store,broadcast});
     const last=items.at(-1).id;
-    await pool.query(`UPDATE moonflip_private.live_chat_discord_cursors SET last_message_id=CASE WHEN last_message_id::numeric < $2::numeric THEN $2 ELSE last_message_id END, updated_at=now() WHERE channel_id=$1`,[channel.id,last]);
+    await pool.query(
+      `UPDATE moonflip_private.live_chat_discord_cursors
+       SET last_message_id = $2::text, updated_at = now()
+       WHERE channel_id = $1 AND last_message_id::numeric < $2::text::numeric`,
+      [channel.id, last]
+    );
     cursor=last;
     if(items.length<100)return true;
   }

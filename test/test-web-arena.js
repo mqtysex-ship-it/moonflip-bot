@@ -46,7 +46,7 @@ async function runTests() {
     assert(!htmlText.includes('Low Risk'), 'Must not contain risk labels in dropdown');
 
     const gameImages = [...htmlText.matchAll(/src="(\/play\/assets\/cover-[^"?]+\.svg)/g)].map(match=>match[1]);
-    assert.equal(new Set(gameImages).size,7);
+    assert.equal(new Set(gameImages).size, 5);
     for (const url of new Set(gameImages)) {
       const response=await fetch(`${baseUrl}${url}`);
       assert.equal(response.status,200,`Cover ${url} should be served`);
@@ -192,7 +192,7 @@ async function runTests() {
     assert(htmlText.includes('id="gamesCatalogChassis"'));
     assert(htmlText.includes('id="instantChassis"'));
     assert(htmlText.includes('/play/instant-games.js'));
-    console.log('✓ Test 10 Passed: All Games catalog and 6 game cards present in HTML.');
+    console.log('✓ Test 10 Passed: All Games catalog and game cards present in HTML.');
 
     console.log('--- ALL 10 WEB ARENA TESTS PASSED PERFECTLY! ---');
   } finally {

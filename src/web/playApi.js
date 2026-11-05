@@ -151,7 +151,7 @@ export function createWebPlaySession(userOrId, maybeUsername, maybeAvatarUrl) {
 export function getPublicBaseUrl() {
   if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, '');
   if (process.env.RENDER_EXTERNAL_URL) return process.env.RENDER_EXTERNAL_URL.replace(/\/$/, '');
-  return 'https://moonflip.onrender.com';
+  return 'https://moonflip-bot-8clx.onrender.com';
 }
 
 async function resolvePlayer(req) {

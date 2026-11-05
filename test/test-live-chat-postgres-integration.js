@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
+import { syncDiscordChat } from '../src/discordLiveChat.js';
 if(process.env.MOONFLIP_DB_INTEGRATION!=='1')throw Error('Explicit integration-test opt-in required');
 const {databasePool:pool,closeDatabase}=await import('../src/database.js');
 const {LiveChatStore}=await import('../src/games/liveChatStore.js');
@@ -30,6 +31,25 @@ try{
  await c.query("UPDATE moonflip_private.live_chat_discord_outbox SET discord_message_id='123456789',state='delivered' WHERE message_id=$1",[id]);
  assert.deepEqual(await store.removeDiscordMessage('123456789'),[id]);
  assert(!(await store.history()).some(message=>message.id===id));
+ const channelId = user();
+ const firstMessageId = (BigInt(channelId) + 1n).toString();
+ const lastMessageId = (BigInt(channelId) + 2n).toString();
+ const channel = { id: channelId, messages: { async fetch({ after }) {
+   return new Map(after === channelId ? [[firstMessageId, { id: firstMessageId }]] : []);
+ } } };
+ const cursor = async () => (await c.query(
+   'SELECT last_message_id FROM moonflip_private.live_chat_discord_cursors WHERE channel_id=$1', [channelId]
+ )).rows[0].last_message_id;
+ await syncDiscordChat(wrapped, channel, { store });
+ assert.equal(await cursor(), firstMessageId);
+ // A replay racing a newer fetch must not rewind its committed cursor.
+ channel.messages.fetch = async () => {
+   await c.query('UPDATE moonflip_private.live_chat_discord_cursors SET last_message_id=$2 WHERE channel_id=$1',
+     [channelId, lastMessageId]);
+   return new Map([[firstMessageId, { id: firstMessageId }]]);
+ };
+ await syncDiscordChat(wrapped, channel, { store });
+ assert.equal(await cursor(), lastMessageId);
  const access=await c.query("SELECT relrowsecurity,has_table_privilege('anon',oid,'SELECT') AS public_read FROM pg_class WHERE oid='moonflip_private.live_chat_messages'::regclass");assert.equal(access.rows[0].relrowsecurity,true);assert.equal(access.rows[0].public_read,false);
  console.log('PostgreSQL chat, level, idempotency, outbox, rain and privileges passed');
 }finally{await c.query('ROLLBACK');c.release();await closeDatabase();}

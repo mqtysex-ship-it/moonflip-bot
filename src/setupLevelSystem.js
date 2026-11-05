@@ -190,7 +190,7 @@ export async function setupLevelSystem(guildId = '1566215806956601466') {
         },
         {
           name: '`[ Q4 ]` Are games rigged or provably fair?',
-          value: '✦ All games (Mines, Crash, Slots, Coinflip, Keno, Blackjack) use **cryptographically secure RNG** (`crypto.randomBytes`) ensuring transparent, provably fair outcomes matching industry standards.',
+          value: '✦ All games (Mines, Crash, Plinko, Coinflip, Blackjack) use **cryptographically secure RNG** (`crypto.randomBytes`) ensuring transparent, provably fair outcomes matching industry standards.',
         },
         {
           name: '`[ Q5 ]` How do I unlock the VIP High Roller category?',
@@ -223,7 +223,7 @@ export async function setupLevelSystem(guildId = '1566215806956601466') {
         },
         {
           name: '`🎮 2. Game Multipliers & Strategy`',
-          value: '✦ **💣 Mines**: High multiplier scaling. Uncover 2-4 gems and cash out early for consistent gains.\n✦ **📈 Crash**: Ride the multiplier rocket, but beware of instant crashes (1.5% edge).\n✦ **🎰 Slots**: Hit 3 Diamonds for a **30x Jackpot**.\n✦ **🎲 Keno**: Pick 5 lucky numbers for up to **40x payouts**.',
+          value: '✦ **💣 Mines**: High multiplier scaling. Uncover 2-4 gems and cash out early for consistent gains.\n✦ **📈 Crash**: Ride the multiplier rocket, but beware of instant crashes (1.5% edge).\n✦ **🎯 Plinko**: Drop balls down the peg pyramid for multipliers up to 960x.\n✦ **🪙 Coinflip**: Fast 50/50 token flips with fair provable physics.',
         },
         {
           name: '`👑 3. Progression & Perks`',

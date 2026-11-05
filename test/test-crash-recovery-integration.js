@@ -5,7 +5,6 @@ const { databasePool: pool, closeDatabase } = await import('../src/database.js')
 const { PostgresEconomy } = await import('../src/games/postgresEconomy.js');
 const { PostgresDocumentStore } = await import('../src/postgresDocumentStore.js');
 const { createCrashPreferences } = await import('../src/games/crashPreferences.js');
-const { createKenoPreferences } = await import('../src/games/kenoPreferences.js');
 const { createCoinflipPreferences } = await import('../src/games/coinflipPreferences.js');
 const { createMinesPreferences } = await import('../src/games/minesPreferences.js');
 const economy = new PostgresEconomy(pool);
@@ -32,14 +31,6 @@ try {
   const preferences = createCrashPreferences(new PostgresDocumentStore(pool));
   await preferences.save(users[0], { betAmount: 250, autoCashout: 2, streak: 1 });
   assert.deepEqual(await createCrashPreferences(new PostgresDocumentStore(pool)).load(users[0]), { betAmount: 250, autoCashout: 2, streak: 1 });
-
-  const kenoPrefs = createKenoPreferences(new PostgresDocumentStore(pool));
-  await kenoPrefs.save(users[0], { betAmount: 200, riskMode: 'high', picks: new Set([2, 4, 6]), streak: 2, roundsPlayed: 5 });
-  const loadedKeno = await createKenoPreferences(new PostgresDocumentStore(pool)).load(users[0]);
-  assert.equal(loadedKeno.betAmount, 200);
-  assert.equal(loadedKeno.riskMode, 'high');
-  assert.deepEqual(Array.from(loadedKeno.picks), [2, 4, 6]);
-  assert.equal(loadedKeno.streak, 2);
 
   const coinflipPrefs = createCoinflipPreferences(new PostgresDocumentStore(pool));
   await coinflipPrefs.save(users[0], 4);

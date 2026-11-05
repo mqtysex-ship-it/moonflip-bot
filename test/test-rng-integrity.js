@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict';
-import { drawKenoNumbers } from '../src/games/rng.js';
+import { generateMinesBombs, calculateMinesMultiplier, flipCoin } from '../src/games/rng.js';
 
 for (let i = 0; i < 100; i++) {
-  const numbers = drawKenoNumbers(40, 10);
-  assert.equal(numbers.length, 10);
-  assert.equal(new Set(numbers).size, 10, 'A Keno draw must not contain duplicate numbers');
-  assert.ok(numbers.every((number) => number >= 1 && number <= 40));
+  const bombs = generateMinesBombs(25, 5);
+  assert.equal(bombs.size, 5, 'Must generate exactly 5 bombs');
+  assert.ok(Array.from(bombs).every((b) => b >= 0 && b < 25), 'Bomb indices must be within 0..24');
 }
-console.log('Keno draw integrity passed');
+
+const m1 = calculateMinesMultiplier(25, 3, 1);
+assert.ok(m1 >= 1.01, 'Multiplier must scale with gems');
+
+for (let i = 0; i < 50; i++) {
+  const coin = flipCoin('heads', 100);
+  assert.ok(coin === 'heads' || coin === 'tails', 'Coinflip outcome must be heads or tails');
+}
+
+console.log('RNG integrity passed');

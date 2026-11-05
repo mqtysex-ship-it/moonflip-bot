@@ -225,8 +225,7 @@ async function loadCharts() {
               backgroundColor: [
                 '#10b981', // Mines
                 '#8b5cf6', // Crash
-                '#3b82f6', // Keno
-                '#f59e0b', // Slots
+                '#2ef2b8', // Plinko
                 '#ec4899', // Coinflip
                 '#06b6d4', // Blackjack
               ],
@@ -492,9 +491,7 @@ async function loadSettingsUI() {
 
     if (s.casino) {
       document.getElementById('setting-rtp-mines').value = s.casino.minesRtp || 97;
-      document.getElementById('setting-rtp-keno').value = s.casino.kenoRtp || 95;
       document.getElementById('setting-edge-crash').value = s.casino.crashHouseEdge || 3;
-      document.getElementById('setting-rtp-slots').value = s.casino.slotsRtp || 96;
     }
   } catch (err) {
     console.error('Failed to load settings:', err);
@@ -519,9 +516,7 @@ async function saveAllSettings() {
     },
     casino: {
       minesRtp: parseInt(document.getElementById('setting-rtp-mines').value, 10) || 97,
-      kenoRtp: parseInt(document.getElementById('setting-rtp-keno').value, 10) || 95,
       crashHouseEdge: parseInt(document.getElementById('setting-edge-crash').value, 10) || 3,
-      slotsRtp: parseInt(document.getElementById('setting-rtp-slots').value, 10) || 96,
     },
   };
 

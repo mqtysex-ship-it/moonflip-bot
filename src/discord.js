@@ -10,8 +10,6 @@ import { addXp, getUserLevelData, LEVEL_TIERS } from './games/levels.js';
 import { start5x5Mines, handle5x5MinesInteraction, showMinesSetupModal, showMinesLeaderboard } from './games/minesGame.js';
 import { continuousCrash, showCrashModal } from './games/continuousCrash.js';
 import { showCrashLeaderboard } from './games/crashLeaderboard.js';
-import { playModernKeno, showKenoModal, handleKenoInteraction } from './games/kenoGame.js';
-import { playSlots, showSlotsModal } from './games/slotsGame.js';
 import { playCoinflip, showCoinflipModal } from './games/coinflipGame.js';
 import { startBlackjack, handleBlackjackButton, showBlackjackModal } from './games/blackjackGame.js';
 import { registerGuildSlashCommands, handleChatInputCommand } from './commands/slashCommands.js';
@@ -146,7 +144,7 @@ export async function getDiscordClient() {
         }
       }
 
-      // 2. Handle Modal Submissions (5x5 Mines, Continuous Crash, Keno, Coinflip, Slots, Blackjack)
+      // 2. Handle Modal Submissions (5x5 Mines, Continuous Crash, Coinflip, Blackjack)
       if (interaction.isModalSubmit()) {
         try {
           if (interaction.customId === 'mines_custom_modal') {
@@ -165,31 +163,12 @@ export async function getDiscordClient() {
             } catch {}
             return await continuousCrash.handleBet(interaction, amt, autoVal);
           }
-          if (interaction.customId === 'keno_custom_modal') {
-            const betRaw = interaction.fields.getTextInputValue('keno_bet_input') || '100';
-            const numRaw = interaction.fields.getTextInputValue('keno_numbers_input') || '5';
-            let riskRaw = 'medium';
-            try {
-              riskRaw = interaction.fields.getTextInputValue('keno_risk_input') || 'medium';
-            } catch {}
-            const bet = Math.max(10, parseInt(betRaw.replace(/[^0-9]/g, ''), 10) || 100);
-            const nums = numRaw
-              .split(/[\s,]+/)
-              .map((s) => parseInt(s.trim(), 10))
-              .filter((n) => !isNaN(n) && n >= 1 && n <= 20);
-            return await playModernKeno(interaction, bet, nums, riskRaw);
-          }
           if (interaction.customId === 'coinflip_custom_modal') {
             const sideRaw = interaction.fields.getTextInputValue('coinflip_side_input') || 'heads';
             const betRaw = interaction.fields.getTextInputValue('coinflip_bet_input') || '100';
             const side = sideRaw.trim().toLowerCase().startsWith('t') ? 'tails' : 'heads';
             const bet = Math.max(10, parseInt(betRaw.replace(/[^0-9]/g, ''), 10) || 100);
             return await playCoinflip(interaction, side, bet);
-          }
-          if (interaction.customId === 'slots_custom_modal') {
-            const betRaw = interaction.fields.getTextInputValue('slots_bet_input') || '100';
-            const bet = Math.max(10, parseInt(betRaw.replace(/[^0-9]/g, ''), 10) || 100);
-            return await playSlots(interaction, bet);
           }
           if (interaction.customId === 'bj_custom_modal') {
             const betRaw = interaction.fields.getTextInputValue('bj_bet_input') || '100';
@@ -475,46 +454,6 @@ export async function getDiscordClient() {
         }
         if (id === 'start_mines_100') return await start5x5Mines(interaction, 100, 3);
         if (id === 'start_mines_500') return await start5x5Mines(interaction, 500, 5);
-
-        // Modern 20-Ball Keno (Interactive Board + Multi-Risk + Quick Presets)
-        if (
-          id === 'keno_board_open' ||
-          id.startsWith('keno_toggle_') ||
-          id.startsWith('keno_action_')
-        ) {
-          return await handleKenoInteraction(interaction);
-        }
-        if (
-          id.startsWith('keno_play_') ||
-          id.startsWith('keno_replay_') ||
-          id.startsWith('keno_quick_') ||
-          id.startsWith('start_keno_')
-        ) {
-          const parts = id.split('_');
-          let bet = 100;
-          let picks = 5;
-          let risk = null;
-          if (parts.length >= 4) {
-            picks = parseInt(parts[2], 10) || 5;
-            bet = parseInt(parts[3], 10) || 100;
-            if (parts[4]) risk = parts[4];
-          } else {
-            bet = parseInt(parts[parts.length - 1], 10) || 100;
-          }
-          return await playModernKeno(interaction, bet, picks, risk);
-        }
-        if (id === 'keno_modal_btn') {
-          return await showKenoModal(interaction);
-        }
-
-        // Slots Game (Presets, Replay, 2x & Custom Modal)
-        if (id.startsWith('slots_spin_')) {
-          const bet = parseInt(id.replace('slots_spin_', ''), 10) || 100;
-          return await playSlots(interaction, bet);
-        }
-        if (id === 'slots_modal_btn') {
-          return await showSlotsModal(interaction);
-        }
 
         // Coinflip Game (Heads, Tails, 2x & Custom Modal)
         if (id.startsWith('flip_heads_')) {

@@ -82,13 +82,6 @@ async function createGameChannels() {
       color: 0x2ef2b8,
     },
     {
-      name: '🎲┃keno',
-      topic: 'Virtual Keno game. Pick your lucky numbers and hit big payout multipliers!',
-      title: '🎲  KENO (VIRTUAL)',
-      desc: '> **Virtual Keno Game Room**\n> Select your numbers, hit draws, and multiply your tokens!\n\n*Bot integration coming soon.*',
-      color: 0x9b59b6,
-    },
-    {
       name: '🪙┃coinflip',
       topic: 'Virtual Coinflip. Fast-paced 50/50 token flips against other members or bot!',
       title: '🪙  COINFLIP (VIRTUAL)',
@@ -101,13 +94,6 @@ async function createGameChannels() {
       title: '🃏  BLACKJACK (VIRTUAL)',
       desc: '> **Virtual Blackjack Game Room**\n> Classic 21 card action against the house dealer.\n\n*Bot integration coming soon.*',
       color: 0x3498db,
-    },
-    {
-      name: '🎰┃slots',
-      topic: 'Virtual Slot machines. Spin the reels and match symbols for jackpot payouts!',
-      title: '🎰  SLOTS (VIRTUAL)',
-      desc: '> **Virtual Slots Game Room**\n> Classic 3-reel and 5-reel virtual slot machine spins.\n\n*Bot integration coming soon.*',
-      color: 0xe67e22,
     },
   ];
 

@@ -1,4 +1,4 @@
-window.createLiveChatUI = function ({api, state}) {
+window.createLiveChatUI = function ({api, state, hasPlayLink}) {
   const panel=document.getElementById('liveChat'), shell=document.querySelector('.mf-shell');
   const toggle=document.getElementById('liveChatToggle'), close=document.getElementById('liveChatClose');
   const messages=document.getElementById('liveChatMessages'), form=document.getElementById('liveChatForm');
@@ -8,7 +8,7 @@ window.createLiveChatUI = function ({api, state}) {
   const known=new Set(); let profile=null, pending=null, busy=false, loaded=false;
   function setOpen(open){panel.hidden=!open;shell.classList.toggle('chat-open',open);toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Close live chat':'Open live chat');if(open){refresh();if(matchMedia('(max-width: 1080px)').matches)close.focus();}else toggle.focus();}
   function allowed(){return Boolean(profile && profile.level>=profile.minLevel);}
-  function updateComposer(){const enabled=allowed()&&!busy;input.disabled=!enabled;send.disabled=!enabled;if(busy)status.textContent='Sending…';else if(!profile)status.textContent='Link Discord to write';else if(!allowed())status.textContent=`Level ${profile.level} · Level ${profile.minLevel} required`;else status.textContent=`Discord level ${profile.level} · Be respectful`;}
+  function updateComposer(){const enabled=allowed()&&!busy;input.disabled=!enabled;send.disabled=!enabled;if(busy)status.textContent='Sending…';else if(!profile)status.textContent=hasPlayLink?'Open a fresh /play link from Discord.':'Run /play in Discord and open your link to write.';else if(!allowed())status.textContent=`Level ${profile.level} · Level ${profile.minLevel} required`;else status.textContent=`Discord level ${profile.level} · Be respectful`;}
   function renderMessage(message){
     if(!message?.id||known.has(message.id))return; known.add(message.id);
     messages.querySelector('.live-chat-empty')?.remove();
@@ -27,7 +27,7 @@ window.createLiveChatUI = function ({api, state}) {
   panel.addEventListener('keydown',event=>{if(event.key==='Escape'&&!panel.hidden)setOpen(false);});
   input.addEventListener('input',()=>{count.textContent=String(input.value.length);if(pending&&pending.text!==input.value.trim())pending=null;});
   input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();form.requestSubmit();}});
-  form.addEventListener('submit',async event=>{event.preventDefault();const text=input.value.trim();if(!text||!allowed()||busy)return;pending=pending?.text===text?pending:{id:crypto.randomUUID(),text};busy=true;updateComposer();try{const result=await api('/chat/messages','POST',pending);renderMessage(result.message);input.value='';count.textContent='0';pending=null;}catch(error){status.textContent=error.message;if(error.status===401||error.status===403)profile=null;}finally{busy=false;const previous=status.textContent;updateComposer();if(previous&&!previous.startsWith('Sending'))status.textContent=previous;}});
+  form.addEventListener('submit',async event=>{event.preventDefault();const text=input.value.trim();if(!text||!allowed()||busy)return;pending=pending?.text===text?pending:{id:crypto.randomUUID(),text};busy=true;updateComposer();try{const result=await api('/chat/messages','POST',pending);renderMessage(result.message);input.value='';count.textContent='0';pending=null;}catch(error){status.textContent=error.message;if(error.status===401){profile=null;status.textContent='Open a fresh /play link from Discord.';}else if(error.status===403){profile=null;void refresh();}}finally{busy=false;const previous=status.textContent;updateComposer();if(previous&&!previous.startsWith('Sending'))status.textContent=previous;}});
   const initiallyOpen=matchMedia('(min-width: 1440px)').matches;
   if(initiallyOpen){panel.hidden=false;shell.classList.add('chat-open');toggle.setAttribute('aria-expanded','true');toggle.setAttribute('aria-label','Close live chat');}
   refresh();

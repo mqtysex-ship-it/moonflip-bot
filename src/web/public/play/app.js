@@ -2941,22 +2941,6 @@
       cmd: '/blackjack bet:100',
       img: '/play/assets/game-blackjack.png?v=6.0',
     },
-    keno: {
-      title: 'Neon Keno',
-      category: 'Arcade & Lottery',
-      desc: 'Pick your lucky numbers and match the drawn spheres for high multiplier returns! Volatility multipliers pay out according to your hits, with jackpot multipliers reaching up to 1,000×. Playable directly in Discord channels.',
-      maxWin: '1,000× Jackpot',
-      cmd: '/keno bet:100 picks:5',
-      img: '/play/assets/game-keno.png?v=6.0',
-    },
-    slots: {
-      title: 'Cyber Slots',
-      category: 'Arcade & Lottery',
-      desc: 'Spin 3 reels for Triple Neon 777s, diamonds, lunar crescents, and rockets. Hit 3 matching symbols on the center payline to trigger progressive community jackpots and bonus token payouts!',
-      maxWin: '500× Multiplier',
-      cmd: '/slots bet:100',
-      img: '/play/assets/game-slots.png?v=6.0',
-    },
     coinflip: {
       title: 'Coinflip',
       category: 'PvP & Solo Toss',
@@ -3515,7 +3499,7 @@
     buttons[index].focus();
   });
 
-  liveChatUi = window.createLiveChatUI?.({api,state}) || null;
+  liveChatUi = window.createLiveChatUI?.({api,state,hasPlayLink:Boolean(playToken)}) || null;
   appearanceUi = window.createAppearanceUI({api,state});
   rewardsUi = window.createRewardsUI({api,state,updateBalance:updateBalanceDisplay,refreshProfile});
   document.getElementById('btnOpenRewards')?.addEventListener('click',()=>rewardsUi.open());

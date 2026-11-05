@@ -11,10 +11,8 @@ import { continuousCrash } from './continuousCrash.js';
 import {
   getMinesPreviewGif,
   getPlinkoPreviewGif,
-  getKenoPreviewGif,
   getCoinflipAnimationGif,
   getBlackjackPreviewGif,
-  generateSlotsAnimationGif,
   getRulesBannerGif,
   getVerifyBannerGif,
   getTicketBannerGif,
@@ -82,38 +80,6 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
   // 1b. Plinko Panel (8–16 Rows Multi-Risk Pyramid — Web Arena)
   await deployPlinkoPanel(guild);
 
-  // 2. Keno Panel (20-Ball Multi-Risk Lottery)
-  const kenoChan = guild.channels.cache.find((c) => c.name.toLowerCase().includes('keno'));
-  if (kenoChan) {
-    await clearRecentChannelMessages(kenoChan);
-
-    const kenoGif = new AttachmentBuilder(getKenoPreviewGif(), {
-      name: 'moonflip_keno_preview.gif',
-    });
-
-    const embed = new EmbedBuilder()
-      .setColor(0x9b59b6)
-      .setTitle('🎲 Keno')
-      .setDescription(
-        `> Pick 2 to 10 numbers on the 20-ball board. 7 winning balls are drawn each round.\n\n` +
-        `**5-Pick Multipliers**\n` +
-        `• **5/5 Hits:** \`15x\` (Low) · \`25x\` (Med) · \`45x\` (High)\n` +
-        `• **4/5 Hits:** \`4x\` (Low) · \`6x\` (Med) · \`9x\` (High)\n` +
-        `• **3/5 Hits:** \`1.6x\` (Low) · \`2x\` (Med) · \`2.5x\` (High)\n\n` +
-        `-# ⚡ Instant Discord Game • Provably Fair`
-      );
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('keno_board_open').setLabel('Pick Numbers').setEmoji('🎯').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('keno_quick_5_100_medium').setLabel('5 Picks (100)').setEmoji('🎲').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('launch_web_app').setLabel('Open WebApp').setEmoji('🌐').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('keno_modal_btn').setLabel('Custom').setEmoji('⚙️').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('eco_balance').setLabel('Balance').setEmoji('💰').setStyle(ButtonStyle.Secondary)
-    );
-
-    await kenoChan.send({ files: [kenoGif], embeds: [embed], components: [row] });
-    console.log(`Deployed 20-Ball Keno panel in #${kenoChan.name}`);
-  }
 
   // 3. Continuous Multiplayer Crash
   try {
@@ -199,44 +165,6 @@ export async function deployGamePanels(guildId = '1566215806956601466') {
     console.log(`Deployed Blackjack panel in #${bjChan.name}`);
   }
 
-  // 6. Slots Panel
-  const slotsChan = guild.channels.cache.find((c) => c.name.toLowerCase().includes('slots'));
-  if (slotsChan) {
-    await clearRecentChannelMessages(slotsChan);
-
-    const slotsGif = new AttachmentBuilder(
-      generateSlotsAnimationGif(
-        ['🍒', '💎', '🍋'],
-        ['🔔', '💎', '🍇'],
-        ['7️⃣', '💎', '🍒'],
-        { reels: ['💎', '💎', '💎'], multiplier: 30, matches: 3, symbolName: 'Diamond' }
-      ),
-      { name: 'moonflip_slots_preview.gif' }
-    );
-
-    const embed = new EmbedBuilder()
-      .setColor(0xf39c12)
-      .setTitle('🎰 Slots')
-      .setDescription(
-        `> Spin 3 reels and match symbols along the center payline.\n\n` +
-        `**Paytable**\n` +
-        `• 💎 \`30x\` (pair \`3.0x\`) · 7️⃣ \`15x\` (pair \`2.5x\`)\n` +
-        `• 🔔 \`10x\` (pair \`2.0x\`) · 🍇 \`5x\` (pair \`1.5x\`)\n` +
-        `• 🍒 \`3x\` (pair \`1.2x\`) · 🍋 \`2x\` (pair \`1.1x\`)\n\n` +
-        `-# ⚡ Instant Discord Game • Provably Fair`
-      );
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('slots_spin_100').setLabel('Spin (100)').setEmoji('🎰').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('slots_spin_250').setLabel('Spin (250)').setEmoji('🎰').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('launch_web_app').setLabel('Open WebApp').setEmoji('🌐').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('slots_modal_btn').setLabel('Custom').setEmoji('⚙️').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('eco_balance').setLabel('Balance').setEmoji('💰').setStyle(ButtonStyle.Secondary)
-    );
-
-    await slotsChan.send({ files: [slotsGif], embeds: [embed], components: [row] });
-    console.log(`Deployed Slots panel in #${slotsChan.name}`);
-  }
 
   // 7. Rules Channel Banner + Interactive Dropdown & Embed (#rules)
   const rulesCh = guild.channels.cache.find((c) => c.name.toLowerCase().includes('rules'));

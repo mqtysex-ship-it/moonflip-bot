@@ -266,7 +266,7 @@ export async function handleRulesInteraction(interaction) {
         .setColor(0x2ecc71)
         .setTitle('Fairness & RNG')
         .setDescription(
-          `All Moonflip games (Mines, Crash, Plinko, Keno, Coinflip, Blackjack, Slots) use server-side cryptographic randomness (\`crypto.randomBytes\` / \`crypto.randomInt\`).\n\n` +
+          `All Moonflip games (Mines, Crash, Plinko, Coinflip, Blackjack) use server-side cryptographic randomness (\`crypto.randomBytes\` / \`crypto.randomInt\`).\n\n` +
           `Each round is settled atomically on the server and includes a standard house edge. Play responsibly (18+).`
         )
         .setFooter({ text: 'Moonflip • Fairness' });

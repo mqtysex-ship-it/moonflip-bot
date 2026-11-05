@@ -403,7 +403,7 @@ async function setupStaffHQ() {
             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
             `### 🌙 1. CORE BRAND IDENTITY & GUIDELINES\n` +
             `✦ **Brand Name**: \`Moonflip\` *(Capital M, lowercase f or CamelCase)*\n` +
-            `✦ **Core Concept**: Modern, sleek crypto-adjacent entertainment platform featuring provably fair virtual token games (Crash, Mines, Keno, Coinflip, Slots, Blackjack).\n` +
+            `✦ **Core Concept**: Modern, sleek crypto-adjacent entertainment platform featuring provably fair virtual token games (Crash, Mines, Plinko, Coinflip, Blackjack).\n` +
             `✦ **Tone of Voice**: High-energy, elite, transparent, luxurious, and welcoming.\n` +
             `✦ **Visual Aesthetic**: Dark cyber-space theme with vibrant gold accents, glowing neon highlights, and crisp minimalist geometry.\n\n` +
             `### ⚠️ BRAND SAFETY RULES\n` +
