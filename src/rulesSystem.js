@@ -30,8 +30,8 @@ export const RULES_SECTIONS = {
     title: '1. Age Eligibility (18+) & Verification',
     description:
       `• You must be **18 years of age or older** to participate in games, leaderboards, or prize redemptions.\n` +
-      `• Accounts found to belong to minors will be closed and any associated balances voided.\n` +
-      `• Identity verification (KYC) may be requested prior to processing prize redemptions.`,
+      `• Accounts found to belong to minors may be suspended or closed. Any balances and transactions will be handled in accordance with applicable law.\n` +
+      `• Age and identity verification may be required before play or transactions, as applicable.`,
     footer: 'Moonflip • Section 1',
   },
 
