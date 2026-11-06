@@ -3385,3 +3385,8 @@ body,.mf-main { background:var(--bg-body); }
 
 .live-chat-note a { color: var(--mint); text-decoration: none; }
 .live-chat-note a:hover { text-decoration: underline; }
+
+/* Legal information */
+.mf-legal-footer { display:flex; flex-wrap:wrap; gap:16px 28px; align-items:center; border-top:1px solid var(--border-subtle); padding:24px 0 8px; color:var(--text-secondary); font-size:13px; }
+.mf-legal-footer a { color:var(--text-white); text-decoration:underline; text-underline-offset:3px; }
+.mf-legal-footer a:focus-visible { outline:2px solid var(--mint); outline-offset:4px; }
