@@ -190,7 +190,7 @@ export async function setupLevelSystem(guildId = '1566215806956601466') {
         },
         {
           name: '`[ Q4 ]` Are games rigged or provably fair?',
-          value: '✦ All games (Mines, Crash, Plinko, Coinflip, Blackjack) use **cryptographically secure RNG** (`crypto.randomBytes`) ensuring transparent, provably fair outcomes matching industry standards.',
+          value: '✦ Games use server-side random number generation. A cryptographic random source alone does not provide independent verification of individual outcomes. Contact support with game questions.',
         },
         {
           name: '`[ Q5 ]` How do I unlock the VIP High Roller category?',
